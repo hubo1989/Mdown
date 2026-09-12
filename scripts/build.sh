@@ -16,7 +16,7 @@ NC='\033[0m'
 # Auto-detect version from project.pbxproj
 VERSION=$(grep "MARKETING_VERSION" MiaoYan.xcodeproj/project.pbxproj | head -1 | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
 [ -n "$1" ] && VERSION="$1"
-KEY_PATH="${SPARKLE_PRIVATE_KEY:-}"
+KEY_PATH="${SPARKLE_PRIVATE_KEY:-$HOME/.config/miaoyan/sparkle_private_key}"
 
 if [ -z "$VERSION" ]; then
 	echo -e "${RED}ERROR: Could not detect version${NC}"
@@ -24,7 +24,7 @@ if [ -z "$VERSION" ]; then
 fi
 
 echo ""
-echo "Building MiaoYan v$VERSION (unsigned)"
+echo "Building Mdown v$VERSION (unsigned)"
 echo "======================================"
 
 # 1. Clean
@@ -48,36 +48,45 @@ xcodebuild archive \
 # 3. Export
 echo "[3/6] Exporting..."
 mkdir -p "./build/Release"
-cp -R "./build/MiaoYan.xcarchive/Products/Applications/MiaoYan.app" "./build/Release/MiaoYan.app"
+cp -R "./build/MiaoYan.xcarchive/Products/Applications/MiaoYan.app" "./build/Release/Mdown.app"
+
+# Ensure binary, CFBundleExecutable, and display names are Mdown
+if [ -f "./build/Release/Mdown.app/Contents/MacOS/MiaoYan" ]; then
+	mv "./build/Release/Mdown.app/Contents/MacOS/MiaoYan" "./build/Release/Mdown.app/Contents/MacOS/Mdown"
+	/usr/libexec/PlistBuddy -c "Set :CFBundleExecutable Mdown" "./build/Release/Mdown.app/Contents/Info.plist"
+fi
+/usr/libexec/PlistBuddy -c "Set :CFBundleName Mdown" "./build/Release/Mdown.app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Mdown" "./build/Release/Mdown.app/Contents/Info.plist"
+ln -sfn Mdown.app "./build/Release/MiaoYan.app"
 
 # 4. Ad-hoc sign & package
 echo "[4/6] Signing & packaging..."
 # Clean attributes FIRST, then sign (otherwise signature is invalidated)
-xattr -cr "./build/Release/MiaoYan.app"
+xattr -cr "./build/Release/Mdown.app"
 # Sign frameworks explicitly first to ensure consistency
-if [ -d "./build/Release/MiaoYan.app/Contents/Frameworks" ]; then
-	find "./build/Release/MiaoYan.app/Contents/Frameworks" -depth -name "*.framework" -print0 | xargs -0 codesign --force --deep -s -
+if [ -d "./build/Release/Mdown.app/Contents/Frameworks" ]; then
+	find "./build/Release/Mdown.app/Contents/Frameworks" -depth -name "*.framework" -print0 | xargs -0 codesign --force --deep -s -
 fi
 # Sign the main application
-codesign --force --deep -s - "./build/Release/MiaoYan.app"
+codesign --force --deep -s - "./build/Release/Mdown.app"
 # Verify signature
-codesign -v "./build/Release/MiaoYan.app" || {
+codesign -v "./build/Release/Mdown.app" || {
 	echo "Signature verification failed"
 	exit 1
 }
 
-ZIP_NAME="MiaoYan_V${VERSION}.zip"
-DMG_NAME="MiaoYan.dmg"
+ZIP_NAME="Mdown_V${VERSION}.zip"
+DMG_NAME="Mdown.dmg"
 DOWNLOADS=~/Downloads
-APP_NAME="MiaoYan"
+APP_NAME="Mdown"
 BACKGROUND_IMAGE_SOURCE="./Resources/dmg-background.png"
 BACKGROUND_IMAGE_NAME="$(basename "$BACKGROUND_IMAGE_SOURCE")"
 
-/usr/bin/ditto -c -k --sequesterRsrc --keepParent "./build/Release/MiaoYan.app" "./build/$ZIP_NAME"
+/usr/bin/ditto -c -k --sequesterRsrc --keepParent "./build/Release/Mdown.app" "./build/$ZIP_NAME"
 
 # Create DMG with drag-to-Applications interface using hdiutil
 STAGING_DIR="./build/dmg_staging"
-TEMP_DMG_PATH="./build/MiaoYan_temp.dmg"
+TEMP_DMG_PATH="./build/Mdown_temp.dmg"
 DMG_BASE_PATH="./build/${DMG_NAME%.dmg}"
 
 # Cleanup function to detach existing volumes
@@ -147,7 +156,7 @@ cleanup_volumes
 
 rm -rf "$STAGING_DIR" "./build/$DMG_NAME" "$TEMP_DMG_PATH"
 mkdir -p "$STAGING_DIR"
-cp -R "./build/Release/MiaoYan.app" "$STAGING_DIR/"
+cp -R "./build/Release/Mdown.app" "$STAGING_DIR/"
 ln -s /Applications "$STAGING_DIR/Applications"
 
 if [[ -f "$BACKGROUND_IMAGE_SOURCE" ]]; then
@@ -242,13 +251,26 @@ mv "./build/$DMG_NAME" "$DOWNLOADS/" && mv "./build/$ZIP_NAME" "$DOWNLOADS/"
 # 6. Done
 echo "[6/6] Done!"
 echo ""
-echo -e "${GREEN}MiaoYan v$VERSION build succeeded!${NC}"
+echo -e "${GREEN}Mdown v$VERSION build succeeded!${NC}"
 echo "  DMG: $DOWNLOADS/$DMG_NAME"
 echo "  ZIP: $DOWNLOADS/$ZIP_NAME"
 
 if [ -n "$SIGNATURE" ]; then
+	ZIP_URL="https://github.com/hubo1989/Mdown/releases/download/V${VERSION}/$ZIP_NAME"
+	PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
 	echo ""
-	echo "appcast.xml:"
-	echo "<enclosure url=\"https://miaoyan.app/Release/$ZIP_NAME\" sparkle:shortVersionString=\"$VERSION\" sparkle:version=\"$VERSION\" sparkle:edSignature=\"$SIGNATURE\" length=\"$ZIP_SIZE\" type=\"application/octet-stream\"/>"
+	echo "appcast.xml enclosure:"
+	echo "<enclosure url=\"$ZIP_URL\" sparkle:shortVersionString=\"$VERSION\" sparkle:version=\"$VERSION\" sparkle:edSignature=\"$SIGNATURE\" length=\"$ZIP_SIZE\" type=\"application/octet-stream\"/>"
+
+	if [ -f "./appcast.xml" ] && [ -f "./scripts/release-ci/update_appcast.sh" ]; then
+		bash ./scripts/release-ci/update_appcast.sh \
+			--appcast ./appcast.xml \
+			--version "$VERSION" \
+			--pub-date "$PUB_DATE" \
+			--signature "$SIGNATURE" \
+			--length "$ZIP_SIZE" \
+			--zip-url "$ZIP_URL" || true
+		echo "Updated ./appcast.xml successfully"
+	fi
 fi
 echo ""

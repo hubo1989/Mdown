@@ -149,6 +149,11 @@
             processEscapes: true,
             ignoredClasses: ['katex-display', 'katex', 'skip-math-dollar']
           });
+          document.querySelectorAll('.katex-display').forEach((el, index) => {
+            el.dataset.blockId = 'katex-' + index;
+            el.dataset.blockKind = 'katex';
+            el.dataset.katexRendered = 'true';
+          });
         };
         if ('requestIdleCallback' in window) {
           requestIdleCallback(renderMath, { timeout: 200 });

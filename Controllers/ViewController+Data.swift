@@ -406,6 +406,11 @@ extension ViewController {
                     // Case 1: Standard Selection Success
                     if let selectedNote = self.notesTableView.getSelectedNote() {
                         self.editArea.fill(note: selectedNote, options: .silent)
+                        if self.sessionLayoutMode == .wysiwyg {
+                            self.editAreaScroll.isHidden = true
+                            self.vditorEditView?.isHidden = false
+                            self.vditorEditView?.loadNote(selectedNote)
+                        }
                         self.revealEditor()
                     }
                     // Case 2: Selection missed/racing but data exists
@@ -417,6 +422,11 @@ extension ViewController {
                         self.notesTableView.scrollRowToVisible(0)
 
                         self.editArea.fill(note: firstNote, options: .silent)
+                        if self.sessionLayoutMode == .wysiwyg {
+                            self.editAreaScroll.isHidden = true
+                            self.vditorEditView?.isHidden = false
+                            self.vditorEditView?.loadNote(firstNote)
+                        }
                         self.revealEditor()
                     } else {
                         // Reveal anyway if we have no notes (empty state)

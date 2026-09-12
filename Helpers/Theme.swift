@@ -217,6 +217,16 @@ enum Theme {
         NSColor(named: "accentColor") ?? .controlAccentColor
     }
 
+    static var toolbarButtonActiveBackgroundColor: Color {
+        Color(name: nil) { appearance in
+            let accent = accentColor.resolvedColor(for: appearance)
+            if appearance.isDark {
+                return accent.withAlphaComponent(0.22)
+            }
+            return accent.withAlphaComponent(0.14)
+        }
+    }
+
     static var inactiveIconColor: Color {
         if usesModernSystemChrome {
             return .secondaryLabelColor

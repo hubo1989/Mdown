@@ -4,6 +4,8 @@ included:
 excluded:
   - .build
   - .vscode
+  - Build
+  - build
 
 disabled_rules:
   - force_cast

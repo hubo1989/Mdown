@@ -23,20 +23,14 @@ class SidebarItem {
     @MainActor public func isGroupItem() -> Bool {
         let notesLabel = getLocalizedAppName()
         let trashLabel = I18n.str("Trash")
-        if project == nil, [notesLabel, trashLabel].contains(name) {
+        if project == nil, [notesLabel, trashLabel, "MiaoYan", "妙言"].contains(name) {
             return true
         }
         return false
     }
 
     @MainActor private func getLocalizedAppName() -> String {
-        let language = UserDefaultsManagement.defaultLanguage
-        switch language {
-        case 1:  // English
-            return "MiaoYan"
-        default:  // Chinese, Japanese, etc.
-            return "妙言"
-        }
+        return "Mdown"
     }
 
     public func isSame(as other: SidebarItem) -> Bool {

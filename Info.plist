@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>Mdown</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -44,7 +44,7 @@
 		<string>ja</string>
 	</array>
 	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>Mdown</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -60,6 +60,7 @@
 			<string>com.tw93.miaoyan</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>mdown</string>
 				<string>miaoyan</string>
 			</array>
 		</dict>
@@ -112,7 +113,7 @@
 			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
 			<true/>
 			<key>NSUbiquitousContainerName</key>
-			<string>MiaoYan</string>
+			<string>Mdown</string>
 			<key>NSUbiquitousContainerSupportedFolderLevels</key>
 			<string>One</string>
 		</dict>
@@ -122,9 +123,9 @@
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://miaoyan.app/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/hubo1989/Mdown/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>seQrPHFOWomxlN8ufdI3/ba1/HL1t86TkzRb53FSGys=</string>
+	<string>qSs/X6RnQMoPGINQAttshY1lKeuFQnREhzAPiIPhr4E=</string>
 	<key>SUScheduledCheckInterval</key>
 	<real>3666</real>
 	<key>UILaunchStoryboardName</key>

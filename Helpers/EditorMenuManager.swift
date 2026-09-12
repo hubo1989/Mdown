@@ -8,6 +8,15 @@ class EditorMenuManager {
         self.textView = textView
     }
 
+    private func ensureSourceModeForEditing() {
+        guard let vc = ViewController.shared() else { return }
+        if vc.sessionLayoutMode == .wysiwyg {
+            vc.sessionLayoutMode = .source
+            UserDefaultsManagement.editorLayoutMode = .source
+            vc.applyEditorModePreferenceChange()
+        }
+    }
+
     func performFormattingAction(_ action: FormattingAction) {
         guard textView != nil,
             let vc = ViewController.shared(),
@@ -15,9 +24,14 @@ class EditorMenuManager {
             let note = EditTextView.note,
             !vc.sessionPreviewMode,
             !vc.sessionPresentationMode,
-            !vc.sessionMagicPPTMode,
-            editArea.hasFocus()
+            !vc.sessionMagicPPTMode
         else { return }
+
+        if vc.sessionLayoutMode == .wysiwyg {
+            ensureSourceModeForEditing()
+        }
+
+        guard editArea.hasFocus() else { return }
 
         let formatter = TextFormatter(textView: editArea, note: note, shouldScanMarkdown: action.shouldScanMarkdown)
 
@@ -42,6 +56,7 @@ class EditorMenuManager {
     }
 
     func insertCodeBlock() {
+        ensureSourceModeForEditing()
         guard let textView = textView else { return }
 
         let currentRange = textView.selectedRange()
@@ -73,6 +88,7 @@ class EditorMenuManager {
     }
 
     func insertCodeSpan() {
+        ensureSourceModeForEditing()
         guard let textView = textView else { return }
 
         let currentRange = textView.selectedRange()
@@ -95,6 +111,7 @@ class EditorMenuManager {
     }
 
     func insertFileOrImage() {
+        ensureSourceModeForEditing()
         guard let note = EditTextView.note else { return }
 
         let panel = NSOpenPanel()
@@ -138,11 +155,13 @@ class EditorMenuManager {
     }
 
     func formatText() {
+        ensureSourceModeForEditing()
         guard let vc = ViewController.shared() else { return }
         vc.formatText()
     }
 
     func cleanTypography() {
+        ensureSourceModeForEditing()
         guard let vc = ViewController.shared() else { return }
         vc.cleanTypography(nil)
     }

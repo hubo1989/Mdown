@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="color-scheme" content="light dark" />
+  <title>MiaoYan WYSIWYG Editor</title>
+  
+  <link rel="stylesheet" href="vditor/dist/index.css" />
+  
+  <style>
+    :root {
+      --bg-color: #FFFFFF;
+      --text-color: #262626;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #23282D;
+        --text-color: #E7E9EA;
+      }
+    }
+
+    .darkmode {
+      --bg-color: #23282D;
+      --text-color: #E7E9EA;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-color);
+      color: var(--text-color);
+      overflow: hidden;
+    }
+
+    #vditor {
+      border: none !important;
+      height: 100% !important;
+      background: transparent !important;
+    }
+
+    .vditor-toolbar {
+      display: none !important;
+    }
+
+    .vditor-content {
+      background: transparent !important;
+    }
+
+    .vditor-reset {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
+      font-size: 15px !important;
+      line-height: 1.7 !important;
+      padding: 24px 36px 60px 36px !important;
+      color: inherit !important;
+      background: transparent !important;
+    }
+
+    /* 规则：Markdown 编辑区内图片/视频/表格最大宽度100%，禁止横向溢出 */
+    img, video, iframe, table {
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    /* 自定义滚动条更接近原生 macOS */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(128, 128, 128, 0.25);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(128, 128, 128, 0.4);
+    }
+  </style>
+
+  <script src="vditor/dist/js/i18n/zh_CN.js"></script>
+  <script src="vditor/dist/index.min.js"></script>
+</head>
+<body>
+  <div id="vditor"></div>
+
+  <script>
+    let editorInstance = null;
+    let isUpdatingFromSwift = false;
+
+    function initEditor(initialMarkdown, isDark) {
+      if (isDark) {
+        document.documentElement.classList.add('darkmode');
+        document.body.classList.add('darkmode');
+      }
+
+      const vditorTheme = isDark ? 'dark' : 'classic';
+      const contentTheme = isDark ? 'dark' : 'light';
+      const codeTheme = isDark ? 'native' : 'github';
+
+      editorInstance = new Vditor('vditor', {
+        mode: 'wysiwyg',
+        theme: vditorTheme,
+        lang: 'zh_CN',
+        cdn: './vditor',
+        value: initialMarkdown || '',
+        cache: {
+          enable: false
+        },
+        toolbarConfig: {
+          hide: true
+        },
+        preview: {
+          theme: {
+            current: contentTheme
+          },
+          hljs: {
+            style: codeTheme
+          },
+          markdown: {
+            toc: true,
+            mark: true,
+            footnotes: true,
+            autoSpace: true,
+            gfmAutoLink: true
+          }
+        },
+        after() {
+          if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.vditorReady) {
+            window.webkit.messageHandlers.vditorReady.postMessage({ status: 'ready' });
+          }
+        },
+        input(value) {
+          if (isUpdatingFromSwift) return;
+          if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.vditorChange) {
+            window.webkit.messageHandlers.vditorChange.postMessage({ markdown: value });
+          }
+        }
+      });
+    }
+
+    function setMarkdown(markdown) {
+      if (!editorInstance) return;
+      isUpdatingFromSwift = true;
+      try {
+        editorInstance.setValue(markdown || '', () => {
+          setTimeout(() => {
+            isUpdatingFromSwift = false;
+          }, 100);
+        });
+      } catch (e) {
+        setTimeout(() => {
+          isUpdatingFromSwift = false;
+        }, 100);
+      }
+    }
+
+    function getMarkdown() {
+      if (!editorInstance) return '';
+      return editorInstance.getValue();
+    }
+
+    function setTheme(isDark) {
+      if (isDark) {
+        document.documentElement.classList.add('darkmode');
+        document.body.classList.add('darkmode');
+      } else {
+        document.documentElement.classList.remove('darkmode');
+        document.body.classList.remove('darkmode');
+      }
+      if (editorInstance) {
+        const vditorTheme = isDark ? 'dark' : 'classic';
+        const contentTheme = isDark ? 'dark' : 'light';
+        const codeTheme = isDark ? 'native' : 'github';
+        editorInstance.setTheme(vditorTheme, contentTheme, codeTheme);
+      }
+    }
+
+    function focusEditor() {
+      if (editorInstance) {
+        editorInstance.focus();
+      }
+    }
+  </script>
+</body>
+</html>

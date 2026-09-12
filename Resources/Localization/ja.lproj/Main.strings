@@ -6,7 +6,7 @@
 "0UJ-Ss-20u.title" = "コードフォント";
 
 /* Class = "NSMenuItem"; title = "MiaoYan"; ObjectID = "1Xt-HY-uBw"; */
-"1Xt-HY-uBw.title" = "妙言";
+"1Xt-HY-uBw.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Bold"; ObjectID = "1Yd-6R-e7Y"; */
 "1Yd-6R-e7Y.title" = "太字";
@@ -84,7 +84,7 @@
 "4J7-dP-txa.title" = "Enter Full Screen";
 
 /* Class = "NSMenuItem"; title = "Quit MiaoYan"; ObjectID = "4sb-4s-VLi"; */
-"4sb-4s-VLi.title" = "妙言を閉じる";
+"4sb-4s-VLi.title" = "Mdownを閉じる";
 
 /* Class = "NSMenuItem"; title = "Edit"; ObjectID = "5QF-Oa-p0T"; */
 "5QF-Oa-p0T.title" = "編集";
@@ -183,7 +183,7 @@
 "DTe-57-Kqf.title" = "16";
 
 /* Class = "NSMenuItem"; title = "MiaoYan PPT PDF"; ObjectID = "DhD-mk-T1u"; */
-"DhD-mk-T1u.title" = "妙言 スライド PDF";
+"DhD-mk-T1u.title" = "Mdown スライド PDF";
 
 /* Class = "NSMenuItem"; title = "Toggle Split View"; ObjectID = "Tgl-Spl-View"; */
 "Tgl-Spl-View.title" = "分割表示を切り替え";
@@ -282,7 +282,7 @@
 "IF0-dQ-WWn.title" = "15";
 
 /* Class = "NSWindow"; title = "MiaoYan"; ObjectID = "IQv-IB-iLA"; */
-"IQv-IB-iLA.title" = "妙言";
+"IQv-IB-iLA.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Times New Roman"; ObjectID = "IUe-Hi-7b6"; */
 "IUe-Hi-7b6.title" = "Times New Roman";
@@ -441,7 +441,7 @@
 "YEy-JH-Tfz.title" = "検索と置換…";
 
 /* Class = "NSViewController"; title = "About MiaoYan"; ObjectID = "YNW-vn-A3h"; */
-"YNW-vn-A3h.title" = "について妙言";
+"YNW-vn-A3h.title" = "Mdown について";
 
 /* Class = "NSButton"; ibShadowedToolTip = "New Project"; ObjectID = "Yei-Or-qiI"; */
 "Yei-Or-qiI.ibShadowedToolTip" = "新しいプロジェクト";
@@ -462,7 +462,7 @@
 "b5S-Qt-NKY.title" = "Consolas";
 
 /* Class = "NSMenuItem"; title = "Hide MiaoYan"; ObjectID = "bxj-82-bcY"; */
-"bxj-82-bcY.title" = "妙言を隠す";
+"bxj-82-bcY.title" = "Mdownを隠す";
 
 /* Class = "NSMenuItem"; title = "16"; ObjectID = "c1S-aB-edm"; */
 "c1S-aB-edm.title" = "16";
@@ -525,7 +525,7 @@
 "gVA-U4-sdL.title" = "ペーストする";
 
 /* Class = "NSMenuItem"; title = "About MiaoYan"; ObjectID = "gXN-Ca-moU"; */
-"gXN-Ca-moU.title" = "について 妙言";
+"gXN-Ca-moU.title" = "Mdown について";
 
 /* Class = "NSMenuItem"; title = "Editing"; ObjectID = "gh6-SU-E0i"; */
 "gh6-SU-E0i.title" = "Editing";
@@ -585,7 +585,7 @@
 "miK-8H-a4Z.title" = "20";
 
 /* Class = "NSTextFieldCell"; title = "MiaoYan"; ObjectID = "mj8-mU-0W4"; */
-"mj8-mU-0W4.title" = "妙言";
+"mj8-mU-0W4.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Times New Roman"; ObjectID = "n5K-Sw-Jli"; */
 "n5K-Sw-Jli.title" = "Times New Roman";
@@ -630,13 +630,13 @@
 "uMZ-sI-7ja.title" = "ファイル";
 
 /* Class = "NSMenu"; title = "MiaoYan"; ObjectID = "uQy-DD-JDr"; */
-"uQy-DD-JDr.title" = "妙言";
+"uQy-DD-JDr.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Cut"; ObjectID = "uRl-iY-unG"; */
 "uRl-iY-unG.title" = "切り取る";
 
 /* Class = "NSMenuItem"; title = "MiaoYan PPT"; ObjectID = "uUS-sg-zGt"; */
-"uUS-sg-zGt.title" = "妙言 スライド";
+"uUS-sg-zGt.title" = "Mdown スライド";
 
 /* Class = "NSMenuItem"; title = "Times New Roman"; ObjectID = "uW5-RQ-wqF"; */
 "uW5-RQ-wqF.title" = "Times New Roman";
@@ -645,7 +645,7 @@
 "uXW-Mt-L5y.title" = "ツイッターをフォローする";
 
 /* Class = "NSTextFieldCell"; title = "MiaoYan"; ObjectID = "v9A-ZO-AAb"; */
-"v9A-ZO-AAb.title" = "妙言";
+"v9A-ZO-AAb.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "12"; ObjectID = "vYJ-nZ-Rkv"; */
 "vYJ-nZ-Rkv.title" = "12";
@@ -657,7 +657,7 @@
 "vvp-aA-TcP.title" = "Telegram";
 
 /* Class = "NSMenuItem"; title = "MiaoYan"; ObjectID = "w6O-2c-LfY"; */
-"w6O-2c-LfY.title" = "MiaoYan";
+"w6O-2c-LfY.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Copy"; ObjectID = "x3v-GG-iWU"; */
 "x3v-GG-iWU.title" = "コピー";

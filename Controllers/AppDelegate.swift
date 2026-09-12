@@ -46,7 +46,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVa
         if let display = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String {
             return display
         }
-        return Bundle.main.object(forInfoDictionaryKey: kCFBundleNameKey as String) as? String ?? "MiaoYan"
+        return Bundle.main.object(forInfoDictionaryKey: kCFBundleNameKey as String) as? String ?? "Mdown"
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {

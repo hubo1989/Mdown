@@ -5,6 +5,7 @@ extension Notification.Name {
     static let editorModeChanged = Notification.Name("editorModeChanged")
     static let preferencesChanged = Notification.Name("PreferencesChanged")
     static let splitViewModeChanged = Notification.Name("SplitViewModeChanged")
+    static let editorLayoutModeChanged = Notification.Name("EditorLayoutModeChanged")
     static let alwaysOnTopChanged = Notification.Name("alwaysOnTopChanged")
 }
 // MARK: - App Identifier
@@ -156,6 +157,7 @@ public enum UserDefaultsManagement {
         static let SplitViewMode = "splitViewMode"
         static let EditorContentSplitPosition = "editorContentSplitPosition"
         static let EditorModeKey = "editorMode"
+        static let EditorLayoutModeKey = "editorLayoutMode"
     }
 
     private static func resolvedFontName(forKey key: String) -> String {
@@ -780,14 +782,9 @@ public enum UserDefaultsManagement {
         @MainActor static let shared = EditorStateManager()
         private var _currentMode: EditorMode = .normal
         private init() {
-            // Read from UserDefaults
-            if let storedMode = UserDefaults.standard.string(forKey: Constants.EditorModeKey),
-                let mode = EditorMode(rawValue: storedMode)
-            {
-                _currentMode = mode
-            } else {
-                _currentMode = .normal
-            }
+            // Preview and presentation modes are non-persistent runtime states that reset to normal on startup
+            _currentMode = .normal
+            UserDefaults.standard.removeObject(forKey: Constants.EditorModeKey)
         }
         var currentMode: EditorMode {
             get { return _currentMode }
@@ -855,19 +852,53 @@ public enum UserDefaultsManagement {
         }
     }
 
-    static var splitViewMode: Bool {
+    static var editorLayoutMode: EditorLayoutMode {
         get {
-            if let result = UserDefaults.standard.object(forKey: Constants.SplitViewMode) as? Bool {
-                return result
+            if let stored = UserDefaults.standard.string(forKey: Constants.EditorLayoutModeKey),
+                let mode = EditorLayoutMode(rawValue: stored)
+            {
+                return mode
             }
-            return false
+            // Migrate from legacy splitViewMode
+            let isSplit = UserDefaults.standard.bool(forKey: Constants.SplitViewMode)
+            return isSplit ? .split : .source
         }
         set {
-            let oldValue = splitViewMode
+            let oldValue = editorLayoutMode
             guard oldValue != newValue else { return }
-            UserDefaults.standard.set(newValue, forKey: Constants.SplitViewMode)
+            UserDefaults.standard.set(newValue.rawValue, forKey: Constants.EditorLayoutModeKey)
+            UserDefaults.standard.set(newValue == .split, forKey: Constants.SplitViewMode)
             DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .splitViewModeChanged, object: nil)
+                NotificationCenter.default.post(name: .editorLayoutModeChanged, object: newValue)
+                if (oldValue == .split) != (newValue == .split) {
+                    NotificationCenter.default.post(name: .splitViewModeChanged, object: nil)
+                }
+            }
+        }
+    }
+
+    static var splitViewMode: Bool {
+        get {
+            editorLayoutMode == .split
+        }
+        set {
+            if newValue {
+                editorLayoutMode = .split
+            } else if editorLayoutMode == .split {
+                editorLayoutMode = .source
+            }
+        }
+    }
+
+    static var wysiwygMode: Bool {
+        get {
+            editorLayoutMode == .wysiwyg
+        }
+        set {
+            if newValue {
+                editorLayoutMode = .wysiwyg
+            } else if editorLayoutMode == .wysiwyg {
+                editorLayoutMode = .source
             }
         }
     }

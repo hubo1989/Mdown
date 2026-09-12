@@ -24,7 +24,9 @@ class AboutViewController: NSViewController {
         view.layer?.backgroundColor = Theme.panelBackgroundColor.resolvedColor(for: view.effectiveAppearance).cgColor
 
         for case let label as NSTextField in view.subviews {
-            label.textColor = label.stringValue == "MiaoYan" ? Theme.textColor : Theme.secondaryTextColor
+            label.textColor =
+                (label.stringValue == "Mdown" || label.stringValue == "MiaoYan")
+                ? Theme.textColor : Theme.secondaryTextColor
         }
     }
 

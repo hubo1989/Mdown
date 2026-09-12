@@ -7,13 +7,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "MiaoYan"
+            "value" : "Mdown"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "妙言"
+            "value" : "Mdown"
           }
         }
       }
@@ -24,13 +24,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "MiaoYan"
+            "value" : "Mdown"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "妙言"
+            "value" : "Mdown"
           }
         }
       }
@@ -41,13 +41,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "MiaoYan needs access to your notes folder to read and save Markdown notes."
+            "value" : "Mdown needs access to your notes folder to read and save Markdown notes."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "妙言需要访问你的笔记文件夹，以读取和保存 Markdown 笔记。"
+            "value" : "Mdown 需要访问你的笔记文件夹，以读取和保存 Markdown 笔记。"
           }
         }
       }

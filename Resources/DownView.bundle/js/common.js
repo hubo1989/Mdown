@@ -35,6 +35,74 @@ const MiaoYanCommon = {
     document.oncontextmenu = getSelectionAndSendMessage;
   },
 
+  setupDiagramExport() {
+    document.addEventListener('contextmenu', (event) => {
+      const container = event.target.closest('[data-block-kind]');
+      if (container) {
+        const kind = container.dataset.blockKind;
+        const blockId = container.dataset.blockId;
+        const revision = parseInt(container.dataset.renderRevision || '1', 10);
+
+        let width = 0;
+        let height = 0;
+        let isReady = false;
+
+        if (kind === 'mermaid') {
+          const svg = container.querySelector('svg');
+          if ((container.dataset.mermaidRendered === 'true' || svg !== null) && svg) {
+            isReady = true;
+            const rect = svg.getBoundingClientRect();
+            width = rect.width;
+            height = rect.height;
+            if (width <= 0 || height <= 0) {
+              const viewBox = svg.viewBox?.baseVal;
+              if (viewBox && viewBox.width > 0 && viewBox.height > 0) {
+                width = viewBox.width;
+                height = viewBox.height;
+              }
+            }
+          }
+        } else if (kind === 'plantuml') {
+          const img = container.querySelector('.plantuml-image');
+          if (img && img.complete && img.naturalWidth > 0) {
+            isReady = true;
+            const rect = img.getBoundingClientRect();
+            width = rect.width > 0 ? rect.width : img.naturalWidth;
+            height = rect.height > 0 ? rect.height : img.naturalHeight;
+          }
+        } else if (kind === 'katex') {
+          if (container.dataset.katexRendered === 'true') {
+            isReady = true;
+            const rect = container.getBoundingClientRect();
+            width = rect.width;
+            height = rect.height;
+          }
+        }
+
+        if (isReady && width > 0 && height > 0) {
+          const activeInfo = {
+            blockId: blockId,
+            kind: kind,
+            revision: revision,
+            isReady: true,
+            naturalWidth: Math.max(10, width),
+            naturalHeight: Math.max(10, height)
+          };
+          window.__miaoyanActiveDiagram = activeInfo;
+          if (window.webkit?.messageHandlers?.diagramContextMenu) {
+            window.webkit.messageHandlers.diagramContextMenu.postMessage(activeInfo);
+          }
+          return;
+        }
+      }
+
+      window.__miaoyanActiveDiagram = null;
+      if (window.webkit?.messageHandlers?.diagramContextMenu) {
+        window.webkit.messageHandlers.diagramContextMenu.postMessage(null);
+      }
+    }, true);
+  },
+
   setupCheckboxes() {
     document.querySelectorAll('input').forEach(input => {
       input.disabled = true;
@@ -532,3 +600,58 @@ const TOC_CONFIG = {
 })();
 
 window.MiaoYanCommon = MiaoYanCommon;
+
+window.__miaoyanGetActiveDiagramSnapshot = function() {
+  const active = window.__miaoyanActiveDiagram;
+  if (!active || !active.blockId) return null;
+
+  const container = document.querySelector(`[data-block-id="${active.blockId}"]`);
+  if (!container) return null;
+
+  let width = active.naturalWidth;
+  let height = active.naturalHeight;
+  let svgContent = null;
+  let htmlContent = null;
+
+  if (active.kind === 'mermaid') {
+    const svg = container.querySelector('svg');
+    if (!svg) return null;
+    svgContent = svg.outerHTML;
+    if (!width || !height || width <= 0 || height <= 0) {
+      const rect = svg.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+    }
+  } else if (active.kind === 'plantuml') {
+    const img = container.querySelector('.plantuml-image');
+    if (!img) return null;
+    htmlContent = `<img class="plantuml-image" src="${img.src}" style="max-width: 100%; height: auto;" />`;
+    if (!width || !height || width <= 0 || height <= 0) {
+      const rect = img.getBoundingClientRect();
+      width = rect.width > 0 ? rect.width : img.naturalWidth;
+      height = rect.height > 0 ? rect.height : img.naturalHeight;
+    }
+  } else if (active.kind === 'katex') {
+    htmlContent = container.outerHTML;
+    if (!width || !height || width <= 0 || height <= 0) {
+      const rect = container.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+    }
+  }
+
+  const isDark = window.ThemeConfig?.isDarkMode?.() || document.body.classList.contains('darkmode');
+
+  return {
+    blockId: active.blockId,
+    kind: active.kind,
+    revision: active.revision,
+    svgContent: svgContent,
+    htmlContent: htmlContent,
+    naturalWidth: Math.max(10, width),
+    naturalHeight: Math.max(10, height),
+    padding: 16.0,
+    isDark: isDark
+  };
+};
+

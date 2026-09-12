@@ -101,6 +101,7 @@ class MPreviewView: WKWebView, WKUIDelegate {
     var displayedNote: Note? {
         note
     }
+    public var activeDiagramPreflight: RenderedBlockPreflight?
 
     init(frame: CGRect, note: Note, closure: MPreviewViewClosure?) {
         self.closure = closure
@@ -111,6 +112,7 @@ class MPreviewView: WKWebView, WKUIDelegate {
         userContentController.add(HandlerRevealBackgroundColor(), name: "revealBackgroundColor")
         userContentController.add(HandlerPreviewScroll(), name: "previewScroll")
         userContentController.add(HandlerTOCTip(), name: "tocTipClicked")
+        userContentController.add(HandlerDiagramContextMenu(), name: "diagramContextMenu")
 
         let configuration = WKWebViewConfiguration()
         configuration.userContentController = userContentController
@@ -485,6 +487,18 @@ class MPreviewView: WKWebView, WKUIDelegate {
             {
                 menuItem.isHidden = true
             }
+        }
+
+        if let preflight = activeDiagramPreflight, preflight.isReady {
+            let exportItem = NSMenuItem(
+                title: NSLocalizedString("Export Diagram...", comment: "Export diagram"),
+                action: #selector(exportCurrentDiagram(_:)),
+                keyEquivalent: ""
+            )
+            exportItem.target = self
+            exportItem.identifier = NSUserInterfaceItemIdentifier("MPreviewExportDiagramMenuItem")
+            menu.insertItem(exportItem, at: 0)
+            menu.insertItem(NSMenuItem.separator(), at: 1)
         }
     }
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

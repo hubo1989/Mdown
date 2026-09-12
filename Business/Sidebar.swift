@@ -57,13 +57,7 @@ class Sidebar {
     }
 
     private func getLocalizedAppName() -> String {
-        let language = UserDefaultsManagement.defaultLanguage
-        switch language {
-        case 1:  // English
-            return "MiaoYan"
-        default:  // Chinese, Japanese, etc.
-            return "妙言"
-        }
+        return "Mdown"
     }
 
     private func getImage(named: String) -> Image? {

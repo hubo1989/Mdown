@@ -80,6 +80,20 @@ class ViewController:
         set { sessionState.splitViewMode = newValue }
     }
 
+    var sessionLayoutMode: EditorLayoutMode {
+        get { sessionState.layoutMode }
+        set { sessionState.layoutMode = newValue }
+    }
+
+    var sessionWysiwygMode: Bool {
+        get { sessionState.wysiwygMode }
+        set { sessionState.wysiwygMode = newValue }
+    }
+
+    var vditorEditView: VditorEditView?
+    var savedLayoutModeBeforePreview: EditorLayoutMode?
+    var previousSingleLayoutMode: EditorLayoutMode = .source
+
     var sessionIsExporting: Bool {
         get { sessionState.isOnExport }
         set { sessionState.isOnExport = newValue }
@@ -196,7 +210,7 @@ class ViewController:
     @IBOutlet var formatButton: NSButton!
     @IBOutlet var previewButton: NSButton! {
         didSet {
-            applyToolbarButtonState(previewButton, isActive: sessionPreviewMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
+            applyToolbarButtonState(previewButton, isActive: sessionLayoutMode == .wysiwyg || sessionPreviewMode || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
         }
     }
 
@@ -400,7 +414,7 @@ class ViewController:
         let inactive = Theme.inactiveIconColor
 
         // Toolbar Buttons (Unified Grey in all modes unless active)
-        applyToolbarButtonState(previewButton, isActive: sessionPreviewMode || sessionMagicPPTMode, activeTint: accent, inactiveTint: inactive)
+        applyToolbarButtonState(previewButton, isActive: sessionLayoutMode == .wysiwyg || sessionPreviewMode || sessionMagicPPTMode, activeTint: accent, inactiveTint: inactive)
 
         // Presentation
         applyToolbarButtonState(presentationButton, isActive: sessionPresentationMode || sessionMagicPPTMode, activeTint: accent, inactiveTint: inactive)
@@ -432,13 +446,27 @@ class ViewController:
     func applyToolbarButtonState(_ button: NSButton?, isActive: Bool, activeTint: NSColor, inactiveTint: NSColor) {
         guard let button else { return }
 
-        if Theme.usesModernSystemChrome {
-            button.state = .off
-            button.contentTintColor = isActive ? activeTint : inactiveTint
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 4
+        button.layer?.masksToBounds = true
+
+        if isActive {
+            let appearance = button.effectiveAppearance
+            let bgColor = Theme.toolbarButtonActiveBackgroundColor.resolvedColor(for: appearance)
+            button.layer?.backgroundColor = bgColor.cgColor
+            button.contentTintColor = activeTint
         } else {
-            button.state = isActive ? .on : .off
-            button.contentTintColor = isActive ? activeTint : inactiveTint
+            button.layer?.backgroundColor = NSColor.clear.cgColor
+            button.contentTintColor = inactiveTint
         }
+
+        if !Theme.usesModernSystemChrome {
+            button.state = isActive ? .on : .off
+        } else {
+            button.state = .off
+        }
+
+        button.needsDisplay = true
     }
 
     // Handle webview performance impact from long-term inactivity
@@ -767,7 +795,7 @@ class ViewController:
         if let image = NSImage(named: "icon_preview") {
             image.isTemplate = true
             previewButton.image = image
-            applyToolbarButtonState(previewButton, isActive: sessionPreviewMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
+            applyToolbarButtonState(previewButton, isActive: sessionLayoutMode == .wysiwyg || sessionPreviewMode || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
         }
         if let image = NSImage(named: "icon_presentation") {
             image.isTemplate = true
@@ -1058,12 +1086,35 @@ class ViewController:
             contentSplitView.bottomAnchor.constraint(equalTo: editAreaScrollParent.bottomAnchor),
         ])
 
-        // Reset editAreaScroll frame and autoresizing
-        editAreaScroll.frame = splitViewFrame
-        editAreaScroll.autoresizingMask = [.width, .height]
+        // Setup left editor container holding both source and rich text editors
+        let editorContainer = NSView(frame: splitViewFrame)
+        editorContainer.autoresizingMask = [.width, .height]
 
-        // Add both scroll views to split view using addArrangedSubview (required for NSSplitView)
-        contentSplitView.addArrangedSubview(editAreaScroll)
+        // Reset editAreaScroll with Auto Layout constraints to guarantee it fills editorContainer
+        editAreaScroll.translatesAutoresizingMaskIntoConstraints = false
+        editorContainer.addSubview(editAreaScroll)
+        NSLayoutConstraint.activate([
+            editAreaScroll.leadingAnchor.constraint(equalTo: editorContainer.leadingAnchor),
+            editAreaScroll.trailingAnchor.constraint(equalTo: editorContainer.trailingAnchor),
+            editAreaScroll.topAnchor.constraint(equalTo: editorContainer.topAnchor),
+            editAreaScroll.bottomAnchor.constraint(equalTo: editorContainer.bottomAnchor),
+        ])
+
+        // Setup VditorEditView and its container with Auto Layout constraints
+        let vditorView = VditorEditView()
+        vditorView.translatesAutoresizingMaskIntoConstraints = false
+        vditorView.isHidden = true
+        editorContainer.addSubview(vditorView)
+        NSLayoutConstraint.activate([
+            vditorView.leadingAnchor.constraint(equalTo: editorContainer.leadingAnchor),
+            vditorView.trailingAnchor.constraint(equalTo: editorContainer.trailingAnchor),
+            vditorView.topAnchor.constraint(equalTo: editorContainer.topAnchor),
+            vditorView.bottomAnchor.constraint(equalTo: editorContainer.bottomAnchor),
+        ])
+        self.vditorEditView = vditorView
+
+        // Add container and preview to split view using addArrangedSubview
+        contentSplitView.addArrangedSubview(editorContainer)
         contentSplitView.addArrangedSubview(previewScroll)
         previewScroll.isHidden = true
 
@@ -1225,6 +1276,11 @@ class ViewController:
                 self.notesTableView.selectRow(index)
                 self.notesTableView.scrollRowToVisible(row: index, animated: false)
                 self.editArea.fill(note: note, options: .silent)
+                if self.sessionLayoutMode == .wysiwyg {
+                    self.editAreaScroll.isHidden = true
+                    self.vditorEditView?.isHidden = false
+                    self.vditorEditView?.loadNote(note)
+                }
                 self.revealEditor()
             }
         } else {
@@ -1308,11 +1364,22 @@ class ViewController:
     }
 
     func revealEditor() {
-        guard editAreaScroll.alphaValue == 0 else { return }
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.3
-            self.editAreaScroll.animator().alphaValue = 1
-            self.titleLabel.animator().alphaValue = 1
+        if sessionLayoutMode == .wysiwyg {
+            editAreaScroll.isHidden = true
+            vditorEditView?.isHidden = false
+            vditorEditView?.alphaValue = 1
+            titleLabel.alphaValue = 1
+            return
+        }
+        if editAreaScroll.alphaValue < 1 {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.2
+                self.editAreaScroll.animator().alphaValue = 1
+                self.titleLabel.animator().alphaValue = 1
+            }
+        }
+        if titleLabel.alphaValue < 1 {
+            titleLabel.alphaValue = 1
         }
     }
 

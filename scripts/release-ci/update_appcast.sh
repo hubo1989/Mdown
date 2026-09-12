@@ -95,7 +95,7 @@ item_file="$(mktemp)"
 {
   echo "    <item>"
   echo "      <title>${VERSION}</title>"
-  echo "      <link>https://github.com/tw93/MiaoYan/releases</link>"
+  echo "      <link>https://github.com/hubo1989/Mdown/releases</link>"
   echo "      <description><![CDATA["
   printf '%s\n' "$description_body"
   echo "          ]]>      </description>"
@@ -112,7 +112,9 @@ export ITEM_CONTENT
 perl -0777 -i -pe '
   BEGIN { $item = $ENV{"ITEM_CONTENT"}; }
   if (!s{(<channel>\s*<title>.*?</title>\n)(\s*)(<item>)}{$1 . $item . "\n" . $2 . $3}se) {
-    die "Failed to locate appcast insertion point\n";
+    if (!s{(\s*</channel>)}{$item . "\n" . $1}se) {
+      die "Failed to locate appcast insertion point\n";
+    }
   }
 ' "$APPCAST"
 

@@ -268,12 +268,19 @@ extension ViewController {
 
     @IBAction func toggleSplitMode(_ sender: Any) {
         saveTitleSafely()
-        let newMode = !sessionSplitMode
-        sessionSplitMode = newMode
+        let currentlySplit = sessionLayoutMode == .split
+        let newMode: EditorLayoutMode
+        if currentlySplit {
+            newMode = (previousSingleLayoutMode == .wysiwyg) ? .wysiwyg : .source
+        } else {
+            previousSingleLayoutMode = sessionLayoutMode
+            newMode = .split
+        }
+        sessionLayoutMode = newMode
 
         // Trigger UI update
         // If currently in Preview Mode, exit it.
-        // The disablePreview() logic will check splitViewMode and automatically transition to Split Mode.
+        // The disablePreview() logic will restore editor layout mode.
         if sessionPreviewMode {
             disablePreview()
         } else {
@@ -282,8 +289,7 @@ extension ViewController {
 
         // Update Button Icon
         if let button = toggleSplitButton {
-            // Prefer split icon; fall back if the single icon asset is missing.
-            let iconName = newMode ? "icon_editor_split" : "icon_editor_single"
+            let iconName = (newMode == .split) ? "icon_editor_split" : "icon_editor_single"
             let image = NSImage(named: iconName) ?? NSImage(named: "icon_editor_split")
             if let image {
                 image.isTemplate = true

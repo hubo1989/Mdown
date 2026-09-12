@@ -196,7 +196,7 @@ private struct RecentNotesView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 MobileLibraryHeader(
-                    title: "MiaoYan",
+                    title: "Mdown",
                     refreshAction: refreshNotes,
                     newNoteAction: {
                         Haptics.tap()

@@ -108,6 +108,10 @@ extension ViewController {
             savedEditorSelection = editArea.selectedRange()
             savedEditorScrollRatio = editorScrollRatio
             savedEditorNoteURL = EditTextView.note?.url
+            savedLayoutModeBeforePreview = sessionLayoutMode
+            if sessionLayoutMode == .wysiwyg {
+                vditorEditView?.flushPendingSave()
+            }
         }
 
         if !sessionMagicPPTMode {
@@ -198,6 +202,8 @@ extension ViewController {
         // pane would settle at 0 width. Unhide first so the layout pass
         // accounts for it.
         previewScrollView?.isHidden = false
+        editAreaScroll.isHidden = false
+        vditorEditView?.isHidden = true
 
         // Force layout update BEFORE setting display mode to ensure correct bounds
         contentSplitView.layoutSubtreeIfNeeded()
@@ -333,9 +339,14 @@ extension ViewController {
                 // restoration is committed.
                 if self.needsEditorModeUpdateAfterPreview {
                     self.needsEditorModeUpdateAfterPreview = false
+                    self.savedLayoutModeBeforePreview = nil
                     self.applyEditorModePreferenceChange()
-                } else if self.sessionSplitMode {
-                    self.enableSplitViewMode()
+                } else if let savedMode = self.savedLayoutModeBeforePreview {
+                    self.savedLayoutModeBeforePreview = nil
+                    self.sessionLayoutMode = savedMode
+                    self.applyEditorModePreferenceChange()
+                } else {
+                    self.applyEditorModePreferenceChange()
                 }
             }
 
@@ -416,19 +427,20 @@ extension ViewController {
         }
 
         // Restore editor mode based on user preference
+        restoreEditorLayoutAfterPreview()
+    }
+
+    private func restoreEditorLayoutAfterPreview() {
         if needsEditorModeUpdateAfterPreview {
             needsEditorModeUpdateAfterPreview = false
+            savedLayoutModeBeforePreview = nil
             applyEditorModePreferenceChange()
-        } else if sessionSplitMode {
-            enableSplitViewMode()
+        } else if let savedMode = savedLayoutModeBeforePreview {
+            savedLayoutModeBeforePreview = nil
+            sessionLayoutMode = savedMode
+            applyEditorModePreferenceChange()
         } else {
-            editorContentSplitView?.setDisplayMode(.editorOnly, animated: false)
-
-            // Clear preview views AFTER setDisplayMode
-            previewScrollView?.documentView = nil
-            previewScrollView?.isHidden = true
-            previewScrollView?.hasVerticalScroller = false
-            editAreaScroll.hasVerticalScroller = true
+            applyEditorModePreferenceChange()
         }
     }
 
@@ -461,10 +473,16 @@ extension ViewController {
     func togglePreview() {
         saveTitleSafely()
 
-        if sessionPreviewMode {
+        if sessionPreviewMode || sessionLayoutMode == .wysiwyg {
             disablePreview()
+            sessionLayoutMode = .source
+            applyEditorModePreferenceChange()
         } else {
-            enablePreview()
+            if sessionSplitMode {
+                disableSplitViewMode()
+            }
+            sessionLayoutMode = .wysiwyg
+            applyEditorModePreferenceChange()
         }
     }
 
@@ -487,6 +505,73 @@ extension ViewController {
         }
     }
 
+    // MARK: - WYSIWYG Mode Management
+
+    func enableWysiwygMode() {
+        saveTitleSafely()
+
+        editAreaScroll.isHidden = true
+        vditorEditView?.isHidden = false
+        editorContentSplitView?.setDisplayMode(.editorOnly, animated: false)
+
+        titleBarView.isHidden = false
+        titleLabel.isHidden = false
+
+        if let note = notesTableView.getSelectedNote() {
+            // Sync pending content from editArea to note if needed
+            if editArea.storageNote === note {
+                editArea.saveTextStorageContent(to: note)
+            }
+
+            vditorEditView?.loadNote(note)
+
+            let isTrashNote = note.project.isTrash
+            titleLabel.isEditable = !isTrashNote
+
+            if !isFocusedTitle {
+                vditorEditView?.focus()
+            }
+        }
+        updateToolbarButtonTints()
+    }
+
+    func disableWysiwygMode() {
+        guard vditorEditView?.isHidden == false || sessionLayoutMode != .wysiwyg else { return }
+
+        vditorEditView?.flushPendingSave { [weak self] in
+            guard let self = self else { return }
+            if self.notesTableView.getSelectedNote() != nil {
+                self.refillEditArea(suppressSave: true)
+            }
+        }
+
+        vditorEditView?.isHidden = true
+        editAreaScroll.isHidden = false
+
+        if notesTableView.getSelectedNote() != nil {
+            refillEditArea(suppressSave: true)
+        }
+
+        titleLabel.isEditable = true
+        if !isFocusedTitle {
+            focusEditArea()
+        }
+        updateToolbarButtonTints()
+    }
+
+    @IBAction func toggleWysiwygMode(_ sender: Any? = nil) {
+        saveTitleSafely()
+        if sessionPreviewMode {
+            disablePreview()
+        }
+        if sessionLayoutMode == .wysiwyg {
+            sessionLayoutMode = .source
+        } else {
+            sessionLayoutMode = .wysiwyg
+        }
+        applyEditorModePreferenceChange()
+    }
+
     func applyEditorModePreferenceChange() {
         // Defer mode changes if in special modes (preview, presentation, PPT)
         guard !UserDefaultsManagement.isInSpecialMode else {
@@ -501,10 +586,24 @@ extension ViewController {
 
         needsEditorModeUpdateAfterPreview = false
 
-        if sessionSplitMode {
+        switch sessionLayoutMode {
+        case .split:
+            disableWysiwygMode()
             enableSplitViewMode()
-        } else {
+        case .wysiwyg:
             disableSplitViewMode()
+            enableWysiwygMode()
+        case .source:
+            disableSplitViewMode()
+            disableWysiwygMode()
+            editAreaScroll.isHidden = false
+            editAreaScroll.alphaValue = 1.0
+            vditorEditView?.isHidden = true
+            editorContentSplitView?.setDisplayMode(.editorOnly, animated: false)
+            revealEditor()
+            if !isFocusedTitle {
+                focusEditArea()
+            }
         }
 
         // Update toolbar button state (Unified split icon for both states)
@@ -512,7 +611,7 @@ extension ViewController {
             image.isTemplate = true
             toggleSplitButton?.image = image
         }
-
+        updateToolbarButtonTints()
     }
 
     private func makeTempNote() -> Note? {
@@ -565,6 +664,10 @@ extension ViewController {
         editArea.markdownView?.setSplitChrome(false)
 
         sessionPresentationMode = true
+        savedLayoutModeBeforePreview = sessionLayoutMode
+        if sessionLayoutMode == .wysiwyg {
+            vditorEditView?.flushPendingSave()
+        }
         savePresentationLayout()
         hideNoteList("")
         formatButton.isHidden = true
@@ -690,6 +793,10 @@ extension ViewController {
         editArea.markdownView?.setSplitChrome(false)
 
         sessionMagicPPTMode = true
+        savedLayoutModeBeforePreview = sessionLayoutMode
+        if sessionLayoutMode == .wysiwyg {
+            vditorEditView?.flushPendingSave()
+        }
         savePresentationLayout()
         hideNoteList("")
         hideNoteList("")
@@ -1322,25 +1429,32 @@ extension ViewController {
     // MARK: - Editor Focus Management
     func focusEditArea(firstResponder: NSResponder? = nil, restoreCursor: Bool = true) {
         guard EditTextView.note != nil else { return }
+        if sessionLayoutMode == .wysiwyg {
+            vditorEditView?.focus()
+            return
+        }
         var resp: NSResponder = editArea
         if let responder = firstResponder {
             resp = responder
         }
         if notesTableView.selectedRow > -1 {
             DispatchQueue.main.async {
-                self.editArea.isEditable = true
+                let isTrash = EditTextView.note?.project.isTrash == true
+                self.editArea.isEditable = !isTrash
                 // Only show title bar if not in PPT mode
                 if !self.sessionMagicPPTMode {
                     self.titleBarView.isHidden = false
                 }
-                self.editArea.window?.makeFirstResponder(resp)
+                let targetWindow = self.view.window ?? self.editArea.window
+                targetWindow?.makeFirstResponder(resp)
                 if restoreCursor {
                     self.editArea.restoreCursorPosition()
                 }
             }
             return
         }
-        editArea.window?.makeFirstResponder(resp)
+        let targetWindow = self.view.window ?? self.editArea.window
+        targetWindow?.makeFirstResponder(resp)
     }
 
     func focusTable() {
@@ -1424,13 +1538,25 @@ extension ViewController {
                     )
                     self.editArea.fill(note: note, options: options)
                     self.editArea.setSelectedRange(NSRange(location: location, length: 0))
+
+                    if self.sessionLayoutMode == .wysiwyg {
+                        self.vditorEditView?.loadNote(note)
+                        self.editAreaScroll.isHidden = true
+                        self.vditorEditView?.isHidden = false
+                        self.vditorEditView?.alphaValue = 1.0
+                    } else {
+                        self.editAreaScroll.isHidden = false
+                        self.editAreaScroll.alphaValue = 1.0
+                        self.vditorEditView?.isHidden = true
+                    }
+                    self.revealEditor()
                 }
             }
         }
     }
 
     public func updateTitle(newTitle: String) {
-        let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "MiaoYan"
+        let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Mdown"
         var title = newTitle
 
         if newTitle.isValidUUID {

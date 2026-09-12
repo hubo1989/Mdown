@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://miaoyan.app/" target="_blank"><img src="https://gw.alipayobjects.com/zos/k/t0/43.png" width="138" /></a>
-  <h1 align="center">妙言</h1>
+  <h1 align="center">Mdown</h1>
   <div align="center">
     <a href="https://twitter.com/HiTw93" target="_blank">
       <img alt="Twitter 关注" src="https://img.shields.io/badge/follow-Tw93-red?style=flat-square&logo=Twitter"></a>
@@ -16,7 +16,7 @@
       <img alt="GitHub 已关闭议题" src="https://img.shields.io/github/issues-closed/tw93/MiaoYan.svg?style=flat-square"></a>
     <img alt="macOS 11.5+" src="https://img.shields.io/badge/macOS-11.5%2B-orange?style=flat-square">
   </div>
-  <div align="center">轻灵的 Markdown 笔记本伴你写出妙言</div>
+  <div align="center">轻灵的 Markdown 笔记本伴你记录灵感</div>
 </p>
 
 <img src="https://raw.githubusercontent.com/tw93/static/master/miaoyan/newmiaoyan.gif" width="900px" />
@@ -41,19 +41,19 @@
 
 3. **GitHub Releases**: 从 [GitHub Releases](https://github.com/tw93/MiaoYan/releases/latest) 下载最新 DMG(macOS 11.5+)
 
-三种方式共享同一份代码,功能完全一致,同步更新。安装后在 iCloud 云盘、坚果云桌面同步目录或其他位置创建 `MiaoYan` 文件夹,打开设置 (⌘,) 指定存储位置,就可以开始写了。
+三种方式共享同一份代码,功能完全一致,同步更新。安装后在 iCloud 云盘、坚果云桌面同步目录或其他位置创建 `Mdown` 文件夹,打开设置 (⌘,) 指定存储位置,就可以开始写了。
 
-## 用坚果云或其他云盘同步妙言
+## 用坚果云或其他云盘同步 Mdown
 
-妙言保持本地优先,不会登录 WebDAV 或网盘账号。它只读写你指定的 Markdown 文件夹,跨设备同步由 iCloud Drive、坚果云、Dropbox 等云盘客户端负责。
+Mdown 保持本地优先,不会登录 WebDAV 或网盘账号。它只读写你指定的 Markdown 文件夹,跨设备同步由 iCloud Drive、坚果云、Dropbox 等云盘客户端负责。
 
-- **Mac**: 在坚果云桌面客户端的同步目录中创建 `MiaoYan` 文件夹,然后在妙言设置中把存储位置指向它。
+- **Mac**: 在坚果云桌面客户端的同步目录中创建 `Mdown` 文件夹,然后在 Mdown 设置中把存储位置指向它。
 - **iPhone**: 在系统“文件”App 中选择同一个云盘文件夹。若某个云盘 App 没有暴露可写文件夹,建议使用 iCloud Drive,或先在云盘 App 中让该文件夹可离线访问后再选择。
-- **目录检查**: 妙言会在切换目录前确认文件夹可读取、可写入。不可用时不会保存新路径,也不会把问题误报成妙言自己的云同步失败。
+- **目录检查**: Mdown 会在切换目录前确认文件夹可读取、可写入。不可用时不会保存新路径,也不会把问题误报成 Mdown 自己的云同步失败。
 
 ## 命令行工具
 
-妙言提供命令行工具，方便在终端中快速操作笔记。
+Mdown 提供命令行工具，方便在终端中快速操作笔记。
 
 ```bash
 # 安装
@@ -63,36 +63,42 @@ curl -fsSL https://raw.githubusercontent.com/tw93/MiaoYan/main/scripts/install.s
 miao open <标题|路径>    # 打开笔记或文件夹
 miao new <标题> [内容]   # 创建新笔记
 miao search <关键词>     # 在终端搜索笔记
-miao list [folder]      # 列出一级目录，或列出指定目录下的 Markdown
+miao list [folder]      # 列在一级目录，或列出指定目录下的 Markdown
 miao cat <标题|路径>     # 输出笔记内容
 miao update             # 更新 CLI
 ```
 
-## 分栏编辑预览模式
+## 多样化编辑模式
 
-编辑区和预览区并排显示，支持 60fps 双向滚动同步，实时预览编辑效果。
+Mdown 提供三种原生编辑模式，满足不同写作偏好：
 
-**快速切换**：按 `⌘\` 即可快速切换分栏模式，或在设置 → 界面 → 编辑模式 → 分栏模式中开启。
+- **纯编辑模式**：极简专注的 Markdown 源码编辑体验。
+- **分栏模式**：编辑区和预览区并排显示，支持 60fps 双向滚动同步，实时呈现排版效果。按 `⌘\` 快速切换。
+- **所见即所得模式 (WYSIWYG)**：原生直接编辑排版视图，隐藏 Markdown 标记符号的同时始终以纯净 Markdown 为唯一权威真相。
 
-为什么不做 Typora 式即时预览？我们追求纯粹的 Markdown 编辑体验，用 Swift 原生实现即时预览过于复杂且稳定性难以保证。分栏模式在保持纯净编辑体验的同时，提供了实时的视觉反馈。
+可在 **设置 → 界面 → 编辑模式** 中自由选择默认模式，并在使用中平滑往返。
 
 <img src="https://gw.alipayobjects.com/zos/k/eg/jV8Gra.png" width="100%" alt="分栏编辑预览模式" />
 
+### 渲染块独立高清导出
+
+在预览区右键点击任意 Mermaid 流程图、PlantUML 图表或 KaTeX 数学公式，即可单独导出为 1×/2×/3× 高清 PNG 位图或经过安全净化的独立 SVG 矢量图。
+
 ## 使用指南
 
-- [介绍妙言](Resources/Initial/介绍妙言.md) - 完整使用指南,包含快捷键等
-- [Markdown 语法指南](Resources/Initial/妙言%20Markdown%20语法指南.md) - 完整语法演示,数学公式、图表等
-- [PPT 演示模式](Resources/Initial/妙言%20PPT.md) - 使用 `---` 分隔幻灯片的演示指南
-- [妙言 Agent Skill](skills/miaoyan) - 让 Agent 掌握妙言语法、附件、PPT 与 CLI 使用方式
+- [介绍 Mdown](Resources/Initial/介绍%20Mdown.md) - 完整使用指南,包含快捷键等
+- [Markdown 语法指南](Resources/Initial/Mdown%20Markdown%20语法指南.md) - 完整语法演示,数学公式、图表等
+- [PPT 演示模式](Resources/Initial/Mdown%20PPT.md) - 使用 `---` 分隔幻灯片的演示指南
+- [Mdown Agent Skill](skills/miaoyan) - 让 Agent 掌握 Mdown 语法、附件、PPT 与 CLI 使用方式
 
 运行 `npx skills add tw93/MiaoYan/skills/miaoyan -g` 安装官方 Skill。
 
 ## 支持
 
 1. 购买我做的 Mac 清理应用 [Mole for Mac](https://mole.fit)，是对我最直接的支持。
-2. 如果你喜欢妙言，欢迎给它一个 Star，更欢迎推荐给你志同道合的朋友使用。
+2. 如果你喜欢 Mdown，欢迎给它一个 Star，更欢迎推荐给你志同道合的朋友使用。
 3. 可以关注我的 [Twitter](https://twitter.com/HiTw93) 获取最新的更新消息，也欢迎加入 [Telegram](https://t.me/+9f9gf4ZrFSQ2OWVl) 聊天群。
-4. 我有两只猫：汤圆、可乐，若妙言让你开心，<a href="https://cats.tw93.fun" target="_blank">请她们吃罐头 🥩</a>。
+4. 我有两只猫：汤圆、可乐，若 Mdown 让你开心，<a href="https://cats.tw93.fun" target="_blank">请她们吃罐头 🥩</a>。
 
 ## 致谢
 

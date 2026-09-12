@@ -167,6 +167,24 @@ class EditorContentSplitView: NSSplitView {
 
     // MARK: - NSSplitView Overrides
 
+    override func adjustSubviews() {
+        guard subviews.count == 2 else {
+            super.adjustSubviews()
+            return
+        }
+
+        switch displayMode {
+        case .editorOnly:
+            subviews[0].frame = bounds
+            subviews[1].frame = NSRect(x: bounds.width, y: 0, width: 0, height: bounds.height)
+        case .previewOnly:
+            subviews[0].frame = NSRect(x: 0, y: 0, width: 0, height: bounds.height)
+            subviews[1].frame = bounds
+        case .sideBySide:
+            super.adjustSubviews()
+        }
+    }
+
     override var dividerColor: NSColor {
         shouldHideDivider ? .clear : super.dividerColor
     }

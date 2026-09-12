@@ -833,7 +833,7 @@ extension MPreviewView {
         guard let vc = viewController as? ViewController else { return }
 
         // Get the selected note on main thread first
-        let currentName = vc.notesTableView.getSelectedNote()?.getExportTitle() ?? "MiaoYan"
+        let currentName = vc.notesTableView.getSelectedNote()?.getExportTitle() ?? "Mdown"
 
         // Perform file save on background queue
         DispatchQueue.global(qos: .utility).async {
@@ -1138,7 +1138,7 @@ extension MPreviewView {
 
         var attributes = doc.documentAttributes ?? [:]
         attributes[PDFDocumentAttribute.titleAttribute] = title
-        attributes[PDFDocumentAttribute.creatorAttribute] = "MiaoYan"
+        attributes[PDFDocumentAttribute.creatorAttribute] = "Mdown"
         doc.documentAttributes = attributes
 
         let pageCount = doc.pageCount

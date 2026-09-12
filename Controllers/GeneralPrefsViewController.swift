@@ -19,6 +19,7 @@ final class GeneralPrefsViewController: BasePrefsViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         NotificationCenter.default.addObserver(self, selector: #selector(handleSplitViewModeChanged), name: .splitViewModeChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleEditorLayoutModeChanged), name: .editorLayoutModeChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleAlwaysOnTopChanged), name: .alwaysOnTopChanged, object: nil)
     }
 
@@ -27,8 +28,19 @@ final class GeneralPrefsViewController: BasePrefsViewController {
     }
 
     @objc private func handleSplitViewModeChanged() {
+        handleEditorLayoutModeChanged()
+    }
+
+    @objc private func handleEditorLayoutModeChanged() {
         guard let editorModeSegmented = editorModeSegmented else { return }
-        editorModeSegmented.selectedSegment = UserDefaultsManagement.splitViewMode ? 1 : 0
+        switch UserDefaultsManagement.editorLayoutMode {
+        case .source:
+            editorModeSegmented.selectedSegment = 0
+        case .split:
+            editorModeSegmented.selectedSegment = 1
+        case .wysiwyg:
+            editorModeSegmented.selectedSegment = 2
+        }
     }
 
     @objc private func handleAlwaysOnTopChanged() {
@@ -87,7 +99,7 @@ final class GeneralPrefsViewController: BasePrefsViewController {
         let shortcutRow = makePreferencesRow(labelText: I18n.str("Activate Shortcut:"), control: activateShortcutRecorder)
 
         editorModeSegmented = makeSegmentedControl(
-            labels: [localizedEditorMode(false), localizedEditorMode(true)],
+            labels: [localizedEditorMode(.source), localizedEditorMode(.split), localizedEditorMode(.wysiwyg)],
             action: #selector(editorModeChanged(_:))
         )
 
@@ -134,7 +146,14 @@ final class GeneralPrefsViewController: BasePrefsViewController {
         alwaysOnTopCheckbox.state = UserDefaultsManagement.alwaysOnTop ? .on : .off
 
         // Editor settings values
-        editorModeSegmented.selectedSegment = UserDefaultsManagement.splitViewMode ? 1 : 0
+        switch UserDefaultsManagement.editorLayoutMode {
+        case .source:
+            editorModeSegmented.selectedSegment = 0
+        case .split:
+            editorModeSegmented.selectedSegment = 1
+        case .wysiwyg:
+            editorModeSegmented.selectedSegment = 2
+        }
 
     }
 
@@ -292,20 +311,36 @@ final class GeneralPrefsViewController: BasePrefsViewController {
     // MARK: - Editor Settings Actions
 
     @objc private func editorModeChanged(_ sender: PrefsSegmentedControl) {
-        let isSplit = sender.selectedSegment == 1
+        let mode: EditorLayoutMode
+        switch sender.selectedSegment {
+        case 1:
+            mode = .split
+        case 2:
+            mode = .wysiwyg
+        default:
+            mode = .source
+        }
         if let vc = ViewController.shared() {
-            vc.sessionSplitMode = isSplit
-            vc.applyEditorModePreferenceChange()
+            vc.sessionLayoutMode = mode
+            vc.savedLayoutModeBeforePreview = nil
+            if vc.sessionPreviewMode {
+                vc.disablePreview()
+            } else {
+                vc.applyEditorModePreferenceChange()
+            }
         } else {
-            UserDefaultsManagement.splitViewMode = isSplit
+            UserDefaultsManagement.editorLayoutMode = mode
         }
     }
 
-    private func localizedEditorMode(_ isSplit: Bool) -> String {
-        if isSplit {
-            return I18n.str("Split Mode")
-        } else {
+    private func localizedEditorMode(_ mode: EditorLayoutMode) -> String {
+        switch mode {
+        case .source:
             return I18n.str("Pure Editing")
+        case .split:
+            return I18n.str("Split Mode")
+        case .wysiwyg:
+            return I18n.str("WYSIWYG")
         }
     }
 

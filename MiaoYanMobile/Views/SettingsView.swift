@@ -81,7 +81,7 @@ struct SettingsView: View {
         } header: {
             Text("Library")
         } footer: {
-            Text("MiaoYan reads and writes Markdown files in this folder. iCloud Drive or your cloud drive app keeps it in sync with Mac.")
+            Text("Mdown reads and writes Markdown files in this folder. iCloud Drive or your cloud drive app keeps it in sync with Mac.")
         }
     }
 

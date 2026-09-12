@@ -62,4 +62,25 @@ final class PrefsWindowControllerTests: XCTestCase {
 
         XCTAssertEqual(controller.window?.level, .normal)
     }
+
+    @MainActor
+    func testToolbarButtonVisualStateOnActiveAndInactive() {
+        let vc = ViewController()
+        let button = NSButton()
+        let activeTint = NSColor.systemGreen
+        let inactiveTint = NSColor.secondaryLabelColor
+
+        // 1. Inactive state
+        vc.applyToolbarButtonState(button, isActive: false, activeTint: activeTint, inactiveTint: inactiveTint)
+        XCTAssertEqual(button.layer?.backgroundColor, NSColor.clear.cgColor)
+        XCTAssertEqual(button.contentTintColor, inactiveTint)
+
+        // 2. Active state
+        vc.applyToolbarButtonState(button, isActive: true, activeTint: activeTint, inactiveTint: inactiveTint)
+        let expectedBg = Theme.toolbarButtonActiveBackgroundColor.resolvedColor(for: button.effectiveAppearance).cgColor
+        XCTAssertEqual(button.layer?.backgroundColor, expectedBg)
+        XCTAssertEqual(button.layer?.cornerRadius, 4)
+        XCTAssertTrue(button.layer?.masksToBounds == true)
+        XCTAssertEqual(button.contentTintColor, activeTint)
+    }
 }

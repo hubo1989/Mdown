@@ -1,5 +1,5 @@
 /* About Window */
-"About" = "Acerca de MiaoYan";
+"About" = "Acerca de Mdown";
 
 /* No comment provided by engineer. */
 "Add" = "Añadir";
@@ -30,7 +30,7 @@
 
 
 /* No comment provided by engineer. */
-"MiaoYan [preview]" = "MiaoYan [vista previa]";
+"Mdown [preview]" = "Mdown [vista previa]";
 
 /* No comment provided by engineer. */
 "Link" = "Enlace";
@@ -69,6 +69,7 @@
 "Editor Mode:" = "Modo de Editor:";
 "Split Mode" = "Modo Dividido";
 "Pure Editing" = "Solo Edición";
+"WYSIWYG" = "WYSIWYG";
 "Appearance:" = "Apariencia:";
 "Language:" = "Idioma:";
 "Button Display:" = "Visualización de Botones:";
@@ -96,7 +97,7 @@
 "Editing" = "Edición";
 "Full Width" = "Ancho Completo";
 "Line Break:" = "Salto de Línea:";
-"MiaoYan" = "MiaoYan";
+"Mdown" = "Mdown";
 "Auto" = "Auto";
 
 /* No comment provided by engineer. */
@@ -130,7 +131,7 @@
 "Preferences" = "Preferencias";
 
 /* No comment provided by engineer. */
-"Quit MiaoYan" = "Salir de MiaoYan";
+"Quit Mdown" = "Salir de Mdown";
 
 /* Delete menu */
 "Remove" = "Eliminar";
@@ -179,7 +180,7 @@
 
 
 
-"%d MiaoYan" = "%d MiaoYan";
+"%d MiaoYan" = "%d Mdown";
 
 "PDF export failed, please try again~" = "Falló la exportación a PDF, por favor inténtalo de nuevo~";
 
@@ -202,7 +203,7 @@
 "Please make sure your title exists~" = "Por favor asegúrate de que tu título exista~";
 "Found that there are multiple titles of this~" = "Se encontró que hay múltiples títulos de esto~";
 "URL is successfully copied, Use it anywhere~" = "La URL se copió correctamente, úsala en cualquier lugar~";
-"No delimiter --- identification, Cannot use MiaoYan PPT~" = "No hay identificador de delimitador ---, no se puede usar MiaoYan PPT~";
+"No delimiter --- identification, Cannot use MiaoYan PPT~" = "No hay identificador de delimitador ---, no se puede usar Mdown PPT~";
 "Formatting failed, please try again" = "El formato falló, por favor inténtalo de nuevo";
 "Formatting cancelled" = "Formato cancelado";
 
@@ -212,7 +213,7 @@
 "Edit Link…" = "Editar Enlace…";
 "Remove Link" = "Eliminar Enlace";
 
-"Restart to MiaoYan to take effect" = "Reinicia MiaoYan para que surta efecto";
+"Restart to MiaoYan to take effect" = "Reinicia Mdown para que surta efecto";
 "Confirm" = "Confirmar";
 
 /* Font Names */
@@ -277,8 +278,8 @@
 "No importable Markdown files found~" = "No se encontraron archivos Markdown importables~";
 "Could not use this folder" = "No se pudo usar esta carpeta";
 "Selected storage folder is not a folder." = "La ubicación seleccionada no es una carpeta.";
-"MiaoYan cannot read this folder. If this is a cloud drive, open the provider app and make sure the folder is exposed in Finder." = "MiaoYan no puede leer esta carpeta. Si es una unidad en la nube, abre la app del proveedor y confirma que la carpeta aparece en Finder.";
-"MiaoYan cannot write to this folder. Choose a writable folder or enable offline access in the cloud drive app." = "MiaoYan no puede escribir en esta carpeta. Elige una carpeta editable o activa el acceso sin conexión en la app de la nube.";
+"MiaoYan cannot read this folder. If this is a cloud drive, open the provider app and make sure the folder is exposed in Finder." = "Mdown no puede leer esta carpeta. Si es una unidad en la nube, abre la app del proveedor y confirma que la carpeta aparece en Finder.";
+"MiaoYan cannot write to this folder. Choose a writable folder or enable offline access in the cloud drive app." = "Mdown no puede escribir en esta carpeta. Elige una carpeta editable o activa el acceso sin conexión en la app de la nube.";
 
 /* Reload Note */
 "Reload Note" = "Recargar Nota";
@@ -299,3 +300,15 @@
 "Created" = "Creado";
 "Backlinks" = "Enlaces inversos";
 "Project name" = "Nombre de carpeta";
+
+/* Diagram Export */
+"Export Diagram..." = "Exportar este diagrama…";
+"Diagram exported successfully" = "Diagrama exportado con éxito";
+"Failed to export diagram" = "Error al exportar el diagrama";
+"Scale" = "Escala";
+"Background" = "Fondo";
+"Follow Theme" = "Seguir tema";
+"Transparent" = "Transparente";
+"Light" = "Claro";
+"Dark" = "Oscuro";
+

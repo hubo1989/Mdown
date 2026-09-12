@@ -13,11 +13,11 @@
                 <application id="hnw-xV-0zn" sceneMemberID="viewController">
                     <menu key="mainMenu" title="Main Menu" systemMenu="main" id="AYu-sK-qS6">
                         <items>
-                            <menuItem title="MiaoYan" id="1Xt-HY-uBw">
+                            <menuItem title="Mdown" id="1Xt-HY-uBw">
                                 <modifierMask key="keyEquivalentModifierMask"/>
-                                <menu key="submenu" title="MiaoYan" systemMenu="apple" identifier="miaoyanMenu" id="uQy-DD-JDr">
+                                <menu key="submenu" title="Mdown" systemMenu="apple" identifier="miaoyanMenu" id="uQy-DD-JDr">
                                     <items>
-                                        <menuItem title="About MiaoYan" id="gXN-Ca-moU">
+                                        <menuItem title="About Mdown" id="gXN-Ca-moU">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
                                                 <action selector="showAboutWindow:" target="Voe-Tx-rLC" id="PR0-oC-n1f"/>
@@ -42,7 +42,7 @@
                                                 <action selector="activeWindow:" target="L4m-js-agn" id="ixL-Vu-G2c"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Hide MiaoYan" keyEquivalent="h" id="bxj-82-bcY">
+                                        <menuItem title="Hide Mdown" keyEquivalent="h" id="bxj-82-bcY">
                                             <connections>
                                                 <action selector="hide:" target="Ady-hI-5gd" id="Qbc-aH-8P0"/>
                                             </connections>
@@ -69,7 +69,7 @@ CA
                                                 <action selector="cleanUnusedAttachments:" target="L4m-js-agn" id="d27-Z5-1ap"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Quit MiaoYan" keyEquivalent="q" id="4sb-4s-VLi">
+                                        <menuItem title="Quit Mdown" keyEquivalent="q" id="4sb-4s-VLi">
                                             <connections>
                                                 <action selector="quiteApp:" target="L4m-js-agn" id="3eE-cX-iqp"/>
                                             </connections>
@@ -552,7 +552,7 @@ CA
         <scene sceneID="R2V-B0-nI4">
             <objects>
                 <windowController storyboardIdentifier="MainWindowController" id="B8D-0N-5wS" customClass="MainWindowController" customModule="MiaoYan" customModuleProvider="target" sceneMemberID="viewController">
-                    <window key="window" title="MiaoYan" allowsToolTipsWhenApplicationIsInactive="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" frameAutosaveName="MainWindow" animationBehavior="default" titlebarAppearsTransparent="YES" titleVisibility="hidden" id="IQv-IB-iLA" customClass="MainWindow" customModule="MiaoYan" customModuleProvider="target">
+                    <window key="window" title="Mdown" allowsToolTipsWhenApplicationIsInactive="NO" hidesOnDeactivate="YES" releasedWhenClosed="NO" frameAutosaveName="MainWindow" animationBehavior="default" titlebarAppearsTransparent="YES" titleVisibility="hidden" id="IQv-IB-iLA" customClass="MainWindow" customModule="MiaoYan" customModuleProvider="target">
                         <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES" fullSizeContentView="YES"/>
                         <rect key="contentRect" x="196" y="240" width="900" height="600"/>
                         <rect key="screenRect" x="0.0" y="0.0" width="1680" height="1027"/>
@@ -896,7 +896,7 @@ CA
                                                             </imageView>
                                                             <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="kn8-MP-1kR">
                                                                 <rect key="frame" x="57" y="8" width="125" height="35"/>
-                                                                <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="MiaoYan" id="mj8-mU-0W4">
+                                                                <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="Mdown" id="mj8-mU-0W4">
                                                                     <font key="font" metaFont="systemBold" size="30"/>
                                                                     <color key="textColor" name="tertiaryLabelColor" catalog="System" colorSpace="catalog"/>
                                                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -1090,7 +1090,7 @@ CA
                             </connections>
                         </menuItem>
                         <menuItem isSeparatorItem="YES" id="a1l-Gt-eA9"/>
-                        <menuItem title="MiaoYan PPT" keyEquivalent="p" id="uUS-sg-zGt">
+                        <menuItem title="Mdown PPT" keyEquivalent="p" id="uUS-sg-zGt">
                             <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
                             <connections>
                                 <action selector="toggleMagicPPT:" target="L4m-js-agn" id="dOP-eh-8uc"/>
@@ -1143,7 +1143,7 @@ CA
                                             <action selector="exportPdf:" target="XfG-lQ-9wD" id="DiT-Ue-MTm"/>
                                         </connections>
                                     </menuItem>
-                                    <menuItem title="MiaoYan PPT PDF" alternate="YES" id="DhD-mk-T1u">
+                                    <menuItem title="Mdown PPT PDF" alternate="YES" id="DhD-mk-T1u">
                                         <modifierMask key="keyEquivalentModifierMask"/>
                                         <connections>
                                             <action selector="exportMiaoYanPPT:" target="XfG-lQ-9wD" id="st2-pS-SiJ"/>
@@ -1219,10 +1219,10 @@ CA
             </objects>
             <point key="canvasLocation" x="-1325" y="533"/>
         </scene>
-        <!--About MiaoYan-->
+        <!--About Mdown-->
         <scene sceneID="fut-XK-Los">
             <objects>
-                <viewController title="About MiaoYan" id="YNW-vn-A3h" customClass="AboutViewController" customModule="MiaoYan" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController title="About Mdown" id="YNW-vn-A3h" customClass="AboutViewController" customModule="MiaoYan" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" id="nlO-Om-1If">
                         <rect key="frame" x="0.0" y="0.0" width="300" height="175"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -1237,7 +1237,7 @@ CA
                             </imageView>
                             <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="cgf-ax-Go5">
                                 <rect key="frame" x="119" y="63" width="62" height="17"/>
-                                <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="MiaoYan" id="v9A-ZO-AAb">
+                                <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="Mdown" id="v9A-ZO-AAb">
                                     <font key="font" metaFont="menu" size="14"/>
                                     <color key="textColor" name="mainText"/>
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>

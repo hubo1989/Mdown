@@ -53,11 +53,25 @@ const DiagramHandler = {
 
     const mermaidElements = document.querySelectorAll('.language-mermaid');
 
-    const renderPromises = Array.from(mermaidElements).map(async (element) => {
+    const renderPromises = Array.from(mermaidElements).map(async (element, index) => {
       if (element.dataset.processed === 'true') return;
 
       const content = element.textContent || '';
       if (!content.trim()) return;
+
+      const blockId = 'mermaid-' + index;
+      element.dataset.blockId = blockId;
+      element.dataset.blockKind = 'mermaid';
+      const existingRev = parseInt(element.dataset.renderRevision || '0', 10);
+      const revision = existingRev + 1;
+      element.dataset.renderRevision = revision.toString();
+
+      const pre = element.closest('pre');
+      if (pre) {
+        pre.dataset.blockId = blockId;
+        pre.dataset.blockKind = 'mermaid';
+        pre.dataset.renderRevision = revision.toString();
+      }
 
       const hash = this._simpleHash(content);
 
@@ -108,13 +122,13 @@ const DiagramHandler = {
     }
 
     const plantumlElements = document.querySelectorAll('.language-plantuml');
-    plantumlElements.forEach(code => {
+    plantumlElements.forEach((code, index) => {
       if (code.dataset.processed === 'true') return;
-      this.processPlantumlElement(code);
+      this.processPlantumlElement(code, index);
     });
   },
 
-  processPlantumlElement(code) {
+  processPlantumlElement(code, index = 0) {
     const existingImage = code.parentNode.querySelector('.plantuml-image');
     if (existingImage) existingImage.remove();
 
@@ -141,6 +155,11 @@ const DiagramHandler = {
     image.onload = () => {
       loader.remove();
       this.stylePlantumlImage(image, code, isDark);
+      if (image.parentNode) {
+        image.parentNode.dataset.blockKind = 'plantuml';
+        image.parentNode.dataset.blockId = 'plantuml-' + index;
+        image.parentNode.dataset.plantumlRendered = 'true';
+      }
     };
 
     image.onerror = () => {

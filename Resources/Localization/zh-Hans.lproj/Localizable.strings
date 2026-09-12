@@ -29,7 +29,7 @@
 "Delete Folder" = "删除文件夹";
 
 /* No comment provided by engineer. */
-"MiaoYan [preview]" = "妙言 [预览]";
+"MiaoYan [preview]" = "Mdown [预览]";
 
 /* No comment provided by engineer. */
 "Link" = "链接";
@@ -53,7 +53,7 @@
 "New project" = "新建文件夹";
 
 /* Sidebar label */
-"Notes" = "妙言";
+"Notes" = "Mdown";
 
 /* No comment provided by engineer. */
 "OK" = "好的";
@@ -71,7 +71,7 @@
 "Preferences" = "偏好设置";
 
 /* No comment provided by engineer. */
-"Quit MiaoYan" = "退出妙言";
+"Quit MiaoYan" = "退出 Mdown";
 
 /* Delete menu */
 "Remove" = "移除";
@@ -129,7 +129,7 @@
 "Clean" = "清理";
 
 
-"%d MiaoYan" = "%d 篇妙言";
+"%d MiaoYan" = "%d 篇 Mdown";
 
 
 
@@ -153,7 +153,7 @@
 "Found that there are multiple titles of this~" = "发现这里有多个标题，使用搜索能力~";
 "URL is successfully copied, Use it anywhere~" = "外链成功复制，你可以在任何地方使用~";
 "Path is successfully copied~" = "路径成功复制~";
-"No delimiter --- identification, Cannot use MiaoYan PPT~" = "没有分隔符 --- 标识，无法使用妙言 PPT~";
+"No delimiter --- identification, Cannot use MiaoYan PPT~" = "没有分隔符 --- 标识，无法使用 Mdown PPT~";
 "Formatting failed, please try again" = "排版失败，请重试";
 "Formatting cancelled" = "已取消排版";
 
@@ -163,7 +163,7 @@
 "Edit Link…" = "编辑链接";
 "Remove Link" = "移除链接";
 
-"Restart to MiaoYan to take effect" = "重新启动妙言后生效";
+"Restart to MiaoYan to take effect" = "重新启动 Mdown 后生效";
 "Confirm" = "确定";
 
 /* Font Names */
@@ -189,6 +189,7 @@
 "Editor Mode:" = "编辑模式:";
 "Split Mode" = "分栏模式";
 "Pure Editing" = "纯编辑";
+"WYSIWYG" = "所见即所得";
 
 /* Interface Settings */
 
@@ -226,7 +227,7 @@
 "Bottom" = "底部";
 "Editing" = "编辑";
 "Full Width" = "全宽";
-"MiaoYan" = "妙言";
+"MiaoYan" = "Mdown";
 "Auto" = "自动";
 "Github" = "Github";
 
@@ -279,8 +280,8 @@
 "No importable Markdown files found~" = "没有找到可导入的 Markdown 文件~";
 "Could not use this folder" = "无法使用这个文件夹";
 "Selected storage folder is not a folder." = "所选存储位置不是文件夹。";
-"MiaoYan cannot read this folder. If this is a cloud drive, open the provider app and make sure the folder is exposed in Finder." = "妙言无法读取这个文件夹。如果这是云盘目录，请打开云盘应用，确认该文件夹已在访达中可见。";
-"MiaoYan cannot write to this folder. Choose a writable folder or enable offline access in the cloud drive app." = "妙言无法写入这个文件夹。请选择可写文件夹，或在云盘应用中开启离线访问。";
+"MiaoYan cannot read this folder. If this is a cloud drive, open the provider app and make sure the folder is exposed in Finder." = "Mdown 无法读取这个文件夹。如果这是云盘目录，请打开云盘应用，确认该文件夹已在访达中可见。";
+"MiaoYan cannot write to this folder. Choose a writable folder or enable offline access in the cloud drive app." = "Mdown 无法写入这个文件夹。请选择可写文件夹，或在云盘应用中开启离线访问。";
 
 /* Reload Note */
 "Reload Note" = "重新加载";
@@ -301,3 +302,16 @@
 "Created" = "创建";
 "Backlinks" = "反向链接";
 "Project name" = "文件夹名称";
+
+/* Diagram Export */
+"Export Diagram..." = "导出此图表…";
+"Diagram exported successfully" = "图表导出成功";
+"Failed to export diagram" = "图表导出失败";
+"Format" = "格式";
+"Scale" = "倍数";
+"Background" = "背景";
+"Follow Theme" = "跟随主题";
+"Transparent" = "透明";
+"Light" = "浅色";
+"Dark" = "深色";
+

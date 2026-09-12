@@ -101,3 +101,49 @@ class HandlerPreviewScroll: NSObject, WKScriptMessageHandler {
         }
     }
 }
+
+class HandlerDiagramContextMenu: NSObject, WKScriptMessageHandler {
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        guard let previewView = message.webView as? MPreviewView else { return }
+
+        guard let dict = message.body as? [String: Any],
+            let blockId = dict["blockId"] as? String,
+            let kindRaw = dict["kind"] as? String,
+            let kind = RenderedBlockKind(rawValue: kindRaw)
+        else {
+            Task { @MainActor in
+                previewView.activeDiagramPreflight = nil
+            }
+            return
+        }
+
+        let revision = (dict["revision"] as? NSNumber)?.intValue ?? 1
+        let width = (dict["naturalWidth"] as? NSNumber)?.doubleValue ?? 0
+        let height = (dict["naturalHeight"] as? NSNumber)?.doubleValue ?? 0
+        let isReady = (dict["isReady"] as? Bool) ?? true
+
+        let noteId = previewView.displayedNote?.name ?? "unknown"
+        let identity = RenderedBlockIdentity(
+            noteId: noteId,
+            previewGeneration: 1,
+            blockId: blockId,
+            renderRevision: revision
+        )
+
+        let preflight = RenderedBlockPreflight(
+            identity: identity,
+            kind: kind,
+            isReady: isReady,
+            naturalWidth: CGFloat(width),
+            naturalHeight: CGFloat(height),
+            supportsSvg: kind == .mermaid
+        )
+
+        Task { @MainActor in
+            previewView.activeDiagramPreflight = preflight
+        }
+    }
+}

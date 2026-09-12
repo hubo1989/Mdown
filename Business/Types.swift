@@ -179,8 +179,24 @@ class Commit {
     }
 }
 
+public enum EditorLayoutMode: String, CaseIterable {
+    case source
+    case split
+    case wysiwyg
+}
+
 @MainActor
 final class EditorSessionState {
+    var layoutMode: EditorLayoutMode {
+        get { UserDefaultsManagement.editorLayoutMode }
+        set { UserDefaultsManagement.editorLayoutMode = newValue }
+    }
+
+    var wysiwygMode: Bool {
+        get { UserDefaultsManagement.wysiwygMode }
+        set { UserDefaultsManagement.wysiwygMode = newValue }
+    }
+
     var preview: Bool {
         get { UserDefaultsManagement.preview }
         set { UserDefaultsManagement.preview = newValue }

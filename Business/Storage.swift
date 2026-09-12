@@ -825,11 +825,11 @@ class Storage {
         // File distribution mapping
         let fileMapping: [String: [String]] = [
             "Guide": [
-                isChinese ? "介绍妙言.md" : "Introduction to MiaoYan.md"
+                isChinese ? "介绍 Mdown.md" : "Introduction to Mdown.md"
             ],
             "Examples": [
-                isChinese ? "妙言 PPT.md" : "MiaoYan PPT.md",
-                isChinese ? "妙言 Markdown 语法指南.md" : "MiaoYan Markdown Syntax Guide.md",
+                isChinese ? "Mdown PPT.md" : "Mdown Slides.md",
+                isChinese ? "Mdown Markdown 语法指南.md" : "Mdown Markdown Syntax Guide.md",
             ],
             "Notes": [
                 isChinese ? "欢迎使用.md" : "Welcome.md"

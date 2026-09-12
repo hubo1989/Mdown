@@ -1,0 +1,29 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>妙言 / MiaoYan</title>
+    <link>https://github.com/hubo1989/Mdown/releases</link>    <item>
+      <title>4.2.0</title>
+      <link>https://github.com/hubo1989/Mdown/releases</link>
+      <description><![CDATA[
+      <p>妙言 4.0 新增 iPhone 和 iPad 版本,同时继续提供 GitHub 下载和 Sparkle 更新。你可以选择 App Store 自动更新,也可以继续使用 direct-download 版本。</p>
+      <p>MiaoYan 4.0 adds iPhone and iPad support while keeping GitHub downloads and Sparkle updates available. You can use App Store automatic updates or stay on the direct-download build.</p>
+      <p><a href="https://apps.apple.com/app/id6759252269">Mac App Store</a> · <a href="https://github.com/tw93/MiaoYan/releases">GitHub Releases</a></p>
+          ]]>      </description>
+      <pubDate>Fri, 11 Sep 2026 17:13:57 +0000</pubDate>
+      <enclosure url="https://github.com/hubo1989/Mdown/releases/download/V4.2.0/Mdown_V4.2.0.zip" sparkle:shortVersionString="4.2.0" sparkle:version="4.2.0" sparkle:edSignature="uPpVzaQEr6ETRuyH+SM4x3x7C+PtBqvPCyIw9eX6ctXgp+xOaVqt9Pmdvc2LnUagbCCzsoznMJaKlfUF6Tn6Ag==" length="29337585" type="application/octet-stream"/>
+      <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+    </item>
+
+
+
+
+
+
+
+
+
+
+
+  </channel>
+</rss>

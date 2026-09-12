@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://miaoyan.app/" target="_blank"><img src="https://gw.alipayobjects.com/zos/k/t0/43.png" width="138" /></a>
-  <h1 align="center">MiaoYan</h1>
+  <h1 align="center">Mdown</h1>
   <div align="center">
     <a href="https://twitter.com/HiTw93" target="_blank">
       <img alt="Twitter Follow" src="https://img.shields.io/badge/follow-Tw93-red?style=flat-square&logo=Twitter"></a>
@@ -41,15 +41,15 @@
 
 3. **GitHub Releases**: download the latest DMG from [GitHub Releases](https://github.com/tw93/MiaoYan/releases/latest) (macOS 11.5+)
 
-All three options share the same codebase and receive the same updates. After installing, create a `MiaoYan` folder in iCloud Drive, a desktop cloud-drive folder, or your preferred location, open Preferences (⌘,), and set the storage path.
+All three options share the same codebase and receive the same updates. After installing, create a `Mdown` folder in iCloud Drive, a desktop cloud-drive folder, or your preferred location, open Preferences (⌘,), and set the storage path.
 
 ## Sync with Nutstore or Other Cloud Drives
 
-MiaoYan is local-first and does not sign in to WebDAV or cloud-drive accounts. It reads and writes the Markdown folder you choose. iCloud Drive, Nutstore, Dropbox, or another cloud-drive client handles cross-device sync.
+Mdown is local-first and does not sign in to WebDAV or cloud-drive accounts. It reads and writes the Markdown folder you choose. iCloud Drive, Nutstore, Dropbox, or another cloud-drive client handles cross-device sync.
 
-- **Mac**: Create a `MiaoYan` folder inside the local folder synced by the Nutstore desktop client, then point MiaoYan's storage location to it in Preferences.
+- **Mac**: Create a `Mdown` folder inside the local folder synced by the Nutstore desktop client, then point Mdown's storage location to it in Preferences.
 - **iPhone**: Pick the same cloud-drive folder from the system Files app. If a provider does not expose a writable folder in Files, use iCloud Drive or make the folder available offline in that provider app before choosing it.
-- **Folder check**: MiaoYan verifies read and write access before switching folders. If the folder is unavailable, the current storage path stays unchanged.
+- **Folder check**: Mdown verifies read and write access before switching folders. If the folder is unavailable, the current storage path stays unchanged.
 
 ## CLI
 
@@ -68,29 +68,35 @@ miao cat <title|path>     # Print note content
 miao update               # Update CLI
 ```
 
-## Split Editor & Preview Mode
+## Flexible Editing Modes
 
-Edit and preview side by side with real-time preview and 60fps bidirectional scroll sync.
+Mdown supports three native editing modes to fit your workflow:
 
-**Quick Toggle**: Press `⌘\` to instantly toggle split view mode, or enable it in Preferences → Interface → Edit Mode → Split Mode.
+- **Pure Editing**: Clean, minimalist Markdown source editor without distraction.
+- **Split Mode**: Edit and preview side by side with real-time preview and 60fps bidirectional scroll sync. Toggle instantly with `⌘\`.
+- **WYSIWYG Mode**: Native direct-editing experience that hides markup delimiters while keeping pure, authoritative Markdown under the hood.
 
-Why not WYSIWYG like Typora? We prioritize pure Markdown editing experience, and implementing WYSIWYG in native Swift is overly complex with reliability concerns. Split mode maintains clean editing while providing instant visual feedback.
+Configure your preferred default in **Preferences → Interface → Editor Mode**, or toggle between them seamlessly.
 
 <img src="https://gw.alipayobjects.com/zos/k/eg/jV8Gra.png" width="100%" alt="Split Editor & Preview Mode" />
 
+### High-Resolution Rendered Block Export
+
+Right-click any rendered Mermaid diagram, PlantUML graph, or KaTeX math formula in the preview pane to export standalone, retina-crisp PNG (1×/2×/3×) or sanitized SVG vector images.
+
 ## Documentation
 
-- [Markdown Syntax Guide](Resources/Initial/MiaoYan%20Markdown%20Syntax%20Guide.md) - Complete syntax reference with advanced features
-- [PPT Presentation Mode](Resources/Initial/MiaoYan%20PPT.md) - Guide to creating presentations with `---` slide separators
-- [MiaoYan Agent Skill](skills/miaoyan) - Teach your agent MiaoYan syntax, attachments, PPT patterns, and CLI workflows
+- [Markdown Syntax Guide](Resources/Initial/Mdown%20Markdown%20Syntax%20Guide.md) - Complete syntax reference with advanced features
+- [PPT Presentation Mode](Resources/Initial/Mdown%20Slides.md) - Guide to creating presentations with `---` slide separators
+- [Mdown Agent Skill](skills/miaoyan) - Teach your agent Mdown syntax, attachments, PPT patterns, and CLI workflows
 
 Install the official skill with `npx skills add tw93/MiaoYan/skills/miaoyan -g`.
 
 ## Support
 
 - The most direct way to support me is getting [Mole for Mac](https://mole.fit), my paid Mac cleanup app.
-- If MiaoYan helped you, give it a star, [share it](https://twitter.com/intent/tweet?url=https://github.com/tw93/MiaoYan&text=MiaoYan%20-%20A%20fast%2C%20elegant%20Markdown%20editor%20for%20Mac.), or open an issue or PR.
-- I have two cats, TangYuan and Coke. If you think MiaoYan delights your life, you can feed them <a href="https://cats.tw93.fun?name=MiaoYan" target="_blank">canned food 🥩</a>.
+- If Mdown helped you, give it a star, [share it](https://twitter.com/intent/tweet?url=https://github.com/tw93/MiaoYan&text=Mdown%20-%20A%20fast%2C%20elegant%20Markdown%20editor%20for%20Mac.), or open an issue or PR.
+- I have two cats, TangYuan and Coke. If you think Mdown delights your life, you can feed them <a href="https://cats.tw93.fun?name=Mdown" target="_blank">canned food 🥩</a>.
 
 <details>
 <summary>These lovely people already did 🐱</summary>

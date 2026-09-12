@@ -437,6 +437,11 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
 
     private func insertShortcutText(_ shortcut: String) {
         guard EditTextView.note != nil else { return }
+        if let vc = getViewController(), vc.sessionLayoutMode == .wysiwyg {
+            vc.sessionLayoutMode = .source
+            UserDefaultsManagement.editorLayoutMode = .source
+            vc.applyEditorModePreferenceChange()
+        }
         window?.makeFirstResponder(self)
 
         let range = selectedRange()
@@ -1004,10 +1009,10 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
             return
         }
         let string = storage.attributedSubstring(from: NSRange(0..<storage.length))
-        note.content =
-            NSMutableAttributedString(attributedString: string)
+        let cleaned = NSMutableAttributedString(attributedString: string)
             .unLoadImages()
             .unLoadCheckboxes()
+        note.content = cleaned
     }
 
     func setEditorTextColor(_ color: NSColor) {

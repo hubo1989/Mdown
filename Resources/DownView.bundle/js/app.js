@@ -11,6 +11,7 @@ class MiaoYanApp {
     // Use common module for interactive checkboxes
     if (window.MiaoYanCommon) {
       MiaoYanCommon.setupInteractiveCheckboxes();
+      MiaoYanCommon.setupDiagramExport();
     }
   }
 }

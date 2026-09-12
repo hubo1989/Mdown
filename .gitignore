@@ -14,6 +14,7 @@ MiaoYan.xcodeproj/xcuserdata/*
 DerivedData/
 .build/
 build/
+Build/
 _build/
 temp_check_keys/
 *.dSYM
@@ -92,7 +93,6 @@ package-lock.json
 /Release/
 /dist/
 *.ipa
-appcast.xml
 
 # Documentation & Demo files
 docs/

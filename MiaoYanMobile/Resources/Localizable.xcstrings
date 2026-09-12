@@ -467,67 +467,62 @@
         }
       }
     },
-    "MiaoYan" : {
-      "extractionState" : "stale",
+    "Mdown" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "妙言"
+            "value" : "Mdown"
           }
         }
       }
     },
-    "MiaoYan can't read this folder. Open Files and confirm the cloud provider exposes it." : {
-      "extractionState" : "stale",
+    "Mdown can't read this folder. Open Files and confirm the cloud provider exposes it." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "妙言无法读取这个文件夹。请打开文件 App，确认云盘应用已暴露该文件夹。"
+            "value" : "Mdown无法读取这个文件夹。请打开文件 App，确认云盘应用已暴露该文件夹。"
           }
         }
       }
     },
-    "MiaoYan can't write to this folder. Pick a writable folder or enable offline access in the cloud app." : {
-      "extractionState" : "stale",
+    "Mdown can't write to this folder. Pick a writable folder or enable offline access in the cloud app." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "妙言无法写入这个文件夹。请选择可写文件夹，或在云盘应用中开启离线访问。"
+            "value" : "Mdown无法写入这个文件夹。请选择可写文件夹，或在云盘应用中开启离线访问。"
           }
         }
       }
     },
-    "MiaoYan reads and writes Markdown files in this folder. iCloud Drive or your cloud drive app keeps it in sync with Mac." : {
+    "Mdown reads and writes Markdown files in this folder. iCloud Drive or your cloud drive app keeps it in sync with Mac." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "妙言会读写这个文件夹里的 Markdown 文件。iCloud Drive 或你的云盘应用负责与 Mac 同步。"
+            "value" : "Mdown会读写这个文件夹里的 Markdown 文件。iCloud Drive 或你的云盘应用负责与 Mac 同步。"
           }
         }
       }
     },
-    "MiaoYan reads Markdown notes from this folder. Pick an iCloud Drive folder to keep notes synced with Mac." : {
-      "extractionState" : "stale",
+    "Mdown reads Markdown notes from this folder. Pick an iCloud Drive folder to keep notes synced with Mac." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "MiaoYan 会从这个文件夹读取 Markdown 笔记。选择 iCloud Drive 文件夹可与 Mac 保持同步。"
+            "value" : "Mdown 会从这个文件夹读取 Markdown 笔记。选择 iCloud Drive 文件夹可与 Mac 保持同步。"
           }
         }
       }
     },
-    "MiaoYan will read your Markdown notes from iCloud Drive." : {
-      "extractionState" : "stale",
+    "Mdown will read your Markdown notes from iCloud Drive." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "妙言将从 iCloud Drive 读取你的 Markdown 笔记。"
+            "value" : "Mdown将从 iCloud Drive 读取你的 Markdown 笔记。"
           }
         }
       }

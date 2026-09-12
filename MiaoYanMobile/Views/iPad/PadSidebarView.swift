@@ -43,7 +43,7 @@ struct PadSidebarView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(MobileTheme.paper)
-        .navigationTitle("MiaoYan")
+        .navigationTitle("Mdown")
         .tint(MobileTheme.accent)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
