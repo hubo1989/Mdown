@@ -7,10 +7,13 @@ enum NativeFixtureLoader {
     static func load(_ name: String) throws -> Data {
         let base = (name as NSString).deletingPathExtension
         let ext = (name as NSString).pathExtension
-        guard let url = Bundle(for: NativeEditorFixtureTests.self)
-            .url(forResource: base, withExtension: ext) else {
-            throw NSError(domain: "NativeFixtureLoader", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "fixture \(name) 不在 test bundle Resources"])
+        guard
+            let url = Bundle(for: NativeEditorFixtureTests.self)
+                .url(forResource: base, withExtension: ext)
+        else {
+            throw NSError(
+                domain: "NativeFixtureLoader", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "fixture \(name) 不在 test bundle Resources"])
         }
         return try Data(contentsOf: url)
     }

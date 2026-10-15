@@ -72,7 +72,8 @@ enum MarkdownPatchApplier {
     /// 对 snapshot 应用 transaction：identity → revision → patch 原子校验。
     static func apply(_ transaction: EditTransaction, to snapshot: EditingSnapshot) -> EditApplyResult {
         if transaction.identity.ownerToken != snapshot.identity.ownerToken
-            || transaction.identity.canonicalURL != snapshot.identity.canonicalURL {
+            || transaction.identity.canonicalURL != snapshot.identity.canonicalURL
+        {
             return .rejected(.ownerChanged)
         }
         if transaction.identity.generation != snapshot.identity.generation {
@@ -84,15 +85,17 @@ enum MarkdownPatchApplier {
         switch applyPatches(transaction.patches, to: snapshot.markdown) {
         case .success(let updated):
             if updated == snapshot.markdown {
-                return .noChange(EditingSnapshot(
-                    identity: snapshot.identity, revision: snapshot.revision,
-                    markdown: snapshot.markdown, selection: transaction.selectionAfter
-                ))
+                return .noChange(
+                    EditingSnapshot(
+                        identity: snapshot.identity, revision: snapshot.revision,
+                        markdown: snapshot.markdown, selection: transaction.selectionAfter
+                    ))
             }
-            return .accepted(EditingSnapshot(
-                identity: snapshot.identity, revision: snapshot.revision + 1,
-                markdown: updated, selection: transaction.selectionAfter
-            ))
+            return .accepted(
+                EditingSnapshot(
+                    identity: snapshot.identity, revision: snapshot.revision + 1,
+                    markdown: updated, selection: transaction.selectionAfter
+                ))
         case .failure(let rejection):
             return .rejected(rejection)
         }
@@ -108,7 +111,8 @@ enum MarkdownPatchApplier {
             let range = patch.rangeUTF16
             // 越界（NSRange 的 length 为负由 NSNotFound/负值统一拒绝）
             guard range.location >= 0, range.length >= 0,
-                  range.location + range.length <= utf16.count else {
+                range.location + range.length <= utf16.count
+            else {
                 return .failure(.invalidRange)
             }
             // Unicode 不变量：边界必须落在 grapheme cluster 边界
@@ -116,7 +120,8 @@ enum MarkdownPatchApplier {
             let lower = range.location
             let upper = range.location + range.length
             if !MarkdownSourceMap.isGraphemeBoundary(lower, utf16: utf16, source: source)
-                || !MarkdownSourceMap.isGraphemeBoundary(upper, utf16: utf16, source: source) {
+                || !MarkdownSourceMap.isGraphemeBoundary(upper, utf16: utf16, source: source)
+            {
                 return .failure(.invalidRange)
             }
             // expectedText 必须与 base 实际文本一致

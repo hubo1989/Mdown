@@ -94,9 +94,9 @@ final class MarkdownEditTransactionTests: XCTestCase {
 
     func testRejectsOutOfRange() {
         let cases = [
-            SourcePatch(rangeUTF16: NSRange(location: 5, length: 1), expectedText: "", replacement: "X"), // 越起点
-            SourcePatch(rangeUTF16: NSRange(location: 0, length: 6), expectedText: "", replacement: "X"), // 越终点
-            SourcePatch(rangeUTF16: NSRange(location: 1, length: -1), expectedText: "", replacement: "X"), // 负长度
+            SourcePatch(rangeUTF16: NSRange(location: 5, length: 1), expectedText: "", replacement: "X"),  // 越起点
+            SourcePatch(rangeUTF16: NSRange(location: 0, length: 6), expectedText: "", replacement: "X"),  // 越终点
+            SourcePatch(rangeUTF16: NSRange(location: 1, length: -1), expectedText: "", replacement: "X"),  // 负长度
         ]
         for patch in cases {
             guard case .failure(.invalidRange) = apply([patch], to: "ABCDE") else {
@@ -127,9 +127,11 @@ final class MarkdownEditTransactionTests: XCTestCase {
     func testStaleRevisionRejected() {
         let identity = makeIdentity()
         var snapshot = makeSnapshot("AB", identity: identity, revision: 0)
-        let tx1 = makeTransaction(identity: identity, revision: 0, patches: [
-            SourcePatch(rangeUTF16: NSRange(location: 1, length: 1), expectedText: "B", replacement: "C"),
-        ])
+        let tx1 = makeTransaction(
+            identity: identity, revision: 0,
+            patches: [
+                SourcePatch(rangeUTF16: NSRange(location: 1, length: 1), expectedText: "B", replacement: "C")
+            ])
         guard case .accepted(let s1) = MarkdownPatchApplier.apply(tx1, to: snapshot) else {
             return XCTFail("合法首笔事务必须接受")
         }
@@ -137,9 +139,11 @@ final class MarkdownEditTransactionTests: XCTestCase {
         XCTAssertEqual(s1.revision, 1)
         snapshot = s1
 
-        let stale = makeTransaction(identity: identity, revision: 0, patches: [
-            SourcePatch(rangeUTF16: NSRange(location: 0, length: 2), expectedText: "AB", replacement: "旧格式化结果"),
-        ])
+        let stale = makeTransaction(
+            identity: identity, revision: 0,
+            patches: [
+                SourcePatch(rangeUTF16: NSRange(location: 0, length: 2), expectedText: "AB", replacement: "旧格式化结果")
+            ])
         guard case .rejected(.staleRevision) = MarkdownPatchApplier.apply(stale, to: snapshot) else {
             return XCTFail("旧 revision 事务必须拒绝为 staleRevision")
         }
@@ -215,9 +219,11 @@ final class MarkdownEditTransactionTests: XCTestCase {
         // 事务层 noChange 同样不产生新 revision，字节 hash 不变
         let identity = makeIdentity()
         let snapshot = makeSnapshot(source, identity: identity)
-        let noOp = makeTransaction(identity: identity, patches: [
-            SourcePatch(rangeUTF16: NSRange(location: 0, length: 0), expectedText: "", replacement: ""),
-        ])
+        let noOp = makeTransaction(
+            identity: identity,
+            patches: [
+                SourcePatch(rangeUTF16: NSRange(location: 0, length: 0), expectedText: "", replacement: "")
+            ])
         guard case .noChange(let s) = MarkdownPatchApplier.apply(noOp, to: snapshot) else {
             return XCTFail("无效果事务必须是 noChange")
         }

@@ -42,8 +42,9 @@ final class MarkdownSourceMapTests: XCTestCase {
         for boundary in [0, 1, 2, 3, 5, 7, 18, 19, 23] {
             let prefix = ns.substring(to: boundary)
             let expectedBytes = prefix.utf8.count
-            XCTAssertEqual(map.utf8Offset(forUTF16: boundary), expectedBytes,
-                           "UTF16 \(boundary) 的字节偏移与 NSString oracle 不符")
+            XCTAssertEqual(
+                map.utf8Offset(forUTF16: boundary), expectedBytes,
+                "UTF16 \(boundary) 的字节偏移与 NSString oracle 不符")
         }
         // 手工锚点：a=1, aé=3, aé中=6（é 组合重音 2 字节 / 中文 3 字节）
         XCTAssertEqual(map.utf8Offset(forUTF16: 1), 1)
@@ -55,7 +56,8 @@ final class MarkdownSourceMapTests: XCTestCase {
         let map = MarkdownSourceMap(source: mixed)
         for utf16Boundary in [0, 1, 2, 3, 5, 7, 18, 23] {
             guard let byte = map.utf8Offset(forUTF16: utf16Boundary),
-                  let back = map.utf16Offset(forUTF8: byte) else {
+                let back = map.utf16Offset(forUTF8: byte)
+            else {
                 return XCTFail("边界 \(utf16Boundary) 转换不应失败")
             }
             XCTAssertEqual(back, utf16Boundary, "UTF16→UTF8→UTF16 必须还原")

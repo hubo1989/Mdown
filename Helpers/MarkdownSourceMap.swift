@@ -17,18 +17,22 @@ struct MarkdownSourceMap {
     func utf8Offset(forUTF16 utf16Offset: Int) -> Int? {
         guard isGraphemeBoundary(utf16Offset) else { return nil }
         let utf16View = source.utf16
-        guard let index16 = utf16View.index(
-            utf16View.startIndex, offsetBy: utf16Offset, limitedBy: utf16View.endIndex
-        ) else { return nil }
+        guard
+            let index16 = utf16View.index(
+                utf16View.startIndex, offsetBy: utf16Offset, limitedBy: utf16View.endIndex
+            )
+        else { return nil }
         return source.utf8.distance(from: source.utf8.startIndex, to: index16.samePosition(in: source.utf8)!)
     }
 
     /// UTF8 字节偏移 → UTF16 偏移。非 grapheme 边界返回 nil。
     func utf16Offset(forUTF8 utf8Offset: Int) -> Int? {
         let utf8View = source.utf8
-        guard let index8 = utf8View.index(
-            utf8View.startIndex, offsetBy: utf8Offset, limitedBy: utf8View.endIndex
-        ) else { return nil }
+        guard
+            let index8 = utf8View.index(
+                utf8View.startIndex, offsetBy: utf8Offset, limitedBy: utf8View.endIndex
+            )
+        else { return nil }
         guard let index16 = index8.samePosition(in: source.utf16) else { return nil }
         return source.utf16.distance(from: source.utf16.startIndex, to: index16)
     }
@@ -36,7 +40,8 @@ struct MarkdownSourceMap {
     /// NSRange(UTF16) → UTF8 字节区间。
     func byteRange(forUTF16Range range: NSRange) -> Range<Int>? {
         guard let lower = utf8Offset(forUTF16: range.location),
-              let upper = utf8Offset(forUTF16: range.location + range.length) else { return nil }
+            let upper = utf8Offset(forUTF16: range.location + range.length)
+        else { return nil }
         return lower..<upper
     }
 
@@ -62,9 +67,11 @@ struct MarkdownSourceMap {
         // 其余（组合附标/ZWJ/emoji 序列）交给 String(grapheme) 判定：
         // 偏移可对应一个 Character 切分位置 ⇔ 是 cluster 边界。
         let view = source.utf16
-        guard let index = view.index(
-            view.startIndex, offsetBy: utf16Offset, limitedBy: view.endIndex
-        ) else { return false }
+        guard
+            let index = view.index(
+                view.startIndex, offsetBy: utf16Offset, limitedBy: view.endIndex
+            )
+        else { return false }
         return index.samePosition(in: source) != nil
     }
 }

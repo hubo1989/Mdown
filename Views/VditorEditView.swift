@@ -80,7 +80,8 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
 
     private func loadEditorHTML() {
         guard let bundle = HtmlManager.getDownViewBundle(),
-              let editorURL = bundle.url(forResource: "editor", withExtension: "html") else {
+            let editorURL = bundle.url(forResource: "editor", withExtension: "html")
+        else {
             AppDelegate.trackError(
                 NSError(domain: "VditorEditView", code: 1, userInfo: [NSLocalizedDescriptionKey: "editor.html not found"]),
                 context: "VditorEditView.loadEditorHTML"
@@ -120,7 +121,8 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
             }
         } else if message.name == "vditorChange" {
             guard let body = message.body as? [String: Any],
-                  let markdown = body["markdown"] as? String else {
+                let markdown = body["markdown"] as? String
+            else {
                 return
             }
             let token = body["token"] as? Int
@@ -223,7 +225,8 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
 
     private func serializeToJSON(_ text: String) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: [text], options: []),
-              let jsonString = String(data: data, encoding: .utf8) else {
+            let jsonString = String(data: data, encoding: .utf8)
+        else {
             return "''"
         }
         // Extract string from JSON array [ "..." ]

@@ -47,8 +47,9 @@ final class NativeEditorFixtureTests: XCTestCase {
     func testMixedEOLSampleHasBothLineEndings() throws {
         let text = try XCTUnwrap(String(data: try loadFixture("mixed-eol.md"), encoding: .utf8))
         XCTAssertTrue(text.contains("\r\n"), "必须包含 CRLF")
-        XCTAssertTrue(text.contains("\n") && !text.replacingOccurrences(of: "\r\n", with: "").isEmpty,
-                      "必须包含非 CRLF 的 LF 内容")
+        XCTAssertTrue(
+            text.contains("\n") && !text.replacingOccurrences(of: "\r\n", with: "").isEmpty,
+            "必须包含非 CRLF 的 LF 内容")
         XCTAssertFalse(text.contains("\r\n\r\n"), "样例刻意不含空行 CRLF，特征漂移需更新 manifest")
     }
 

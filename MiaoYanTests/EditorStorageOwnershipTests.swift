@@ -121,8 +121,9 @@ final class EditorStorageOwnershipTests: XCTestCase {
             vditorView: vditor, isWysiwygActive: true
         )
 
-        XCTAssertEqual(noteA.content.string, "v2",
-                       "wysiwyg 活动时硬保存点不得用旧 source buffer 覆盖 Vditor 内容")
+        XCTAssertEqual(
+            noteA.content.string, "v2",
+            "wysiwyg 活动时硬保存点不得用旧 source buffer 覆盖 Vditor 内容")
         XCTAssertFalse(vditor.hasUnsavedChanges, "flush 后 Vditor 不再挂起未保存状态")
     }
 

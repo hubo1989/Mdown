@@ -56,9 +56,10 @@ final class VditorBridgeContractTests: XCTestCase {
             predicate: "!!document.querySelector('.vditor-wysiwyg [contenteditable=\"true\"]')"
         )
         if !editableReady {
-            let dump = (try? await view.evaluateJavaScript(
-                "document.querySelector('.vditor') ? document.querySelector('.vditor').innerHTML.slice(0, 400) : 'NO_VDITOR_ROOT'"
-            ) as? String) ?? "dump-failed"
+            let dump =
+                (try? await view.evaluateJavaScript(
+                    "document.querySelector('.vditor') ? document.querySelector('.vditor').innerHTML.slice(0, 400) : 'NO_VDITOR_ROOT'"
+                ) as? String) ?? "dump-failed"
             XCTFail("wysiwyg contenteditable 未就绪；DOM dump: \(dump)")
         }
         return (view, note)
@@ -84,20 +85,21 @@ final class VditorBridgeContractTests: XCTestCase {
         // 触发 setMarkdown（等价 loadNote 重载同 note），紧接窗口内模拟真实用户输入。
         view.loadNote(note)
 
-        let typedResult = try await view.evaluateJavaScript("""
-        (function() {
-            var editable = document.querySelector('.vditor-wysiwyg [contenteditable="true"]');
-            editable.focus();
-            var sel = window.getSelection();
-            var range = document.createRange();
-            range.selectNodeContents(editable);
-            range.collapse(false);
-            sel.removeAllRanges();
-            sel.addRange(range);
-            document.execCommand('insertText', false, 'X');
-            return 'sent';
-        })()
-        """)
+        let typedResult = try await view.evaluateJavaScript(
+            """
+            (function() {
+                var editable = document.querySelector('.vditor-wysiwyg [contenteditable="true"]');
+                editable.focus();
+                var sel = window.getSelection();
+                var range = document.createRange();
+                range.selectNodeContents(editable);
+                range.collapse(false);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                document.execCommand('insertText', false, 'X');
+                return 'sent';
+            })()
+            """)
         let typed = try XCTUnwrap(typedResult as? String)
         XCTAssertEqual(typed, "sent")
 
@@ -108,8 +110,9 @@ final class VditorBridgeContractTests: XCTestCase {
             try? await Task.sleep(nanoseconds: 50_000_000)
             noteContent = note.content.string
         }
-        XCTAssertTrue(note.content.string.contains("X"),
-                      "setMarkdown 窗口内的真实输入被 loading flag 丢弃，用户输入丢失（T01 风险 #1）")
+        XCTAssertTrue(
+            note.content.string.contains("X"),
+            "setMarkdown 窗口内的真实输入被 loading flag 丢弃，用户输入丢失（T01 风险 #1）")
     }
 
     /// 反向回归门：程序化 setMarkdown 不得产生假 vditorChange——
@@ -121,9 +124,9 @@ final class VditorBridgeContractTests: XCTestCase {
         let diskBefore = try String(contentsOf: note.url, encoding: .utf8)
         let contentBefore = note.content.string
 
-        view.loadNote(note) // 同 note 重载 → applyNoteToEditor → setMarkdown
+        view.loadNote(note)  // 同 note 重载 → applyNoteToEditor → setMarkdown
 
-        try await Task.sleep(nanoseconds: 1_500_000_000) // 覆盖旧 0.5s debounce 窗口
+        try await Task.sleep(nanoseconds: 1_500_000_000)  // 覆盖旧 0.5s debounce 窗口
         XCTAssertEqual(note.content.string, contentBefore, "程序化加载不得把回声/末尾换行写进 Note.content")
         XCTAssertFalse(view.hasUnsavedChanges, "程序化加载不得置 hasUnsavedChanges")
         let diskAfter = try String(contentsOf: note.url, encoding: .utf8)
@@ -140,14 +143,15 @@ final class VditorBridgeContractTests: XCTestCase {
         let noteB = makeTestNote(name: "late-b.md", content: "B 原始内容")
 
         view.loadNote(noteA)
-        view.loadNote(noteB) // postMessage 在途时切换
+        view.loadNote(noteB)  // postMessage 在途时切换
         XCTAssertEqual(view.currentNote?.url, noteB.url)
 
         // 模拟 A 的晚到消息（真实竞态中 JS postMessage 与 Swift 切换交错）
         view.handleContentChanged("A 的迟到编辑", token: view.currentLoadTokenValue - 1)
         view.handleContentChanged("无身份消息")
 
-        XCTAssertEqual(noteB.content.string, "B 原始内容",
-                       "晚到/无身份消息不得写进 B（消息缺少匹配身份即拒绝）")
+        XCTAssertEqual(
+            noteB.content.string, "B 原始内容",
+            "晚到/无身份消息不得写进 B（消息缺少匹配身份即拒绝）")
     }
 }

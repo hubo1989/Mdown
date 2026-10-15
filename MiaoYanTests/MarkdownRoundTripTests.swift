@@ -59,8 +59,9 @@ final class MarkdownRoundTripTests: XCTestCase {
         let ns = source as NSString
         for block in doc.blocks {
             let slice = ns.substring(with: block.rangeUTF16)
-            XCTAssertFalse(slice.hasSuffix("\r"),
-                           "块不得结束在 CR 与 LF 之间：\(block)")
+            XCTAssertFalse(
+                slice.hasSuffix("\r"),
+                "块不得结束在 CR 与 LF 之间：\(block)")
         }
     }
 
@@ -78,7 +79,10 @@ final class MarkdownRoundTripTests: XCTestCase {
         XCTAssertEqual(doc.blocks.first?.kind, .frontmatter, "editor-behavior.md 以 frontmatter 开头")
         // frontmatter 后应出现 heading（## 1. Unicode 与输入法）
         let afterFrontmatter = doc.blocks.dropFirst().prefix(3)
-        XCTAssertTrue(afterFrontmatter.contains { if case .heading = $0.kind { return true }; return false },
-                      "frontmatter 之后应有 heading 块")
+        XCTAssertTrue(
+            afterFrontmatter.contains {
+                if case .heading = $0.kind { return true }; return false
+            },
+            "frontmatter 之后应有 heading 块")
     }
 }
