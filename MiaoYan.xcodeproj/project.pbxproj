@@ -189,6 +189,32 @@
 		D7F95F3A1FF2759300E2A447 /* NotesTextProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7F95F391FF2759300E2A447 /* NotesTextProcessor.swift */; };
 		DED88A40FE6B4D8A8A6C1573 /* MiaoYanTests/NoteSaveDebounceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B42684E4812440381B81D4A /* MiaoYanTests/NoteSaveDebounceTests.swift */; };
 		FF1B607FC2BE7EC27BDCC919 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62E80EC32C30794536C13709 /* SearchView.swift */; };
+		F1XB0FA000000000000001 /* bom-utf8.md in Resources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000001 /* bom-utf8.md */; };
+		F1XB0FA000000000000002 /* mixed-eol.md in Resources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000002 /* mixed-eol.md */; };
+		F1XB0FA000000000000003 /* tabs.md in Resources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000003 /* tabs.md */; };
+		F1XB0FA000000000000004 /* bad-math.md in Resources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000004 /* bad-math.md */; };
+		F1XB0FA000000000000005 /* editor-behavior.md in Resources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000005 /* editor-behavior.md */; };
+		F1XB0FA000000000000006 /* roundtrip-crlf.md in Resources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000006 /* roundtrip-crlf.md */; };
+		F1XB0FA000000000000007 /* roundtrip-no-final-newline.md in Resources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000007 /* roundtrip-no-final-newline.md */; };
+		F1XB0FA000000000000008 /* behavior-cases.json in Resources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000008 /* behavior-cases.json */; };
+		F1XB0FA000000000000009 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000009 /* manifest.json */; };
+		F1XB0FA0000000000010 /* NativeEditorFixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000010 /* NativeEditorFixtureTests.swift */; };
+		F1XB0FA0000000000011 /* VditorBridgeContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000011 /* VditorBridgeContractTests.swift */; };
+		F1XB0FA0000000000012 /* ActiveEditingBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000012 /* ActiveEditingBackend.swift */; };
+		F1XB0FA000000000000020 /* MarkdownEditTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000020 /* MarkdownEditTransaction.swift */; };
+		F1XB0FA000000000000021 /* MarkdownSourceMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000021 /* MarkdownSourceMap.swift */; };
+		F1XB0FA000000000000022 /* MarkdownEditTransactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000022 /* MarkdownEditTransactionTests.swift */; };
+		F1XB0FA000000000000023 /* MarkdownSourceMapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA000000000000023 /* MarkdownSourceMapTests.swift */; };
+		F1XB0FA0000000000024 /* LosslessMarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000024 /* LosslessMarkdownParser.swift */; };
+		F1XB0FA0000000000025 /* MarkdownProjectionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000025 /* MarkdownProjectionBuilder.swift */; };
+		F1XB0FA0000000000026 /* MarkdownRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000026 /* MarkdownRoundTripTests.swift */; };
+		F1XB0FA0000000000027 /* LosslessMarkdownParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000027 /* LosslessMarkdownParserTests.swift */; };
+		F1XB0FA0000000000028 /* MarkdownProjectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000028 /* MarkdownProjectionTests.swift */; };
+		F1XB0FA0000000000029 /* NativeFixtureLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000029 /* NativeFixtureLoader.swift */; };
+		F1XB0FA0000000000030 /* RichMarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000030 /* RichMarkdownTextView.swift */; };
+		F1XB0FA0000000000031 /* MarkdownEditorHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000031 /* MarkdownEditorHistory.swift */; };
+		F1XB0FA0000000000032 /* RichMarkdownEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000032 /* RichMarkdownEditingTests.swift */; };
+		F1XB0FA0000000000033 /* MarkdownCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1XA0FA0000000000033 /* MarkdownCompositionTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -408,6 +434,32 @@
 		E781F9F37C5B57FD7F09C19D /* MiaoYanMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MiaoYanMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFF5878451919D13759B1D46 /* FileReader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FileReader.swift; path = MiaoYanMobile/Services/FileReader.swift; sourceTree = SOURCE_ROOT; };
 		b2384ca08b9b4d1389a7bf4e0ae47758 /* FontConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontConfiguration.swift; sourceTree = "<group>"; };
+		F1XA0FA000000000000001 /* bom-utf8.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bom-utf8.md; sourceTree = "<group>"; };
+		F1XA0FA000000000000002 /* mixed-eol.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = mixed-eol.md; sourceTree = "<group>"; };
+		F1XA0FA000000000000003 /* tabs.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = tabs.md; sourceTree = "<group>"; };
+		F1XA0FA000000000000004 /* bad-math.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bad-math.md; sourceTree = "<group>"; };
+		F1XA0FA000000000000005 /* editor-behavior.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = editor-behavior.md; sourceTree = "<group>"; };
+		F1XA0FA000000000000006 /* roundtrip-crlf.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = roundtrip-crlf.md; sourceTree = "<group>"; };
+		F1XA0FA000000000000007 /* roundtrip-no-final-newline.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = roundtrip-no-final-newline.md; sourceTree = "<group>"; };
+		F1XA0FA000000000000008 /* behavior-cases.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = behavior-cases.json; sourceTree = "<group>"; };
+		F1XA0FA000000000000009 /* manifest.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+		F1XA0FA0000000000010 /* NativeEditorFixtureTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeEditorFixtureTests.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000011 /* VditorBridgeContractTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VditorBridgeContractTests.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000012 /* ActiveEditingBackend.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ActiveEditingBackend.swift; sourceTree = "<group>"; };
+		F1XA0FA000000000000020 /* MarkdownEditTransaction.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditTransaction.swift; sourceTree = "<group>"; };
+		F1XA0FA000000000000021 /* MarkdownSourceMap.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownSourceMap.swift; sourceTree = "<group>"; };
+		F1XA0FA000000000000022 /* MarkdownEditTransactionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditTransactionTests.swift; sourceTree = "<group>"; };
+		F1XA0FA000000000000023 /* MarkdownSourceMapTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownSourceMapTests.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000024 /* LosslessMarkdownParser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LosslessMarkdownParser.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000025 /* MarkdownProjectionBuilder.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownProjectionBuilder.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000026 /* MarkdownRoundTripTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownRoundTripTests.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000027 /* LosslessMarkdownParserTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LosslessMarkdownParserTests.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000028 /* MarkdownProjectionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownProjectionTests.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000029 /* NativeFixtureLoader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeFixtureLoader.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000030 /* RichMarkdownTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RichMarkdownTextView.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000031 /* MarkdownEditorHistory.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditorHistory.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000032 /* RichMarkdownEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RichMarkdownEditingTests.swift; sourceTree = "<group>"; };
+		F1XA0FA0000000000033 /* MarkdownCompositionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownCompositionTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -517,7 +569,18 @@
 				7A0200012D4E5F60718293A1 /* MiaoYanTests/RenderedBlockExportTests.swift */,
 				0B2BB9795EE5AC72B1423FF8 /* MiaoYanTests/ImportScanTests.swift */,
 				17D270682FE43740B52C6C24 /* MiaoYanTests/Info.plist */,
-			);
+							F1XC0FA0000000000000001 /* Fixtures */,
+				F1XA0FA0000000000010 /* NativeEditorFixtureTests.swift */,
+				F1XA0FA0000000000011 /* VditorBridgeContractTests.swift */,
+				F1XA0FA000000000000022 /* MarkdownEditTransactionTests.swift */,
+				F1XA0FA000000000000023 /* MarkdownSourceMapTests.swift */,
+				F1XA0FA0000000000026 /* MarkdownRoundTripTests.swift */,
+				F1XA0FA0000000000027 /* LosslessMarkdownParserTests.swift */,
+				F1XA0FA0000000000028 /* MarkdownProjectionTests.swift */,
+				F1XA0FA0000000000029 /* NativeFixtureLoader.swift */,
+				F1XA0FA0000000000032 /* RichMarkdownEditingTests.swift */,
+				F1XA0FA0000000000033 /* MarkdownCompositionTests.swift */,
+);
 			path = MiaoYanTests;
 			sourceTree = "<group>";
 		};
@@ -558,7 +621,7 @@
 				2B22AA0F885D42989822E002 /* PadSidebarView.swift */,
 				2B22AA0F885D42989822E003 /* PadContentColumn.swift */,
 				2B22AA0F885D42989822E004 /* PadDetailPlaceholder.swift */,
-			);
+);
 			name = Views;
 			path = MiaoYanMobile/Views;
 			sourceTree = "<group>";
@@ -640,7 +703,9 @@
 				D708AC662000EF5800A1760F /* Types.swift */,
 				8F7136ED23490CBF004DFA6E /* Markdown.swift */,
 				E38D0BC1B6A40BDD6D98E4F5 /* Business/AppEnvironment.swift */,
-			);
+							F1XA0FA000000000000020 /* MarkdownEditTransaction.swift */,
+				F1XA0FA0000000000031 /* MarkdownEditorHistory.swift */,
+);
 			path = Business;
 			sourceTree = "<group>";
 		};
@@ -739,7 +804,8 @@
 				919F545BD00240BFACE54736 /* PreviewSearchBar.swift */,
 				BEE6142E8B5D4BB380FC2B38 /* MPreviewView+Search.swift */,
 				272D1B422E77E9AC00A95674 /* MPreviewView+DiagramExport.swift */,
-			);
+							F1XA0FA0000000000030 /* RichMarkdownTextView.swift */,
+);
 			path = Views;
 			sourceTree = "<group>";
 		};
@@ -775,8 +841,36 @@
 				7CEDD077A416C0F4BA0EC980 /* Helpers/UIDelay.swift */,
 				ED58CF253E8AA0C439EC9C28 /* Helpers/TypographyCleaner.swift */,
 				0736438569674343BEEB0299 /* Helpers/HtmlToMarkdown.swift */,
-			);
+							F1XA0FA0000000000012 /* ActiveEditingBackend.swift */,
+				F1XA0FA000000000000021 /* MarkdownSourceMap.swift */,
+				F1XA0FA0000000000024 /* LosslessMarkdownParser.swift */,
+				F1XA0FA0000000000025 /* MarkdownProjectionBuilder.swift */,
+);
 			path = Helpers;
+			sourceTree = "<group>";
+		};
+		F1XC0FA0000000000000001 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				F1XC0FA0000000000000002 /* NativeEditor */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		F1XC0FA0000000000000002 /* NativeEditor */ = {
+			isa = PBXGroup;
+			children = (
+				F1XA0FA000000000000001 /* bom-utf8.md */,
+				F1XA0FA000000000000002 /* mixed-eol.md */,
+				F1XA0FA000000000000003 /* tabs.md */,
+				F1XA0FA000000000000004 /* bad-math.md */,
+				F1XA0FA000000000000005 /* editor-behavior.md */,
+				F1XA0FA000000000000006 /* roundtrip-crlf.md */,
+				F1XA0FA000000000000007 /* roundtrip-no-final-newline.md */,
+				F1XA0FA000000000000008 /* behavior-cases.json */,
+				F1XA0FA000000000000009 /* manifest.json */,
+			);
+			path = NativeEditor;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -945,7 +1039,16 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
+							F1XB0FA000000000000001 /* bom-utf8.md in Resources */,
+				F1XB0FA000000000000002 /* mixed-eol.md in Resources */,
+				F1XB0FA000000000000003 /* tabs.md in Resources */,
+				F1XB0FA000000000000004 /* bad-math.md in Resources */,
+				F1XB0FA000000000000005 /* editor-behavior.md in Resources */,
+				F1XB0FA000000000000006 /* roundtrip-crlf.md in Resources */,
+				F1XB0FA000000000000007 /* roundtrip-no-final-newline.md in Resources */,
+				F1XB0FA000000000000008 /* behavior-cases.json in Resources */,
+				F1XB0FA000000000000009 /* manifest.json in Resources */,
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D7793C6D1F211C6000CA39B7 /* Resources */ = {
@@ -1037,7 +1140,17 @@
 				548A1B2C3D4E5F60718293A4 /* MiaoYanTests/MermaidExportTests.swift in Sources */,
 				7A0100012D4E5F60718293A1 /* MiaoYanTests/RenderedBlockExportTests.swift in Sources */,
 				7AB1664FC5A60FE3EBF3D219 /* MiaoYanTests/ImportScanTests.swift in Sources */,
-			);
+							F1XB0FA0000000000010 /* NativeEditorFixtureTests.swift in Sources */,
+				F1XB0FA0000000000011 /* VditorBridgeContractTests.swift in Sources */,
+				F1XB0FA000000000000022 /* MarkdownEditTransactionTests.swift in Sources */,
+				F1XB0FA000000000000023 /* MarkdownSourceMapTests.swift in Sources */,
+				F1XB0FA0000000000026 /* MarkdownRoundTripTests.swift in Sources */,
+				F1XB0FA0000000000027 /* LosslessMarkdownParserTests.swift in Sources */,
+				F1XB0FA0000000000028 /* MarkdownProjectionTests.swift in Sources */,
+				F1XB0FA0000000000029 /* NativeFixtureLoader.swift in Sources */,
+				F1XB0FA0000000000032 /* RichMarkdownEditingTests.swift in Sources */,
+				F1XB0FA0000000000033 /* MarkdownCompositionTests.swift in Sources */,
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D7793C6B1F211C6000CA39B7 /* Sources */ = {
@@ -1152,7 +1265,14 @@
 				35A6E701A92EF12264DB2B6D /* Helpers/TypographyCleaner.swift in Sources */,
 				A9484E9B356771637D57157F /* Helpers/HtmlToMarkdown.swift in Sources */,
 				7328EA4137FF1DA9090A281E /* Business/AppEnvironment.swift in Sources */,
-			);
+							F1XB0FA0000000000012 /* ActiveEditingBackend.swift in Sources */,
+				F1XB0FA000000000000020 /* MarkdownEditTransaction.swift in Sources */,
+				F1XB0FA000000000000021 /* MarkdownSourceMap.swift in Sources */,
+				F1XB0FA0000000000024 /* LosslessMarkdownParser.swift in Sources */,
+				F1XB0FA0000000000025 /* MarkdownProjectionBuilder.swift in Sources */,
+				F1XB0FA0000000000030 /* RichMarkdownTextView.swift in Sources */,
+				F1XB0FA0000000000031 /* MarkdownEditorHistory.swift in Sources */,
+);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
