@@ -276,3 +276,32 @@ final class NoteSaveDebounceTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: sourceURL, encoding: .utf8), "edit after failure")
     }
 }
+
+/// T01: Vditor 0.5s 外层 debounce 窗口内的硬保存点（Cmd+S / close /
+/// terminate）必须立即落盘，不能只更新内存后留下空窗退出。
+extension NoteSaveDebounceTests {
+    @MainActor
+    func testWysiwygHardSavePointLandsOnDiskInsideDebounceWindow() throws {
+        let url = tempDir.appendingPathComponent("wysiwyg-flush.md")
+        try "v1".write(to: url, atomically: true, encoding: .utf8)
+        let project = Project(url: tempDir, label: "test", isRoot: true)
+        let note = Note(url: url, with: project)
+        note.content = NSMutableAttributedString(string: "v1")
+
+        let vditor = VditorEditView()
+        vditor.loadNote(note)
+        // 用户在 Vditor 输入（0.5s 外层 debounce 与 1.5s Note debounce 均未到）
+        vditor.handleContentChanged("v2", token: vditor.currentLoadTokenValue)
+
+        // 硬保存点等价链：活动后端采集 + flushPendingSaves 的 drain
+        ActiveEditingBackend.captureBuffer(
+            for: note, sourceEditor: .init(frame: .zero),
+            vditorView: vditor, isWysiwygActive: true
+        )
+        XCTAssertTrue(note.flushPendingSave(), "flush 必须成功")
+        XCTAssertTrue(note.flushPendingSave(), "二次 flush 幂等")
+
+        let disk = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertEqual(disk, "v2", "debounce 窗口内的硬保存点必须把 v2 写进磁盘")
+    }
+}

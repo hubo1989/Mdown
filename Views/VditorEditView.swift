@@ -22,6 +22,11 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
     private var isEditorReady = false
     nonisolated(unsafe) private var saveWorkItem: DispatchWorkItem?
     private var lastLoadedMarkdown: String?
+    /// T01: 每次程序化加载自增；vditorChange 必须携带匹配的 token 才会被
+    /// 采纳，拒绝切换 note 前发出的晚到消息（消息缺少身份时会写坏新 note）。
+    private var loadToken = 0
+    /// 测试观察口：当前程序化加载的 token。
+    var currentLoadTokenValue: Int { loadToken }
 
     public init() {
         let configuration = WKWebViewConfiguration()
@@ -101,7 +106,8 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
         let initialMarkdown = (targetNote?.isContentLoaded == true) ? (targetNote?.content.string ?? "") : ""
         let jsSafeContent = serializeToJSON(initialMarkdown)
 
-        let initScript = "initEditor(\(jsSafeContent), \(isDark));"
+        loadToken += 1
+        let initScript = "initEditor(\(jsSafeContent), \(isDark), \(loadToken));"
         evaluateJavaScript(initScript, completionHandler: nil)
     }
 
@@ -117,7 +123,8 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
                   let markdown = body["markdown"] as? String else {
                 return
             }
-            handleContentChanged(markdown)
+            let token = body["token"] as? Int
+            handleContentChanged(markdown, token: token)
         }
     }
 
@@ -157,11 +164,18 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
         }
 
         pendingNote = nil
+        loadToken += 1
         let jsSafeContent = serializeToJSON(note.content.string)
-        evaluateJavaScript("setMarkdown(\(jsSafeContent));", completionHandler: nil)
+        evaluateJavaScript("setMarkdown(\(jsSafeContent), \(loadToken));", completionHandler: nil)
     }
 
-    private func handleContentChanged(_ markdown: String) {
+    // T01: internal 供桥契约测试注入晚到的 vditorChange 消息（消息与
+    // currentNote 切换的竞态无法从真实 WKWebView 精确编排）。
+    func handleContentChanged(_ markdown: String, token: Int? = nil) {
+        guard token == loadToken else {
+            // 晚到消息（旧加载身份）或无身份消息：一律拒绝，不得写当前 note。
+            return
+        }
         guard let note = currentNote else { return }
         guard markdown != lastLoadedMarkdown else { return }
         lastLoadedMarkdown = markdown

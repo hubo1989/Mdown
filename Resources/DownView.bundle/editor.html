@@ -90,9 +90,12 @@
 
   <script>
     let editorInstance = null;
-    let isUpdatingFromSwift = false;
+    // 与 Swift 侧 VditorEditView.loadToken 配对：每次程序化加载更新，
+    // input 回调携带该 token，Swift 据此拒绝切换 note 前的晚到消息。
+    let currentLoadToken = 0;
 
-    function initEditor(initialMarkdown, isDark) {
+    function initEditor(initialMarkdown, isDark, loadToken) {
+      currentLoadToken = loadToken;
       if (isDark) {
         document.documentElement.classList.add('darkmode');
         document.body.classList.add('darkmode');
@@ -135,27 +138,25 @@
           }
         },
         input(value) {
-          if (isUpdatingFromSwift) return;
           if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.vditorChange) {
-            window.webkit.messageHandlers.vditorChange.postMessage({ markdown: value });
+            window.webkit.messageHandlers.vditorChange.postMessage({ markdown: value, token: currentLoadToken });
           }
         }
       });
     }
 
-    function setMarkdown(markdown) {
+    function setMarkdown(markdown, loadToken) {
       if (!editorInstance) return;
-      isUpdatingFromSwift = true;
+      currentLoadToken = loadToken;
+      // setValue 的第二参是 clearStack?: boolean（随包 method.d.ts）。
+      // 程序化加载语义：clearStack=true 清 undo 栈；Vditor 内部以
+      // enableInput:false 应用内容，不产生 input 回调，因此无需
+      // Swift/JS 双侧 loading flag（旧实现把 callback 传给 boolean 参数，
+      // isUpdatingFromSwift 永不复位，导致加载后所有用户输入被丢弃）。
       try {
-        editorInstance.setValue(markdown || '', () => {
-          setTimeout(() => {
-            isUpdatingFromSwift = false;
-          }, 100);
-        });
+        editorInstance.setValue(markdown || '', true);
       } catch (e) {
-        setTimeout(() => {
-          isUpdatingFromSwift = false;
-        }, 100);
+        console.warn('setMarkdown failed', e);
       }
     }
 
