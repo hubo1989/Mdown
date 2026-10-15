@@ -144,6 +144,10 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
         hasUnsavedChanges = false
 
         currentNote = note
+        // 立即作废旧加载身份：未加载的 note 走异步 ensureContentLoadedAsync，
+        // 完成前 webview 仍显示旧 note，旧 token 的消息若不被拒会写进刚切换
+        // 的 currentNote。applyNoteToEditor 装载新内容时会再自增一次。
+        loadToken += 1
 
         if note.isContentLoaded {
             applyNoteToEditor(note)

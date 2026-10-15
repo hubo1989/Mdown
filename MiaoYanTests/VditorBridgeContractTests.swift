@@ -154,4 +154,25 @@ final class VditorBridgeContractTests: XCTestCase {
             noteB.content.string, "B 原始内容",
             "晚到/无身份消息不得写进 B（消息缺少匹配身份即拒绝）")
     }
+
+    /// 切到未加载的 note 时（异步 ensureContentLoadedAsync 完成前，webview
+    /// 仍显示旧 note），loadNote 必须立即作废旧加载身份：旧 token 的消息
+    /// 在装载窗口内也不得写进刚切换的 note。
+    @MainActor
+    func testLoadNoteInvalidatesOldTokenImmediately() throws {
+        let view = VditorEditView()
+        let noteA = makeTestNote(name: "inv-a.md", content: "A 内容")
+        let noteB = makeTestNote(name: "inv-b.md", content: "B 内容")
+
+        view.loadNote(noteA)
+        let tokenDuringA = view.currentLoadTokenValue
+        view.loadNote(noteB)  // noteB 未加载 → 异步路径，装载尚未发生
+
+        // 装载完成前的窗口期：A 的消息携带 A 时代的 token
+        view.handleContentChanged("A 的窗口期编辑", token: tokenDuringA)
+
+        XCTAssertEqual(
+            noteB.content.string, "B 内容",
+            "切换 note 的瞬间旧 token 必须失效，不得写进新 note")
+    }
 }

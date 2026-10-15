@@ -92,11 +92,63 @@ final class RichMarkdownEditingTests: XCTestCase {
         let view = makeView("- 一级甲\n  - 二级\n    - 三级\n")
         // display（三层 marker 隐藏）: "一级甲\n二级\n三级\n"
         // 一(0)级(1)甲(2)\n(3) 二(4)级(5)\n(6) 三(7)级(8)\n(9)
-        // caret 放行 2 "三级" 内容内（display 7 = '三'）
+        // caret 放行 2 "三级" 内容起点（display 7 = '三' 前）
         view.setSelectedRange(NSRange(location: 7, length: 0))
         let handled = view.text(view, doCommandBy: #selector(NSResponder.insertNewline(_:)))
         XCTAssertTrue(handled)
-        XCTAssertTrue(view.source.contains("    - 三级\n    - "), "Enter 必须按同级 marker 拆分")
+        // caret 在内容起点：前项为空项，"三级" 起始新项（可再 Enter 退出）
+        XCTAssertTrue(view.source.contains("    - \n    - 三级\n"), "Enter 必须按同级 marker 在 caret 处拆分")
+    }
+
+    /// Enter 拆分发生在 caret 位置而非行尾："- abc" 光标在 b 后
+    /// 得 "- ab\n- c"，不把整行挤到新项。
+    func testEnterSplitsItemAtCaret() {
+        let view = makeView("- abc\n")
+        // display "abc\n"：caret display 2 = b 后
+        view.setSelectedRange(NSRange(location: 2, length: 0))
+        XCTAssertTrue(view.text(view, doCommandBy: #selector(NSResponder.insertNewline(_:))))
+        XCTAssertEqual(view.source, "- ab\n- c\n", "Enter 在项内容中间按 caret 拆分，光标后内容归新项")
+    }
+
+    /// 有序列表（`1.`/`2.`）的结构命令与无序一致：Tab 缩进、Shift+Tab
+    /// 退回、空项 Enter 退出。
+    func testOrderedListItemStructureCommands() {
+        let view = makeView("1. 甲\n2. 乙\n")
+        // display "甲\n乙\n"：caret display 3 = 乙 后
+        view.setSelectedRange(NSRange(location: 3, length: 0))
+        XCTAssertTrue(view.text(view, doCommandBy: #selector(NSResponder.insertTab(_:))))
+        XCTAssertEqual(view.source, "1. 甲\n  2. 乙\n", "有序列表 Tab 缩进二级")
+        XCTAssertTrue(view.text(view, doCommandBy: #selector(NSResponder.insertBacktab(_:))))
+        XCTAssertEqual(view.source, "1. 甲\n2. 乙\n", "有序列表 Shift+Tab 退回一级")
+
+        let empty = makeView("1. 甲\n2.\n")
+        // display "甲\n\n"：caret display 3 = 空项行
+        empty.setSelectedRange(NSRange(location: 3, length: 0))
+        XCTAssertTrue(empty.text(empty, doCommandBy: #selector(NSResponder.insertNewline(_:))))
+        XCTAssertEqual(empty.source, "1. 甲\n", "有序空项 Enter 退出列表")
+    }
+
+    /// 快速路径后的连续输入必须持续落进 source：块尾连打三个字符，
+    /// 第三个字符的定位不得因 rendered 坐标过期而失败（textDidChange
+    /// 开头收敛投影）。
+    func testConsecutiveTypingAtBlockEndKeepsLandingInSource() {
+        let view = makeView("- 一\n\n段落。\n")
+        // display "一\n\n段落。\n"：caret display 6 = "。" 后
+        view.setSelectedRange(NSRange(location: 6, length: 0))
+        view.insertText("a")
+        view.insertText("b")
+        view.insertText("c")
+        XCTAssertEqual(view.source, "- 一\n\n段落。abc\n", "连续输入不得因 stale 投影坐标丢字")
+        XCTAssertEqual(view.displayText, "一\n\n段落。abc\n")
+    }
+
+    /// 非首块的 displayOffset(forSourceOffset:) 不得把 source 偏移先减块
+    /// 起点（段的 source 坐标本就是文档绝对），否则全部折叠回块首。
+    func testDisplayOffsetInsideNonFirstBlock() {
+        let view = makeView("前段\n\n- 项\n")
+        // source "前段\n\n- 项\n"：块起点 4，"项"=6。display "前段\n\n项\n"
+        // 中 "项" 位于 display 4。
+        XCTAssertEqual(view.displayOffset(forSourceOffset: 6), 4, "块内 source 偏移必须映射到块内 display 位置")
     }
 
     func testTabIndentsAndOutdentsThreeLevelList() {

@@ -26,6 +26,8 @@ struct MarkdownSourceMap {
     }
 
     /// UTF8 字节偏移 → UTF16 偏移。非 grapheme 边界返回 nil。
+    /// 字节偏移可能落在 scalar 边界但切开组合 grapheme（e+U+0301 中间），
+    /// 与正向转换的边界语义保持一致，须显式校验。
     func utf16Offset(forUTF8 utf8Offset: Int) -> Int? {
         let utf8View = source.utf8
         guard
@@ -34,7 +36,9 @@ struct MarkdownSourceMap {
             )
         else { return nil }
         guard let index16 = index8.samePosition(in: source.utf16) else { return nil }
-        return source.utf16.distance(from: source.utf16.startIndex, to: index16)
+        let offset = source.utf16.distance(from: source.utf16.startIndex, to: index16)
+        guard isGraphemeBoundary(offset) else { return nil }
+        return offset
     }
 
     /// NSRange(UTF16) → UTF8 字节区间。

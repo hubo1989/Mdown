@@ -96,6 +96,46 @@ final class LosslessMarkdownParserTests: XCTestCase {
             })
     }
 
+    /// ≥4 空格（或 1 tab）缩进的 `#` 行是 indented code，不是 heading
+    /// （CommonMark 内容列规则；与 fence 的同类规则一致）。
+    func testFourSpaceIndentedHeadingIsIndentedCode() {
+        let fourSpace = parser.parse("    # 不是标题\n")
+        XCTAssertTrue(
+            fourSpace.blocks.contains {
+                if case .codeIndented = $0.kind { return true }; return false
+            },
+            "4 空格缩进的 # 行应为 indented code")
+        XCTAssertFalse(
+            fourSpace.blocks.contains {
+                if case .heading = $0.kind { return true }; return false
+            })
+
+        let indented = parser.parse("  # 是标题\n")
+        XCTAssertTrue(
+            indented.blocks.contains {
+                if case .heading = $0.kind { return true }; return false
+            },
+            "1-3 空格缩进的 # 行仍是 heading")
+    }
+
+    /// table header 前还有段落行（懒延续并入同一段落块）时，段落前缀
+    /// 行必须保留覆盖，否则 isLossless 破（块联合出现缺口）。
+    func testTableWithPrecedingParagraphLinesStaysLossless() {
+        let source = "引言行\n表头 | 列\n| --- | --- |\n| 1 | 2 |\n"
+        let doc = parser.parse(source)
+        XCTAssertTrue(doc.isLossless, "段落前缀行 + table 必须联合覆盖全文")
+        if case .paragraph = doc.blocks[0].kind {
+        } else {
+            return XCTFail("首块应为保留下的段落前缀行，实际 \(doc.blocks[0].kind)")
+        }
+        XCTAssertEqual(doc.blocks[0].startLine, 1)
+        XCTAssertEqual(doc.blocks[0].endLine, 1, "段落截到 header 行之前")
+        guard case .table = doc.blocks[1].kind else {
+            return XCTFail("第二块应为 table，实际 \(doc.blocks[1].kind)")
+        }
+        XCTAssertEqual(doc.blocks[1].startLine, 2, "table 从 header 行起")
+    }
+
     func testNestedFenceRequiresLongerClosingFence() throws {
         // editor-behavior.md 的 ````text 外层 fence 包含 ```swift 内层
         let source = try NativeFixtureLoader.loadString("editor-behavior.md")

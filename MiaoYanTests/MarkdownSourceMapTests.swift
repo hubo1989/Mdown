@@ -90,4 +90,16 @@ final class MarkdownSourceMapTests: XCTestCase {
         XCTAssertFalse(map.isGraphemeBoundary(1), "组合附标前不得是边界")
         XCTAssertTrue(map.isGraphemeBoundary(2))
     }
+
+    /// UTF-8 偏移落在 scalar 边界但切开组合 grapheme（e 与 U+0301 之间）
+    /// 时必须拒绝，与正向转换（该处非 grapheme 边界 → nil）语义一致。
+    func testUTF8OffsetInsideComposedGraphemeRejected() {
+        let decomposed = "e\u{0301}x"
+        let map = MarkdownSourceMap(source: decomposed)
+        // UTF-8 布局：e=0..<1，U+0301=1..<3（2 字节），x=3..<4
+        XCTAssertEqual(map.utf16Offset(forUTF8: 0), 0)
+        XCTAssertNil(map.utf16Offset(forUTF8: 1), "e 与 U+0301 之间的字节偏移切开 grapheme，必须拒绝")
+        XCTAssertEqual(map.utf16Offset(forUTF8: 3), 2)
+        XCTAssertEqual(map.utf16Offset(forUTF8: 4), 3, "末尾 endIndex 是合法边界")
+    }
 }

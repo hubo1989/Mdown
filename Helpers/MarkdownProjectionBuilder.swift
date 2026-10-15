@@ -111,9 +111,9 @@ struct MarkdownProjectionBuilder {
 
         switch block.kind {
         case .frontmatter:
-            return plain(blockText, kind: .metadata)
+            return plain(blockText, kind: .metadata, base: block.rangeUTF16.location)
         case .codeFence, .codeIndented, .htmlBlock, .table, .thematicBreak, .blank:
-            return plain(blockText, kind: .plainFallback)
+            return plain(blockText, kind: .plainFallback, base: block.rangeUTF16.location)
         case .heading(let level):
             let markerLen = level + 1  // '#'×level + 空格
             // marker 段用文档绝对坐标（与 inlineSegments 一致）：块相对 0 会
@@ -205,9 +205,10 @@ struct MarkdownProjectionBuilder {
                 cursor += 2
                 continue
             }
-            // code span（仅 backtick 字符触发扫描）
+            // code span（仅 backtick 字符触发扫描；limit 通常为行尾，
+            // 跨行配对会把后行内容吞进本行投影并重复显示）
             if ch == asciiUnit("`") {
-                if let span = codeSpanRange(ns, from: cursor) {
+                if let span = codeSpanRange(ns, from: cursor, limit: total) {
                     let openEnd = span.openEnd
                     let closeStart = span.closeStart
                     let closeEnd = span.closeEnd
@@ -239,8 +240,8 @@ struct MarkdownProjectionBuilder {
             // emphasis / strikethrough 成对 marker
             // G0 性能修复：仅 *_~ 字符才尝试 marker 匹配（跳过 95%+ 字符）
             if ch == asciiUnit("*") || ch == asciiUnit("_") || ch == asciiUnit("~") {
-                if let marker = emphasisMarker(at: cursor, in: ns) {
-                    if let close = findClosing(marker: marker, from: cursor + marker.utf16.count, in: ns) {
+                if let marker = emphasisMarker(at: cursor, in: ns, limit: total) {
+                    if let close = findClosing(marker: marker, from: cursor + marker.utf16.count, in: ns, limit: total) {
                         let openLen = marker.utf16.count
                         segments.append(
                             Segment(
@@ -271,7 +272,7 @@ struct MarkdownProjectionBuilder {
             }
             // link / image
             if ch == asciiUnit("[") || (ch == asciiUnit("!") && cursor + 1 < total && ns.character(at: cursor + 1) == asciiUnit("[")) {
-                if let segs = linkSegments(at: cursor, in: ns, isImage: ch == asciiUnit("!"), base: base) {
+                if let segs = linkSegments(at: cursor, in: ns, isImage: ch == asciiUnit("!"), base: base, limit: total) {
                     segments.append(contentsOf: segs)
                     let last = segs.last!
                     cursor = last.sourceRangeUTF16.location - base + last.sourceRangeUTF16.length
@@ -299,34 +300,82 @@ struct MarkdownProjectionBuilder {
 
     // MARK: - 辅助
 
-    private func plain(_ text: String, kind: SegmentKind) -> Projection {
+    private func plain(_ text: String, kind: SegmentKind, base: Int) -> Projection {
+        // sourceRange 用文档绝对坐标（与其他投影一致）：textDidChange 等消费方
+        // 把段坐标当文档全局用，块相对 0 会让非首块编辑全部命中文档开头。
         let segment = Segment(
             kind: kind,
-            sourceRangeUTF16: NSRange(location: 0, length: text.utf16.count),
+            sourceRangeUTF16: NSRange(location: base, length: text.utf16.count),
             displayRangeUTF16: NSRange(location: 0, length: text.utf16.count),
             displayText: text
         )
         return Projection(display: text, segments: [segment])
     }
 
-    /// 行首 list marker 的长度（含缩进 + 符号 + 尾随空格）。
-    /// 无 marker 的行（懒延续行、容器内空行）必须返回 0：藏进 marker 段
-    /// 会吞掉该行首个内容字符且打乱 display→source 映射。
+    /// 行首 list marker 的长度：缩进 + 恰好一个合法 marker（`-`/`+`/`*` 或
+    /// `数字.`/`数字)`）+ 尾随空白。之前的实现把 marker 后连续的 `*`/数字/
+    /// `.` 一并当前缀，`- **bold**` 会隐藏 "- **" 留下残缺的 "bold**"。
+    /// 无 marker 的行（懒延续行、容器内空行）必须返回 0。
     private func listItemMarkerLength(_ blockText: String) -> Int {
         let t = blockText as NSString
         var i = 0
         while i < t.length {
             let c = t.character(at: i)
-            if c == asciiUnit("-") || c == asciiUnit("+") || c == asciiUnit("*")
-                || c == asciiUnit(".") || c == asciiUnit(")") || c.isDigitScalar || c == asciiUnit(" ") || c == asciiUnit("\t")
-            {
+            if c == asciiUnit(" ") || c == asciiUnit("\t") {
                 i += 1
             } else {
                 break
             }
         }
-        // 全数字行保守取整行前缀
-        return i
+        let indent = i
+        func trailingSpaces(_ from: Int) -> Int {
+            var j = from
+            while j < t.length {
+                let c = t.character(at: j)
+                if c == asciiUnit(" ") || c == asciiUnit("\t") {
+                    j += 1
+                } else {
+                    break
+                }
+            }
+            return j
+        }
+
+        if indent < t.length {
+            let c = t.character(at: indent)
+            // 无序：单个 -/+/*（后跟空格，或行尾/行末的裸 marker 空项）
+            if c == asciiUnit("-") || c == asciiUnit("+") || c == asciiUnit("*") {
+                let after = indent + 1
+                if after < t.length {
+                    let n = t.character(at: after)
+                    if n == asciiUnit(" ") || n == asciiUnit("\t") {
+                        return trailingSpaces(after)
+                    }
+                    // 裸 marker（行尾换行或块末）合法；紧贴内容（"-x"）不是 marker
+                    return (n == asciiUnit("\n") || n == asciiUnit("\r")) ? after : 0
+                }
+                return after
+            }
+            // 有序：数字串 + ./) + 空格
+            var digits = 0
+            var j = indent
+            while j < t.length, t.character(at: j).isDigitScalar {
+                digits += 1
+                j += 1
+            }
+            if digits > 0, j < t.length,
+                t.character(at: j) == asciiUnit(".") || t.character(at: j) == asciiUnit(")")
+            {
+                j += 1
+                if j < t.length, t.character(at: j) == asciiUnit(" ") || t.character(at: j) == asciiUnit("\t") {
+                    return trailingSpaces(j)
+                }
+                // "2." 行尾是空项；"1.x" 紧贴内容不是 marker
+                return (j < t.length && (t.character(at: j) == asciiUnit("\n") || t.character(at: j) == asciiUnit("\r"))) || j == t.length
+                    ? j : 0
+            }
+        }
+        return 0
     }
 
     /// 行首 quote 前缀（`>` + 缩进）长度。行尾换行不计入前缀（空 quote 行
@@ -351,17 +400,17 @@ struct MarkdownProjectionBuilder {
         let closeEnd: Int
     }
 
-    private func codeSpanRange(_ ns: NSString, from: Int) -> CodeSpanRange? {
+    private func codeSpanRange(_ ns: NSString, from: Int, limit: Int) -> CodeSpanRange? {
         var openLen = 0
-        while from + openLen < ns.length, ns.character(at: from + openLen) == asciiUnit("`") {
+        while from + openLen < limit, ns.character(at: from + openLen) == asciiUnit("`") {
             openLen += 1
         }
         guard openLen > 0 else { return nil }
         var i = from + openLen
-        while i < ns.length {
+        while i < limit {
             if ns.character(at: i) == asciiUnit("`") {
                 var closeLen = 0
-                while i + closeLen < ns.length, ns.character(at: i + closeLen) == asciiUnit("`") {
+                while i + closeLen < limit, ns.character(at: i + closeLen) == asciiUnit("`") {
                     closeLen += 1
                 }
                 if closeLen == openLen {
@@ -380,9 +429,9 @@ struct MarkdownProjectionBuilder {
         "**", "__", "~~", "*", "_",
     ].map { ($0, Array($0.utf16)) }
 
-    private func emphasisMarker(at i: Int, in ns: NSString) -> String? {
+    private func emphasisMarker(at i: Int, in ns: NSString, limit: Int) -> String? {
         for (marker, units) in Self.emphasisPatterns {
-            guard i + units.count <= ns.length else { continue }
+            guard i + units.count <= limit else { continue }
             var matches = true
             for (k, unit) in units.enumerated() where ns.character(at: i + k) != unit {
                 matches = false
@@ -393,11 +442,24 @@ struct MarkdownProjectionBuilder {
         return nil
     }
 
-    private func findClosing(marker: String, from: Int, in ns: NSString) -> Int? {
+    private func findClosing(marker: String, from: Int, in ns: NSString, limit: Int) -> Int? {
         let units = Array(marker.utf16)
         let m = units.count
         var i = from
-        while i + m <= ns.length {
+        while i + m <= limit {
+            // 奇数个前导反斜杠转义的 marker 是字面量，不是闭符（\*a\*b* 取末尾 *）
+            if i > 0, ns.character(at: i - 1) == asciiUnit("\\") {
+                var backslashes = 0
+                var j = i - 1
+                while j >= 0, ns.character(at: j) == asciiUnit("\\") {
+                    backslashes += 1
+                    j -= 1
+                }
+                if backslashes % 2 == 1 {
+                    i += 1
+                    continue
+                }
+            }
             var matches = true
             for (k, unit) in units.enumerated() where ns.character(at: i + k) != unit {
                 matches = false
@@ -409,12 +471,12 @@ struct MarkdownProjectionBuilder {
         return nil
     }
 
-    private func linkSegments(at i: Int, in ns: NSString, isImage: Bool, base: Int) -> [Segment]? {
+    private func linkSegments(at i: Int, in ns: NSString, isImage: Bool, base: Int, limit: Int) -> [Segment]? {
         let openBracket = i + (isImage ? 1 : 0)
-        guard let labelEnd = findUnescaped("]", from: openBracket + 1, in: ns),
-            labelEnd + 1 < ns.length,
+        guard let labelEnd = findUnescaped("]", from: openBracket + 1, in: ns, limit: limit),
+            labelEnd + 1 < limit,
             ns.character(at: labelEnd + 1) == asciiUnit("("),
-            let closeParen = findUnescaped(")", from: labelEnd + 2, in: ns)
+            let closeParen = findUnescaped(")", from: labelEnd + 2, in: ns, limit: limit)
         else {
             return nil
         }
@@ -458,10 +520,10 @@ struct MarkdownProjectionBuilder {
         return segments
     }
 
-    private func findUnescaped(_ target: String, from: Int, in ns: NSString) -> Int? {
+    private func findUnescaped(_ target: String, from: Int, in ns: NSString, limit: Int) -> Int? {
         let unit = UInt16(target.utf8.first!)
         var i = from
-        while i < ns.length {
+        while i < limit {
             let c = ns.character(at: i)
             if c == asciiUnit("\\") {
                 i += 2

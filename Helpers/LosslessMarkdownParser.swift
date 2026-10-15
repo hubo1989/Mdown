@@ -107,9 +107,14 @@ struct LosslessMarkdownParser {
                 blocks.append(block)
                 index = next
             case .table:
-                // delimiter 行的上一行（header）已作为 paragraph 入列——弹出并入 table
+                // delimiter 行的上一行（header）已作为 paragraph 入列——弹出并入 table。
+                // 段落可能不止 header 一行（懒延续把 header 前的行并了进来）：
+                // 先把前缀行截回独立 paragraph，否则它们失去覆盖、isLossless 破。
                 if let last = blocks.last, last.endLine == index, case .paragraph = last.kind {
                     blocks.removeLast()
+                    if last.startLine < last.endLine {
+                        blocks.append(idx.block(.paragraph, from: last.startLine - 1, through: last.endLine - 2))
+                    }
                 }
                 let (block, next) = consumeTable(at: index, lines: lines, index: idx)
                 blocks.append(block)
@@ -165,11 +170,10 @@ struct LosslessMarkdownParser {
 
         if trimmed.isEmpty { return .blank }
 
-        // ATX heading
-        if let level = atxHeadingLevel(trimmed) { return .heading(level: level) }
-
         // indented code：4 空格或 1 tab 缩进；但在列表/引用容器延续语境中，
-        // 剥缩进后仍是 marker 行的属于嵌套项（CommonMark 内容列规则的原型近似）
+        // 剥缩进后仍是 marker 行的属于嵌套项（CommonMark 内容列规则的原型近似）。
+        // 缩进检查先于 heading/fence：≥4 空格的 `#`/``` 行是 indented code，
+        // 不是 heading 或 fence。
         if line.hasPrefix("    ") || line.hasPrefix("\t") {
             if case .listItem = previousKind ?? .blank {
                 let stripped = String(line.drop { $0 == " " || $0 == "\t" })
@@ -184,6 +188,9 @@ struct LosslessMarkdownParser {
             }
             return .codeIndented
         }
+
+        // ATX heading
+        if let level = atxHeadingLevel(trimmed) { return .heading(level: level) }
 
         // fence（优先于 thematic break：``` 也是 fence）。缩进 ≤3 空格的开
         // fence 是合法 fence；≥4 空格/tab 的已被上面的 indented code 承接

@@ -109,6 +109,45 @@ final class MarkdownProjectionTests: XCTestCase {
         XCTAssertEqual(emptyQuoteLine.display, "\n\n", "空 quote 行的换行必须保留")
     }
 
+    /// 非首块的保护块（code fence 等）plain 投影段必须是文档绝对坐标：
+    /// textDidChange 把段的 source 坐标当文档全局用，块相对 0 会把
+    /// 非首块 fence 的编辑全部打到文档开头。
+    func testPlainFallbackUsesDocumentAbsoluteRange() {
+        let source = "正文段。\n\n```js\nx\n```\n"
+        let fenceOffset = "正文段。\n\n".utf16.count  // 6
+        let p = projection(of: source, as: .codeFence(info: "js"))
+        XCTAssertEqual(p.segments.count, 1)
+        XCTAssertEqual(p.segments[0].sourceRangeUTF16, NSRange(location: fenceOffset, length: 12))
+        XCTAssertEqual(p.sourceOffset(forDisplay: 0), fenceOffset, "编辑 fence 首字符必须映射到 fence 块起点而非 0")
+    }
+
+    /// marker 前缀只吃缩进 + 一个 marker + 空白：`- **bold**` 不得把
+    /// "- **" 整段当 marker 隐藏（会留下残缺的 "bold**"）。
+    func testListItemPrefixDoesNotSwallowInlineMarkers() {
+        let p = projection(of: "- **bold**\n", as: .listItem(depth: 0, ordered: false))
+        XCTAssertEqual(p.display, "bold\n", "行内 emphasis 由 inline 扫描隐藏，marker 前缀只隐藏 '- '")
+        let markers = p.segments.filter { $0.kind == .hiddenMarker }
+        // 行前缀 1 个 + emphasis 前后各 1 个 = 3；不得出现吞掉 "**" 的前缀段
+        XCTAssertEqual(markers.count, 3)
+        XCTAssertEqual(markers[0].sourceRangeUTF16, NSRange(location: 0, length: 2), "前缀段恰为 '- '")
+    }
+
+    /// 转义的 emphasis marker（`\*`）不是闭符：`*a\*b*` 的闭符是末尾 `*`。
+    func testEscapedMarkerIsNotTreatedAsClosing() {
+        let p = projection(of: "*a\\*b*\n")
+        XCTAssertEqual(p.display, "a\\*b\n", "外层 * 与末尾 * 配对，中间 \\* 保留为内容")
+        let markers = p.segments.filter { $0.kind == .hiddenMarker }
+        XCTAssertEqual(markers.count, 2, "只有首尾两个 * 被隐藏，转义的 \\* 不得当闭符")
+    }
+
+    /// 行内扫描不得跨行配对：列表两行各有一个反引号时保持原样，
+    /// 不把后行的 backtick 吞进前行（内容会重复显示）。
+    func testCodeSpanDoesNotPairAcrossLines() {
+        let p = projection(of: "- a `x\nb` c\n", as: .listItem(depth: 0, ordered: false))
+        XCTAssertEqual(p.display, "a `x\nb` c\n", "跨行的单个反引号无配对，原样显示")
+        XCTAssertFalse(p.segments.contains { $0.kind == .codeSpan })
+    }
+
     func testProtectedBlocksFallBackPlain() throws {
         let table = projection(of: "| a\\|b | c |\n| --- | --- |\n| 1 | 2 |\n", as: .table)
         XCTAssertTrue(table.segments.allSatisfy { $0.kind == .plainFallback })
