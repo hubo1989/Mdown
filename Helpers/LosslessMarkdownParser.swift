@@ -79,7 +79,7 @@ struct LosslessMarkdownParser {
         var cursor = 0
         for line in lines {
             lineStarts.append(cursor)
-            cursor += line.utf16.count + 1 // 行内容 + 行尾 \n（最后一行无 \n 时多计的 1 由 total 截断兜底）
+            cursor += line.utf16.count + 1  // 行内容 + 行尾 \n（最后一行无 \n 时多计的 1 由 total 截断兜底）
         }
 
         var blocks: [Block] = []
@@ -168,16 +168,14 @@ struct LosslessMarkdownParser {
         // ATX heading
         if let level = atxHeadingLevel(trimmed) { return .heading(level: level) }
 
-        // fence（优先于 thematic break：``` 也是 fence）
-        if let info = fenceInfo(trimmed) { return .codeFence(info: info) }
-
         // indented code：4 空格或 1 tab 缩进；但在列表/引用容器延续语境中，
         // 剥缩进后仍是 marker 行的属于嵌套项（CommonMark 内容列规则的原型近似）
         if line.hasPrefix("    ") || line.hasPrefix("\t") {
             if case .listItem = previousKind ?? .blank {
                 let stripped = String(line.drop { $0 == " " || $0 == "\t" })
                 if stripped.hasPrefix("- ") || stripped.hasPrefix("* ") || stripped.hasPrefix("+ ")
-                    || listMarker(stripped) != nil {
+                    || listMarker(stripped) != nil
+                {
                     return .listItem(depth: indentDepth(line), ordered: listMarker(stripped)?.0 ?? false)
                 }
             }
@@ -186,6 +184,11 @@ struct LosslessMarkdownParser {
             }
             return .codeIndented
         }
+
+        // fence（优先于 thematic break：``` 也是 fence）。缩进 ≤3 空格的开
+        // fence 是合法 fence；≥4 空格/tab 的已被上面的 indented code 承接
+        // （CommonMark 内容列规则）。
+        if let info = fenceInfo(trimmed) { return .codeFence(info: info) }
 
         // quote
         if line.hasPrefix(">") {
@@ -297,10 +300,11 @@ struct LosslessMarkdownParser {
         let body = t.hasSuffix("|") ? String(t.dropLast()) : t
         guard !body.isEmpty else { return false }
         let cells = body.split(separator: "|", omittingEmptySubsequences: false)
-        return !cells.isEmpty && cells.allSatisfy { cell in
-            let c = cell.trimmingCharacters(in: .whitespaces)
-            return !c.isEmpty && c.allSatisfy { $0 == "-" || $0 == ":" } && c.contains("-")
-        }
+        return !cells.isEmpty
+            && cells.allSatisfy { cell in
+                let c = cell.trimmingCharacters(in: .whitespaces)
+                return !c.isEmpty && c.allSatisfy { $0 == "-" || $0 == ":" } && c.contains("-")
+            }
     }
 
     // MARK: - 块消费
@@ -333,14 +337,19 @@ struct LosslessMarkdownParser {
         from start: Int, lines: [String], append: (BlockKind, Int, Int) -> Void
     ) -> Int {
         let open = lines[start]
-        let openChar = open.trimmingCharacters(in: .whitespaces).first!
-        let openLen = open.prefix { $0 == openChar }.count
-        let info = String(open.trimmingCharacters(in: .whitespaces).dropFirst(openLen)).trimmingCharacters(in: .whitespaces)
+        // openLen 必须按 trimmed 行计算：开 fence 行可带 ≤3 空格缩进，
+        // 按原始行计数时前导空白使 openLen=0，闭 fence 判定退化为恒真
+        // （首个空行即提前闭合）且 info 串入反引号。
+        let openTrimmed = open.trimmingCharacters(in: .whitespaces)
+        let openChar = openTrimmed.first!
+        let openLen = openTrimmed.prefix { $0 == openChar }.count
+        let info = String(openTrimmed.dropFirst(openLen)).trimmingCharacters(in: .whitespaces)
         var i = start + 1
         while i < lines.count {
             let t = lines[i].trimmingCharacters(in: .whitespaces)
             if t.prefix { $0 == openChar }.count >= openLen,
-               t.allSatisfy({ $0 == openChar || $0.isWhitespace }) {
+                t.allSatisfy({ $0 == openChar || $0.isWhitespace })
+            {
                 append(.codeFence(info: info), start, i)
                 return i + 1
             }
@@ -363,7 +372,7 @@ struct LosslessMarkdownParser {
                 let next = classifyLine(lines[i], previousKind: .paragraph)
                 switch next {
                 case .paragraph, .listItem, .quote:
-                    i += 1 // 懒延续（原型简化：列表/引用前导行并入段落）
+                    i += 1  // 懒延续（原型简化：列表/引用前导行并入段落）
                 default:
                     var end = i - 1
                     // 段落末尾的连续 blank 行不属于段落
@@ -377,7 +386,7 @@ struct LosslessMarkdownParser {
 
     /// table：header 行 + delimiter 行 + 连续含 | 的行。
     private func consumeTable(at start: Int, lines: [String], index: LineIndex) -> (Block, Int) {
-        let header = start - 1 // delimiter 的上一行（由调用方保证是 paragraph 末行）
+        let header = start - 1  // delimiter 的上一行（由调用方保证是 paragraph 末行）
         var i = start + 1
         while i < lines.count {
             let t = lines[i]
@@ -402,8 +411,8 @@ struct LosslessMarkdownParser {
             let continues: Bool
             switch (kind, next) {
             case (.quote, .quote), (.quote, .paragraph), (.quote, .blank),
-                 (.listItem, .listItem), (.listItem, .paragraph), (.listItem, .blank),
-                 (.codeIndented, .codeIndented), (.codeIndented, .blank):
+                (.listItem, .listItem), (.listItem, .paragraph), (.listItem, .blank),
+                (.codeIndented, .codeIndented), (.codeIndented, .blank):
                 // quote 行不被并入列表容器（引用开始新块；引用内列表由 quote 容器承接）
                 continues = true
             default:

@@ -34,10 +34,11 @@ struct MarkdownEditorHistory {
         let after = MarkdownSelection(
             anchorUTF16: selectionBefore.anchorUTF16, focusUTF16: selectionBefore.focusUTF16, affinity: .downstream
         )
-        undoStack.append(Entry(
-            patches: patches, sourceBefore: sourceBefore,
-            selectionBefore: selectionBefore, selectionAfter: after, name: name
-        ))
+        undoStack.append(
+            Entry(
+                patches: patches, sourceBefore: sourceBefore,
+                selectionBefore: selectionBefore, selectionAfter: after, name: name
+            ))
         redoStack.removeAll()
         _ = revision
         return true
@@ -62,13 +63,12 @@ struct MarkdownEditorHistory {
 
     mutating func redo(currentSource: String, currentRevision: UInt64) -> Result? {
         guard let entry = redoStack.popLast() else { return nil }
-        guard case .success = MarkdownPatchApplier.applyPatches(entry.patches, to: entry.sourceBefore) else {
+        // patch 无法在其记录的 base 上重放（entry 弃用，不回栈）：
+        // source 是权威，绝不以旧 base 静默覆盖当前内容。
+        guard case .success(let redone) = MarkdownPatchApplier.applyPatches(entry.patches, to: entry.sourceBefore) else {
             return nil
         }
         undoStack.append(entry)
-        if case .success(let redone) = MarkdownPatchApplier.applyPatches(entry.patches, to: entry.sourceBefore) {
-            return Result(source: redone, revision: currentRevision + 1, selection: entry.selectionAfter)
-        }
-        return nil
+        return Result(source: redone, revision: currentRevision + 1, selection: entry.selectionAfter)
     }
 }

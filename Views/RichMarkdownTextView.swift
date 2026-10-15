@@ -33,8 +33,11 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     private var cachedDisplay = ""
     private(set) var history = MarkdownEditorHistory()
 
-    private var composingGuard = false // 重建刷新 textStorage 的重入保护
-    private var projectionIsDirty = false // 增量快速路径标记；下次结构命令前收敛
+    private var composingGuard = false  // 重建刷新 textStorage 的重入保护
+    private var projectionIsDirty = false  // 增量快速路径标记；下次结构命令前收敛
+    /// 最近一次 display→source 同步被拒的原因（nil = 无拒绝）。
+    /// 测试/诊断观察口：拒绝本身合法（映射歧义），静默接受 display 才是 bug。
+    private(set) var lastSyncRejection: EditRejection?
 
     public init(source: String) {
         self.source = source
@@ -51,7 +54,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
 
         super.init(frame: .zero, textContainer: container)
         delegate = self
-        allowsUndo = false // 历史由 MarkdownEditorHistory 拥有（单一语义历史）
+        allowsUndo = false  // 历史由 MarkdownEditorHistory 拥有（单一语义历史）
         isRichText = false
         usesFontPanel = false
         isAutomaticQuoteSubstitutionEnabled = false
@@ -160,10 +163,15 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         let replacement = diff.replacement
         let oldText = diff.oldText
 
-        // 定位编辑窗所属块并映射为 source patch
+        // 定位编辑窗所属块并映射为 source patch；patch 被拒或编辑落在
+        // 块间分隔符（不属于任何投影）时不静默吞掉——source 是权威，
+        // cachedDisplay 不得领先 source。
         let editDisplayStart = prefix
-        for item in rendered where editDisplayStart >= item.displayStart
-            && editDisplayStart <= item.displayStart + item.projection.display.utf16.count {
+        var patchApplied = false
+        for item in rendered
+        where editDisplayStart >= item.displayStart
+            && editDisplayStart <= item.displayStart + item.projection.display.utf16.count
+        {
             let projection = item.projection
             let localDisplay = editDisplayStart - item.displayStart
             let sourceStart = projection.sourceOffset(forDisplay: localDisplay) ?? item.block.rangeUTF16.location
@@ -173,7 +181,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 expectedText: oldText,
                 replacement: replacement
             )
-            if case .success(let newSource) = MarkdownPatchApplier.applyPatches([patch], to: source) {
+            switch MarkdownPatchApplier.applyPatches([patch], to: source) {
+            case .success(let newSource):
                 let selectionBefore = selectedRange()
                 history.record(
                     patches: [patch], sourceBefore: source, revision: revision,
@@ -186,23 +195,39 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 )
                 source = newSource
                 revision += 1
+                patchApplied = true
+            case .failure(let rejection):
+                // 观察口（测试/诊断）：映射歧义或 expectedText 失配时拒绝
+                // 写 source；随后统一走回退分支把显示拉回 source。
+                lastSyncRejection = rejection
             }
             break
         }
-        cachedDisplay = newDisplay
 
         // composition 期间不重建（保持 markedTextRange）；否则同步投影。
         if !hasMarkedText() {
-            if Self.isSimpleTextEdit(oldText: oldText, replacement: replacement) {
-                // 快速路径：无结构字符、纯文本编辑。textStorage 已由用户编辑
-                // 更新（string == newDisplay），只需标记投影 dirty。
-                projectionIsDirty = true
-            } else {
+            if !patchApplied {
+                // display→source 同步失败：立即以 source 为准重建显示（编辑
+                // 被显式回退），而不是让显示领先 source、待下次重建静默吃字。
                 let restore = selectedRange()
                 rebuildProjection()
                 let clamped = min(restore.location, max(0, (string as NSString).length - restore.length))
                 setSelectedRange(NSRange(location: clamped, length: restore.length))
+            } else {
+                cachedDisplay = newDisplay
+                if Self.isSimpleTextEdit(oldText: oldText, replacement: replacement) {
+                    // 快速路径：无结构字符、纯文本编辑。textStorage 已由用户编辑
+                    // 更新（string == newDisplay），只需标记投影 dirty。
+                    projectionIsDirty = true
+                } else {
+                    let restore = selectedRange()
+                    rebuildProjection()
+                    let clamped = min(restore.location, max(0, (string as NSString).length - restore.length))
+                    setSelectedRange(NSRange(location: clamped, length: restore.length))
+                }
             }
+        } else {
+            cachedDisplay = newDisplay
         }
     }
 
@@ -224,7 +249,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         }
         var suffix = 0
         while suffix < minLen - prefix,
-            oldNS.character(at: oldNS.length - 1 - suffix) == newNS.character(at: newNS.length - 1 - suffix) {
+            oldNS.character(at: oldNS.length - 1 - suffix) == newNS.character(at: newNS.length - 1 - suffix)
+        {
             suffix += 1
         }
         let oldStart = prefix
@@ -265,7 +291,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     // MARK: - 结构命令（Enter/Tab/Backspace 于 list；G0 三层 list 原型）
 
     public func text(_: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-        ensureProjectionCurrent() // 结构命令需要准确的块定位
+        ensureProjectionCurrent()  // 结构命令需要准确的块定位
         switch commandSelector {
         case #selector(insertNewline(_:)):
             return handleEnterInList()
@@ -357,18 +383,19 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         if content.isEmpty {
             // 空项回车：退出列表（删 marker 行）
             let lineLen = lineRange.length
-            applyStructurePatches([
-                SourcePatch(rangeUTF16: NSRange(location: lineRange.location, length: lineLen), expectedText: line, replacement: ""),
-            ], name: "list-exit", restoreSourceCaret: lineRange.location)
+            applyStructurePatches(
+                [
+                    SourcePatch(rangeUTF16: NSRange(location: lineRange.location, length: lineLen), expectedText: line, replacement: "")
+                ], name: "list-exit", restoreSourceCaret: lineRange.location)
             return true
         }
         // 拆分：在行内容末（换行前）插入换行 + 同级 marker
         let marker = String(line.prefix(markerLength))
         let insertAt = NSMaxRange(lineRange) - (line.hasSuffix("\n") ? 1 : 0)
-        let current = ns.substring(with: NSRange(location: insertAt, length: 0))
-        applyStructurePatches([
-            SourcePatch(rangeUTF16: NSRange(location: insertAt, length: 0), expectedText: current, replacement: "\n" + marker),
-        ], name: "list-split", restoreSourceCaret: insertAt + 1 + markerLength)
+        applyStructurePatches(
+            [
+                SourcePatch(rangeUTF16: NSRange(location: insertAt, length: 0), expectedText: "", replacement: "\n" + marker)
+            ], name: "list-split", restoreSourceCaret: insertAt + 1 + markerLength)
         return true
     }
 
@@ -382,13 +409,15 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         let markerAt = lineRange.location + leading
 
         if indent {
-            applyStructurePatches([
-                SourcePatch(rangeUTF16: NSRange(location: markerAt, length: 0), expectedText: "", replacement: "  "),
-            ], name: "list-indent", restoreSourceCaret: markerAt + 2)
+            applyStructurePatches(
+                [
+                    SourcePatch(rangeUTF16: NSRange(location: markerAt, length: 0), expectedText: "", replacement: "  ")
+                ], name: "list-indent", restoreSourceCaret: markerAt + 2)
         } else if leading >= 2 {
-            applyStructurePatches([
-                SourcePatch(rangeUTF16: NSRange(location: markerAt - 2, length: 2), expectedText: "  ", replacement: ""),
-            ], name: "list-outdent", restoreSourceCaret: markerAt - 2)
+            applyStructurePatches(
+                [
+                    SourcePatch(rangeUTF16: NSRange(location: markerAt - 2, length: 2), expectedText: "  ", replacement: "")
+                ], name: "list-outdent", restoreSourceCaret: markerAt - 2)
         }
         return true
     }
@@ -402,9 +431,10 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         guard caret == lineRange.location + markerLength, caret > 0 else { return false }
         let ns = source as NSString
         let marker = ns.substring(with: NSRange(location: lineRange.location, length: markerLength))
-        applyStructurePatches([
-            SourcePatch(rangeUTF16: NSRange(location: lineRange.location, length: markerLength), expectedText: marker, replacement: ""),
-        ], name: "list-unmark", restoreSourceCaret: lineRange.location)
+        applyStructurePatches(
+            [
+                SourcePatch(rangeUTF16: NSRange(location: lineRange.location, length: markerLength), expectedText: marker, replacement: "")
+            ], name: "list-unmark", restoreSourceCaret: lineRange.location)
         return true
     }
 
@@ -440,7 +470,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
 
     public override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
         super.setMarkedText(string, selectedRange: selectedRange, replacementRange: replacementRange)
-        didChangeText() // input 协议路径不自动通知 delegate（无 keyDown 上下文时）
+        didChangeText()  // input 协议路径不自动通知 delegate（无 keyDown 上下文时）
     }
 
     public override func insertText(_ string: Any, replacementRange: NSRange) {

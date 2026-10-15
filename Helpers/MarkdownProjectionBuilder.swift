@@ -15,12 +15,12 @@ struct MarkdownProjectionBuilder {
 
     enum SegmentKind: Equatable {
         case text
-        case hiddenMarker          // ** ` # > - 等 marker：显示空
-        case codeSpan              // 行内 code（backtick 隐藏，内容等宽显示）
-        case linkDestination       // (url) 部分：显示空
-        case attachmentPlaceholder // 图片：alt 作为占位显示
-        case metadata              // frontmatter：整块原样
-        case plainFallback         // 保护块/未识别：原样显示，编辑回退 source
+        case hiddenMarker  // ** ` # > - 等 marker：显示空
+        case codeSpan  // 行内 code（backtick 隐藏，内容等宽显示）
+        case linkDestination  // (url) 部分：显示空
+        case attachmentPlaceholder  // 图片：alt 作为占位显示
+        case metadata  // frontmatter：整块原样
+        case plainFallback  // 保护块/未识别：原样显示，编辑回退 source
     }
 
     struct Segment: Equatable {
@@ -64,8 +64,9 @@ struct MarkdownProjectionBuilder {
                     idx += 1
                 }
                 if hasOpening, idx < segments.count,
-                   segments[idx].displayRangeUTF16.location == offset,
-                   segments[idx].displayRangeUTF16.length > 0 {
+                    segments[idx].displayRangeUTF16.location == offset,
+                    segments[idx].displayRangeUTF16.length > 0
+                {
                     return segments[idx].sourceRangeUTF16.location
                 }
                 // closing boundary 或纯文本边界：前段末尾
@@ -114,17 +115,28 @@ struct MarkdownProjectionBuilder {
         case .codeFence, .codeIndented, .htmlBlock, .table, .thematicBreak, .blank:
             return plain(blockText, kind: .plainFallback)
         case .heading(let level):
-            let markerLen = level + 1 // '#'×level + 空格
-            var segments = [Segment](
-                kind: .hiddenMarker,
-                sourceRange: NSRange(location: 0, length: markerLen),
-                in: blockText
-            )
+            let markerLen = level + 1  // '#'×level + 空格
+            // marker 段用文档绝对坐标（与 inlineSegments 一致）：块相对 0 会
+            // 让非首块 heading 的 marker 指向文档开头。display 坐标统一由
+            // finalize 重算（inlineSegments 已各自 finalize，重算幂等）。
+            var segments = [
+                Segment(
+                    kind: .hiddenMarker,
+                    sourceRangeUTF16: NSRange(location: block.rangeUTF16.location, length: markerLen),
+                    displayRangeUTF16: NSRange(location: -1, length: 0),
+                    displayText: ""
+                )
+            ]
             segments.append(contentsOf: inlineSegments(of: blockText, contentStart: markerLen, block: block))
+            finalizeDisplayRanges(&segments)
             return Projection(display: segments.displayText, segments: segments)
         case .listItem, .quote:
             // 多行容器逐行处理：每行前缀 marker 隐藏，行内容走 inline
-            return lineWiseProjection(blockText: blockText, block: block, isQuote: { if case .listItem = block.kind { return false }; return true }())
+            return lineWiseProjection(
+                blockText: blockText, block: block,
+                isQuote: {
+                    if case .listItem = block.kind { return false }; return true
+                }())
         case .paragraph:
             let segments = inlineSegments(of: blockText, contentStart: 0, block: block)
             return Projection(display: segments.displayText, segments: segments)
@@ -145,15 +157,17 @@ struct MarkdownProjectionBuilder {
             let lineRange = ns.lineRange(for: NSRange(location: lineStart, length: 0))
             let line = ns.substring(with: lineRange)
             let prefixLen = isQuote ? quotePrefixLength(line) : listItemMarkerLength(line)
-            segments.append(Segment(
-                kind: .hiddenMarker,
-                sourceRangeUTF16: NSRange(location: block.rangeUTF16.location + lineStart, length: prefixLen),
-                displayRangeUTF16: NSRange(location: -1, length: 0), displayText: ""
-            ))
-            segments.append(contentsOf: inlineSegments(
-                of: blockText, contentStart: lineStart + prefixLen,
-                block: block, limit: NSMaxRange(lineRange)
-            ))
+            segments.append(
+                Segment(
+                    kind: .hiddenMarker,
+                    sourceRangeUTF16: NSRange(location: block.rangeUTF16.location + lineStart, length: prefixLen),
+                    displayRangeUTF16: NSRange(location: -1, length: 0), displayText: ""
+                ))
+            segments.append(
+                contentsOf: inlineSegments(
+                    of: blockText, contentStart: lineStart + prefixLen,
+                    block: block, limit: NSMaxRange(lineRange)
+                ))
             lineStart = NSMaxRange(lineRange)
         }
         var finalized = segments
@@ -174,12 +188,13 @@ struct MarkdownProjectionBuilder {
 
         func appendText(_ from: Int, _ to: Int) {
             guard to > from else { return }
-            segments.append(Segment(
-                kind: .text,
-                sourceRangeUTF16: NSRange(location: base + from, length: to - from),
-                displayRangeUTF16: NSRange(location: -1, length: to - from), // display 坐标在 finalize 填
-                displayText: ns.substring(with: NSRange(location: from, length: to - from))
-            ))
+            segments.append(
+                Segment(
+                    kind: .text,
+                    sourceRangeUTF16: NSRange(location: base + from, length: to - from),
+                    displayRangeUTF16: NSRange(location: -1, length: to - from),  // display 坐标在 finalize 填
+                    displayText: ns.substring(with: NSRange(location: from, length: to - from))
+                ))
         }
 
         while cursor < total {
@@ -196,24 +211,27 @@ struct MarkdownProjectionBuilder {
                     let openEnd = span.openEnd
                     let closeStart = span.closeStart
                     let closeEnd = span.closeEnd
-                    segments.append(Segment(
-                        kind: .hiddenMarker,
-                        sourceRangeUTF16: NSRange(location: base + cursor, length: openEnd - cursor),
-                        displayRangeUTF16: NSRange(location: -1, length: 0),
-                        displayText: "", isOpening: true
-                    ))
-                    segments.append(Segment(
-                        kind: .codeSpan,
-                        sourceRangeUTF16: NSRange(location: base + openEnd, length: closeStart - openEnd),
-                        displayRangeUTF16: NSRange(location: -1, length: closeStart - openEnd),
-                        displayText: ns.substring(with: NSRange(location: openEnd, length: closeStart - openEnd))
-                    ))
-                    segments.append(Segment(
-                        kind: .hiddenMarker,
-                        sourceRangeUTF16: NSRange(location: base + closeStart, length: closeEnd - closeStart),
-                        displayRangeUTF16: NSRange(location: -1, length: 0),
-                        displayText: ""
-                    ))
+                    segments.append(
+                        Segment(
+                            kind: .hiddenMarker,
+                            sourceRangeUTF16: NSRange(location: base + cursor, length: openEnd - cursor),
+                            displayRangeUTF16: NSRange(location: -1, length: 0),
+                            displayText: "", isOpening: true
+                        ))
+                    segments.append(
+                        Segment(
+                            kind: .codeSpan,
+                            sourceRangeUTF16: NSRange(location: base + openEnd, length: closeStart - openEnd),
+                            displayRangeUTF16: NSRange(location: -1, length: closeStart - openEnd),
+                            displayText: ns.substring(with: NSRange(location: openEnd, length: closeStart - openEnd))
+                        ))
+                    segments.append(
+                        Segment(
+                            kind: .hiddenMarker,
+                            sourceRangeUTF16: NSRange(location: base + closeStart, length: closeEnd - closeStart),
+                            displayRangeUTF16: NSRange(location: -1, length: 0),
+                            displayText: ""
+                        ))
                     cursor = closeEnd
                     continue
                 }
@@ -224,25 +242,28 @@ struct MarkdownProjectionBuilder {
                 if let marker = emphasisMarker(at: cursor, in: ns) {
                     if let close = findClosing(marker: marker, from: cursor + marker.utf16.count, in: ns) {
                         let openLen = marker.utf16.count
-                        segments.append(Segment(
-                            kind: .hiddenMarker,
-                            sourceRangeUTF16: NSRange(location: base + cursor, length: openLen),
-                            displayRangeUTF16: NSRange(location: -1, length: 0),
-                            displayText: "", isOpening: true
-                        ))
+                        segments.append(
+                            Segment(
+                                kind: .hiddenMarker,
+                                sourceRangeUTF16: NSRange(location: base + cursor, length: openLen),
+                                displayRangeUTF16: NSRange(location: -1, length: 0),
+                                displayText: "", isOpening: true
+                            ))
                         let contentLen = close - (cursor + openLen)
-                        segments.append(Segment(
-                            kind: .text,
-                            sourceRangeUTF16: NSRange(location: base + cursor + openLen, length: contentLen),
-                            displayRangeUTF16: NSRange(location: -1, length: contentLen),
-                            displayText: ns.substring(with: NSRange(location: cursor + openLen, length: contentLen))
-                        ))
-                        segments.append(Segment(
-                            kind: .hiddenMarker,
-                            sourceRangeUTF16: NSRange(location: base + close, length: openLen),
-                            displayRangeUTF16: NSRange(location: -1, length: 0),
-                            displayText: ""
-                        ))
+                        segments.append(
+                            Segment(
+                                kind: .text,
+                                sourceRangeUTF16: NSRange(location: base + cursor + openLen, length: contentLen),
+                                displayRangeUTF16: NSRange(location: -1, length: contentLen),
+                                displayText: ns.substring(with: NSRange(location: cursor + openLen, length: contentLen))
+                            ))
+                        segments.append(
+                            Segment(
+                                kind: .hiddenMarker,
+                                sourceRangeUTF16: NSRange(location: base + close, length: openLen),
+                                displayRangeUTF16: NSRange(location: -1, length: 0),
+                                displayText: ""
+                            ))
                         cursor = close + openLen
                         continue
                     }
@@ -288,34 +309,40 @@ struct MarkdownProjectionBuilder {
         return Projection(display: text, segments: [segment])
     }
 
+    /// 行首 list marker 的长度（含缩进 + 符号 + 尾随空格）。
+    /// 无 marker 的行（懒延续行、容器内空行）必须返回 0：藏进 marker 段
+    /// 会吞掉该行首个内容字符且打乱 display→source 映射。
     private func listItemMarkerLength(_ blockText: String) -> Int {
         let t = blockText as NSString
         var i = 0
         while i < t.length {
             let c = t.character(at: i)
             if c == asciiUnit("-") || c == asciiUnit("+") || c == asciiUnit("*")
-                || c == asciiUnit(".") || c == asciiUnit(")") || c.isDigitScalar || c == asciiUnit(" ") || c == asciiUnit("\t") {
+                || c == asciiUnit(".") || c == asciiUnit(")") || c.isDigitScalar || c == asciiUnit(" ") || c == asciiUnit("\t")
+            {
                 i += 1
             } else {
                 break
             }
         }
-        // marker 至少包含符号 + 一个空格；全数字行保守取整行前缀
-        return max(1, i)
+        // 全数字行保守取整行前缀
+        return i
     }
 
+    /// 行首 quote 前缀（`>` + 缩进）长度。行尾换行不计入前缀（空 quote 行
+    /// 的换行必须留在 display），无 `>` 的懒延续行返回 0。
     private func quotePrefixLength(_ blockText: String) -> Int {
         let t = blockText as NSString
         var i = 0
         while i < t.length {
             let c = t.character(at: i)
-            if c == asciiUnit(">") || c == asciiUnit(" ") || c == asciiUnit("\t") || c == asciiUnit("\r") || c == asciiUnit("\n") {
+            if c == asciiUnit(">") || c == asciiUnit(" ") || c == asciiUnit("\t") {
                 i += 1
             } else {
                 break
             }
         }
-        return max(1, i)
+        return i
     }
 
     private struct CodeSpanRange {
@@ -350,7 +377,7 @@ struct MarkdownProjectionBuilder {
 
     /// 预计算 emphasis marker UTF-16 模式（避免每次调用创建数组）。
     private static let emphasisPatterns: [(String, [UInt16])] = [
-        "**", "__", "~~", "*", "_"
+        "**", "__", "~~", "*", "_",
     ].map { ($0, Array($0.utf16)) }
 
     private func emphasisMarker(at i: Int, in ns: NSString) -> String? {
@@ -387,44 +414,47 @@ struct MarkdownProjectionBuilder {
         guard let labelEnd = findUnescaped("]", from: openBracket + 1, in: ns),
             labelEnd + 1 < ns.length,
             ns.character(at: labelEnd + 1) == asciiUnit("("),
-            let closeParen = findUnescaped(")", from: labelEnd + 2, in: ns) else {
+            let closeParen = findUnescaped(")", from: labelEnd + 2, in: ns)
+        else {
             return nil
         }
         let labelStart = openBracket + 1
         let labelRange = NSRange(location: labelStart, length: labelEnd - labelStart)
-        let destStart = labelEnd + 2
-        let destRange = NSRange(location: destStart, length: closeParen - destStart)
         var segments: [Segment] = []
         if isImage {
-            segments.append(Segment(
+            segments.append(
+                Segment(
+                    kind: .hiddenMarker,
+                    sourceRangeUTF16: NSRange(location: base + i, length: openBracket - i),
+                    displayRangeUTF16: NSRange(location: -1, length: 0), displayText: ""
+                ))
+        }
+        segments.append(
+            Segment(
                 kind: .hiddenMarker,
-                sourceRangeUTF16: NSRange(location: base + i, length: openBracket - i),
+                sourceRangeUTF16: NSRange(location: base + openBracket, length: 1),
+                displayRangeUTF16: NSRange(location: -1, length: 0), displayText: "",
+                isOpening: true
+            ))
+        segments.append(
+            Segment(
+                kind: isImage ? .attachmentPlaceholder : .text,
+                sourceRangeUTF16: NSRange(location: base + labelStart, length: labelRange.length),
+                displayRangeUTF16: NSRange(location: -1, length: labelRange.length),
+                displayText: isImage ? "[图]" : ns.substring(with: labelRange)
+            ))
+        segments.append(
+            Segment(
+                kind: .hiddenMarker,
+                sourceRangeUTF16: NSRange(location: base + labelEnd, length: 1),
                 displayRangeUTF16: NSRange(location: -1, length: 0), displayText: ""
             ))
-        }
-        segments.append(Segment(
-            kind: .hiddenMarker,
-            sourceRangeUTF16: NSRange(location: base + openBracket, length: 1),
-            displayRangeUTF16: NSRange(location: -1, length: 0), displayText: "",
-            isOpening: true
-        ))
-        segments.append(Segment(
-            kind: isImage ? .attachmentPlaceholder : .text,
-            sourceRangeUTF16: NSRange(location: base + labelStart, length: labelRange.length),
-            displayRangeUTF16: NSRange(location: -1, length: labelRange.length),
-            displayText: isImage ? "[图]" : ns.substring(with: labelRange)
-        ))
-        segments.append(Segment(
-            kind: .hiddenMarker,
-            sourceRangeUTF16: NSRange(location: base + labelEnd, length: 1),
-            displayRangeUTF16: NSRange(location: -1, length: 0), displayText: ""
-        ))
-        segments.append(Segment(
-            kind: .linkDestination,
-            sourceRangeUTF16: NSRange(location: base + labelEnd + 1, length: closeParen + 1 - (labelEnd + 1)),
-            displayRangeUTF16: NSRange(location: -1, length: 0), displayText: ""
-        ))
-        _ = destRange
+        segments.append(
+            Segment(
+                kind: .linkDestination,
+                sourceRangeUTF16: NSRange(location: base + labelEnd + 1, length: closeParen + 1 - (labelEnd + 1)),
+                displayRangeUTF16: NSRange(location: -1, length: 0), displayText: ""
+            ))
         return segments
     }
 
@@ -454,23 +484,25 @@ struct MarkdownProjectionBuilder {
         for seg in sorted {
             let relStart = seg.sourceRangeUTF16.location - base
             if relStart > cursor {
-                result.append(Segment(
-                    kind: .text,
-                    sourceRangeUTF16: NSRange(location: base + cursor, length: relStart - cursor),
-                    displayRangeUTF16: NSRange(location: -1, length: relStart - cursor),
-                    displayText: blockText.substring(with: NSRange(location: cursor, length: relStart - cursor))
-                ))
+                result.append(
+                    Segment(
+                        kind: .text,
+                        sourceRangeUTF16: NSRange(location: base + cursor, length: relStart - cursor),
+                        displayRangeUTF16: NSRange(location: -1, length: relStart - cursor),
+                        displayText: blockText.substring(with: NSRange(location: cursor, length: relStart - cursor))
+                    ))
             }
             result.append(seg)
             cursor = relStart + seg.sourceRangeUTF16.length
         }
         if cursor < upperBound {
-            result.append(Segment(
-                kind: .text,
-                sourceRangeUTF16: NSRange(location: base + cursor, length: upperBound - cursor),
-                displayRangeUTF16: NSRange(location: -1, length: upperBound - cursor),
-                displayText: blockText.substring(with: NSRange(location: cursor, length: upperBound - cursor))
-            ))
+            result.append(
+                Segment(
+                    kind: .text,
+                    sourceRangeUTF16: NSRange(location: base + cursor, length: upperBound - cursor),
+                    displayRangeUTF16: NSRange(location: -1, length: upperBound - cursor),
+                    displayText: blockText.substring(with: NSRange(location: cursor, length: upperBound - cursor))
+                ))
         }
         return result
     }
@@ -496,22 +528,24 @@ struct MarkdownProjectionBuilder {
 private extension Array where Element == MarkdownProjectionBuilder.Segment {
     init(kind: MarkdownProjectionBuilder.SegmentKind, sourceRange: NSRange, in blockText: String) {
         let ns = blockText as NSString
-        let text = ns.substring(with: NSRange(
-            location: sourceRange.location,
-            length: Swift.min(sourceRange.length, ns.length - sourceRange.location)
-        ))
+        let text = ns.substring(
+            with: NSRange(
+                location: sourceRange.location,
+                length: Swift.min(sourceRange.length, ns.length - sourceRange.location)
+            ))
         self.init()
-        append(MarkdownProjectionBuilder.Segment(
-            kind: kind,
-            sourceRangeUTF16: sourceRange,
-            displayRangeUTF16: NSRange(location: -1, length: kind == .hiddenMarker ? 0 : sourceRange.length),
-            displayText: kind == .hiddenMarker ? "" : text
-        ))
+        append(
+            MarkdownProjectionBuilder.Segment(
+                kind: kind,
+                sourceRangeUTF16: sourceRange,
+                displayRangeUTF16: NSRange(location: -1, length: kind == .hiddenMarker ? 0 : sourceRange.length),
+                displayText: kind == .hiddenMarker ? "" : text
+            ))
     }
 
     var displayText: String { reduce("") { $0 + $1.displayText } }
 }
 
 private extension UInt16 {
-    var isDigitScalar: Bool { self >= 0x30 && self <= 0x39 } // '0'...'9'
+    var isDigitScalar: Bool { self >= 0x30 && self <= 0x39 }  // '0'...'9'
 }

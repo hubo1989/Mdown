@@ -9,9 +9,10 @@ final class MarkdownProjectionTests: XCTestCase {
 
     private func projection(of blockText: String, as kind: LosslessMarkdownParser.BlockKind? = nil) -> MarkdownProjectionBuilder.Projection {
         let doc = parser.parse(blockText)
-        let block = doc.blocks.first { b in
-            kind.map { $0 == b.kind } ?? true
-        } ?? doc.blocks[0]
+        let block =
+            doc.blocks.first { b in
+                kind.map { $0 == b.kind } ?? true
+            } ?? doc.blocks[0]
         return builder.buildProjection(for: block, in: doc)
     }
 
@@ -79,6 +80,35 @@ final class MarkdownProjectionTests: XCTestCase {
         XCTAssertEqual(p.segments.first?.sourceRangeUTF16, NSRange(location: 0, length: 3), "## 加空格")
     }
 
+    /// 非首块 heading 的 marker 段必须是文档绝对坐标（与内容段一致），
+    /// 不得回到块相对 0（会指向文档开头）。修复前 marker 段恒为 location 0。
+    func testHeadingMarkerRangeIsDocumentAbsolute() {
+        let source = "前段\n\n## 标\n"
+        let p = projection(of: source, as: .heading(level: 2))
+        XCTAssertEqual(p.display, "标\n")
+        XCTAssertEqual(
+            p.segments.first?.sourceRangeUTF16, NSRange(location: 4, length: 3),
+            "marker 段起点 = 前面块的总长（\"前段\\n\\n\" = 4 个 UTF-16 单元）")
+        XCTAssertEqual(
+            p.segments.first?.displayRangeUTF16, NSRange(location: 0, length: 0),
+            "finalize 后零显示长段不得残留 -1 哨兵")
+        XCTAssertEqual(p.displayOffset(forSource: 4), 0, "source 块起点映射到 display 0，不得返回哨兵 -1")
+    }
+
+    /// 懒延续行（无 marker 的容器延续行）首字符不得被并入隐藏 marker 段。
+    /// 修复前 max(1, 0) 会吞掉 "- 一\n二" 中 "二" 的首字符。
+    func testLazyContinuationKeepsFirstCharacter() {
+        let list = projection(of: "- 一\n二\n", as: .listItem(depth: 0, ordered: false))
+        XCTAssertEqual(list.display, "一\n二\n", "懒延续行首字符必须完整显示")
+
+        let quote = projection(of: "> 引\n用\n", as: .quote(depth: 1))
+        XCTAssertEqual(quote.display, "引\n用\n")
+
+        // 空 quote 行（">\n"）的换行留在 display，不被前缀段吞掉
+        let emptyQuoteLine = projection(of: ">\n>\n", as: .quote(depth: 1))
+        XCTAssertEqual(emptyQuoteLine.display, "\n\n", "空 quote 行的换行必须保留")
+    }
+
     func testProtectedBlocksFallBackPlain() throws {
         let table = projection(of: "| a\\|b | c |\n| --- | --- |\n| 1 | 2 |\n", as: .table)
         XCTAssertTrue(table.segments.allSatisfy { $0.kind == .plainFallback })
@@ -89,10 +119,13 @@ final class MarkdownProjectionTests: XCTestCase {
 
     func testFenceContentNeverEntersInlineSegments() {
         let doc = parser.parse("```text\n含 **marker** 与 [链接](url)\n```\n后段 **加粗**\n")
-        let fenceBlock = doc.blocks.first { if case .codeFence = $0.kind { return true }; return false }!
+        let fenceBlock = doc.blocks.first {
+            if case .codeFence = $0.kind { return true }; return false
+        }!
         let p = builder.buildProjection(for: fenceBlock, in: doc)
-        XCTAssertFalse(p.segments.contains { $0.kind == .hiddenMarker || $0.kind == .text && $0.displayText.contains("链接") },
-                       "fence 内容不得被 inline 扫描")
+        XCTAssertFalse(
+            p.segments.contains { $0.kind == .hiddenMarker || $0.kind == .text && $0.displayText.contains("链接") },
+            "fence 内容不得被 inline 扫描")
     }
 
     func testDisplayAndSourceOffsetsRoundTripOnBoundaries() {
@@ -101,25 +134,33 @@ final class MarkdownProjectionTests: XCTestCase {
         // 不变量：所有段边界（location 与 maxRange）经 display↔source 复合后
         // 仍落在段边界集合内。hidden marker 段内部偏移在 display 无表面，
         // 允许折叠到相邻段边界（SPEC 的 affinity 语义由 T04 caret 层处理）。
-        let boundaries = Set(p.segments.flatMap { [
-            $0.sourceRangeUTF16.location,
-            NSMaxRange($0.sourceRangeUTF16),
-        ] })
+        let boundaries = Set(
+            p.segments.flatMap {
+                [
+                    $0.sourceRangeUTF16.location,
+                    NSMaxRange($0.sourceRangeUTF16),
+                ]
+            })
         for boundary in boundaries {
             guard let d = p.displayOffset(forSource: boundary),
-                  let back = p.sourceOffset(forDisplay: d) else {
+                let back = p.sourceOffset(forDisplay: d)
+            else {
                 return XCTFail("边界 \(boundary) 映射不得失败")
             }
-            XCTAssertTrue(boundaries.contains(back),
-                          "边界 \(boundary) 往返 \(back) 必须仍是段边界（不得落进段内部）")
+            XCTAssertTrue(
+                boundaries.contains(back),
+                "边界 \(boundary) 往返 \(back) 必须仍是段边界（不得落进段内部）")
         }
         // 非折叠段：内部中点往返必须恒等
-        for segment in p.segments where segment.displayRangeUTF16.length > 0
-            && segment.kind != .hiddenMarker && segment.kind != .linkDestination {
+        for segment in p.segments
+        where segment.displayRangeUTF16.length > 0
+            && segment.kind != .hiddenMarker && segment.kind != .linkDestination
+        {
             let mid = segment.sourceRangeUTF16.location + max(1, segment.sourceRangeUTF16.length / 2)
             guard mid < NSMaxRange(segment.sourceRangeUTF16) else { continue }
             guard let d = p.displayOffset(forSource: mid),
-                  let back = p.sourceOffset(forDisplay: d) else { continue }
+                let back = p.sourceOffset(forDisplay: d)
+            else { continue }
             XCTAssertEqual(back, mid, "非折叠段内部点必须恒等（\(segment.kind)）")
         }
     }

@@ -15,12 +15,30 @@ final class LosslessMarkdownParserTests: XCTestCase {
 
         // 关键块存在性 spot check
         let kinds = doc.blocks.map(\.kind)
-        XCTAssertTrue(kinds.contains { if case .frontmatter = $0 { return true }; return false })
-        XCTAssertTrue(kinds.contains { if case .heading = $0 { return true }; return false })
-        XCTAssertTrue(kinds.contains { if case .listItem = $0 { return true }; return false })
-        XCTAssertTrue(kinds.contains { if case .codeFence = $0 { return true }; return false })
-        XCTAssertTrue(kinds.contains { if case .table = $0 { return true }; return false })
-        XCTAssertTrue(kinds.contains { if case .quote = $0 { return true }; return false })
+        XCTAssertTrue(
+            kinds.contains {
+                if case .frontmatter = $0 { return true }; return false
+            })
+        XCTAssertTrue(
+            kinds.contains {
+                if case .heading = $0 { return true }; return false
+            })
+        XCTAssertTrue(
+            kinds.contains {
+                if case .listItem = $0 { return true }; return false
+            })
+        XCTAssertTrue(
+            kinds.contains {
+                if case .codeFence = $0 { return true }; return false
+            })
+        XCTAssertTrue(
+            kinds.contains {
+                if case .table = $0 { return true }; return false
+            })
+        XCTAssertTrue(
+            kinds.contains {
+                if case .quote = $0 { return true }; return false
+            })
     }
 
     func testFencedCodeBlockSpansToClosingFence() {
@@ -34,6 +52,48 @@ final class LosslessMarkdownParserTests: XCTestCase {
         XCTAssertEqual(doc.blocks[0].startLine, 1)
         XCTAssertEqual(doc.blocks[0].endLine, 3)
         XCTAssertEqual(doc.blocks[1].kind, .paragraph)
+    }
+
+    /// 缩进 fence（≤3 空格，CommonMark 合法，列表内嵌 fence 的常见形态）：
+    /// info 不得串入反引号，块内空行不得提前闭合 fence。
+    /// 修复前 openLen 按原始行计算恒为 0，闭 fence 判定退化为恒真。
+    func testIndentedFenceKeepsInfoAndSpansPastBlankLine() {
+        let source = "  ```swift\nlet a = 1\n\nlet b = 2\n  ```\n后文\n"
+        let doc = parser.parse(source)
+        XCTAssertTrue(doc.isLossless)
+        guard case .codeFence(let info) = doc.blocks[0].kind else {
+            return XCTFail("缩进 fence 应为 codeFence，实际 \(doc.blocks[0].kind)")
+        }
+        XCTAssertEqual(info, "swift", "info 必须剥掉缩进与反引号")
+        XCTAssertEqual(doc.blocks[0].startLine, 1)
+        XCTAssertEqual(doc.blocks[0].endLine, 5, "块内空行（第 3 行）不得提前闭合 fence")
+        XCTAssertEqual(doc.blocks[1].kind, .paragraph, "闭合 fence 之后的行回到段落")
+    }
+
+    /// ≥4 空格（或 1 tab）缩进的开 fence 行是 indented code，不是 fence
+    /// （CommonMark 内容列规则）。
+    func testFourSpaceAndTabIndentedFenceIsIndentedCode() {
+        let fourSpace = parser.parse("    ```js\nlet x\n")
+        XCTAssertTrue(
+            fourSpace.blocks.contains {
+                if case .codeIndented = $0.kind { return true }; return false
+            },
+            "4 空格缩进的 ``` 行应为 indented code")
+        XCTAssertFalse(
+            fourSpace.blocks.contains {
+                if case .codeFence = $0.kind { return true }; return false
+            })
+
+        let tabbed = parser.parse("\t```js\nlet x\n")
+        XCTAssertTrue(
+            tabbed.blocks.contains {
+                if case .codeIndented = $0.kind { return true }; return false
+            },
+            "tab 缩进的 ``` 行应为 indented code")
+        XCTAssertFalse(
+            tabbed.blocks.contains {
+                if case .codeFence = $0.kind { return true }; return false
+            })
     }
 
     func testNestedFenceRequiresLongerClosingFence() throws {
@@ -60,7 +120,11 @@ final class LosslessMarkdownParserTests: XCTestCase {
         let source = "| a | b |\n| --- | --- |\n| 1 | 2 |\n\n段落\n"
         let doc = parser.parse(source)
         XCTAssertTrue(doc.isLossless)
-        guard let table = doc.blocks.first(where: { if case .table = $0.kind { return true }; return false }) else {
+        guard
+            let table = doc.blocks.first(where: {
+                if case .table = $0.kind { return true }; return false
+            })
+        else {
             return XCTFail("应识别 table 块")
         }
         XCTAssertEqual(table.startLine, 1)
@@ -109,10 +173,14 @@ final class LosslessMarkdownParserTests: XCTestCase {
         XCTAssertEqual(cmarkFences.first?.0, 5)
         XCTAssertEqual(cmarkFences.first?.1, 7)
 
-        let scannerHeading = doc.blocks.first { if case .heading = $0.kind { return true }; return false }
+        let scannerHeading = doc.blocks.first {
+            if case .heading = $0.kind { return true }; return false
+        }
         XCTAssertEqual(scannerHeading?.startLine, 1)
         XCTAssertEqual(scannerHeading?.endLine, 1)
-        let scannerFence = doc.blocks.first { if case .codeFence = $0.kind { return true }; return false }
+        let scannerFence = doc.blocks.first {
+            if case .codeFence = $0.kind { return true }; return false
+        }
         XCTAssertEqual(scannerFence?.startLine, 5)
         XCTAssertEqual(scannerFence?.endLine, 7)
     }
@@ -127,7 +195,8 @@ final class LosslessMarkdownParserTests: XCTestCase {
         guard let root = cmark_parser_finish(cparser) else { return XCTFail("finish") }
         defer { cmark_node_free(root) }
         guard let heading = cmark_node_first_child(root),
-            cmark_node_get_type(heading) == CMARK_NODE_HEADING else {
+            cmark_node_get_type(heading) == CMARK_NODE_HEADING
+        else {
             return XCTFail("应为 heading")
         }
         // heading 起点列 1；终点列 = 全行 UTF-8 字节数（中文每字 3 byte）
@@ -168,8 +237,9 @@ final class LosslessMarkdownParserTests: XCTestCase {
         // 因此 cmark heading 集是扫描器集合加上 setext 伪 heading。
         let cmarkSet = Set(cmarkHeadings.map { "\($0.0)-\($0.1)" })
         for scanner in scannerHeadings {
-            XCTAssertTrue(cmarkSet.contains("\(scanner.0)-\(scanner.1)"),
-                          "扫描器 heading \(scanner) 必须与 cmark ATX heading 一致（CRLF 当单换行）")
+            XCTAssertTrue(
+                cmarkSet.contains("\(scanner.0)-\(scanner.1)"),
+                "扫描器 heading \(scanner) 必须与 cmark ATX heading 一致（CRLF 当单换行）")
         }
         XCTAssertFalse(scannerHeadings.isEmpty)
     }
@@ -180,13 +250,19 @@ final class LosslessMarkdownParserTests: XCTestCase {
         XCTAssertTrue(doc.isLossless)
         // G0 修复后：`\t- tab 缩进二级`（紧跟列表项）正确分类为嵌套 listItem，
         // 不再误分为 codeIndented（此前条件恒 false 的 bug）。
-        XCTAssertTrue(doc.blocks.contains { if case .listItem = $0.kind { return true }; return false },
-                      "tab 缩进的嵌套列表应识别为 listItem")
+        XCTAssertTrue(
+            doc.blocks.contains {
+                if case .listItem = $0.kind { return true }; return false
+            },
+            "tab 缩进的嵌套列表应识别为 listItem")
         // 非列表的 tab 缩进行（不在 fence 内）仍应识别为 indented code。
         let codeSource = "# t\n\n\tnon-list tab line\n"
         let codeDoc = parser.parse(codeSource)
-        XCTAssertTrue(codeDoc.blocks.contains { if case .codeIndented = $0.kind { return true }; return false },
-                      "非列表的 \\t 开头行应识别为 indented code")
+        XCTAssertTrue(
+            codeDoc.blocks.contains {
+                if case .codeIndented = $0.kind { return true }; return false
+            },
+            "非列表的 \\t 开头行应识别为 indented code")
     }
 }
 

@@ -45,14 +45,14 @@ final class RichMarkdownEditingTests: XCTestCase {
         let view = makeView("**AB** 后文\n")
         // display: "AB 后文\n"
         view.setSelectedRange(NSRange(location: 1, length: 0))
-        view.insertText("X") // display 1 = A 与 B 之间
+        view.insertText("X")  // display 1 = A 与 B 之间
         XCTAssertEqual(view.source, "**AXB** 后文\n", "编辑强调内容不得删除 delimiter")
         XCTAssertEqual(view.displayText, "AXB 后文\n")
     }
 
     func testTypingInsideCodeSpanKeepsBackticks() {
         let view = makeView("前 `码` 后\n")
-        view.setSelectedRange(NSRange(location: 3, length: 0)) // display 3 = "码" 后
+        view.setSelectedRange(NSRange(location: 3, length: 0))  // display 3 = "码" 后
         view.insertText("x")
         XCTAssertEqual(view.source, "前 `码x` 后\n", "code span 编辑保留 backtick")
     }
@@ -60,7 +60,7 @@ final class RichMarkdownEditingTests: XCTestCase {
     func testHeadingEditKeepsMarkerInSource() {
         let view = makeView("## 二级\n")
         view.setSelectedRange(NSRange(location: 1, length: 0))
-        view.insertText("X") // display 1 = "二" 后
+        view.insertText("X")  // display 1 = "二" 后
         XCTAssertEqual(view.source, "## 二X级\n", "heading 编辑后 marker 原样")
     }
 
@@ -74,6 +74,16 @@ final class RichMarkdownEditingTests: XCTestCase {
         XCTAssertEqual(view.source, sourceBefore, "点击/移动不得改 source")
         XCTAssertEqual(view.displayText, displayBefore, "点击不得触发显示回退")
         XCTAssertEqual(view.displayText, "AB\n", "hidden marker 不因点击重新显示")
+    }
+
+    /// 懒延续行（"- 一\n二"）在视图 display 中不得丢首字符（G0 修复回归）。
+    func testLazyContinuationLineDisplaysFully() {
+        let view = makeView("- 一\n二\n")
+        XCTAssertEqual(view.displayText, "一\n二\n", "懒延续行首字符不得被 marker 段吞掉")
+        // 懒延续行内编辑也必须落到 source 的正确位置（"二" 之后插入不串位）
+        view.setSelectedRange(NSRange(location: 3, length: 0))  // display 3 = "二" 后（"一\n二\n"）
+        view.insertText("X")
+        XCTAssertEqual(view.source, "- 一\n二X\n")
     }
 
     // MARK: 三层 list 结构命令（AC-06 原型）
@@ -91,7 +101,7 @@ final class RichMarkdownEditingTests: XCTestCase {
 
     func testTabIndentsAndOutdentsThreeLevelList() {
         let view = makeView("- 一\n- 二\n- 三\n")
-        view.setSelectedRange(NSRange(location: 2, length: 0)) // "一" 后（display）
+        view.setSelectedRange(NSRange(location: 2, length: 0))  // "一" 后（display）
         XCTAssertTrue(view.text(view, doCommandBy: #selector(NSResponder.insertTab(_:))))
         XCTAssertEqual(view.source, "- 一\n  - 二\n- 三\n", "Tab 缩进二级")
 
