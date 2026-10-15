@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "authority": "T00 基线 corpus；自编测试输入，不是运行证据",
+  "policy": {
+    "copied_from": "specs/typora-research/fixtures/，必须与研究 manifest SHA256 一致，修改需两处同步",
+    "stress_samples": "200KiB/2k 行与 1MiB/10MiB 压力样本不进 repo 与 bundle，由测试内确定性生成器按本 manifest 参数产生并按期望 SHA256 校验"
+  },
+  "files": [
+    {"path": "editor-behavior.md", "sha256": "fc7364b7dff7aebd6762fee86337d73463077bb2fc91e848922ba602cb7747d6", "bytes": 2618, "origin": "copied"},
+    {"path": "roundtrip-crlf.md", "sha256": "0d6e052637a5e481da48c9ee6df48e4261b6aa6fe8e8cb04b10670387ba2b58c", "bytes": 273, "origin": "copied"},
+    {"path": "roundtrip-no-final-newline.md", "sha256": "8241309527b6f25f606dc3cd49cad4b223f19f81c28300eeb34ad2f564dd8390", "bytes": 148, "origin": "copied"},
+    {"path": "behavior-cases.json", "sha256": "f3b8b9e638d991b22a84ef9385e201d9f80d1356c68393b63577415e72b26177", "bytes": 8639, "origin": "copied"},
+    {"path": "bom-utf8.md", "sha256": "27be6fa9233d5d20e2498b7213f49c29617e1935c9bc780469d48b6c98c23bd9", "bytes": 181, "origin": "generated"},
+    {"path": "mixed-eol.md", "sha256": "14a332cf1b57b1ee9a1dd88aa7c9377875e59082545b6600417d08d6379cbe69", "bytes": 159, "origin": "generated"},
+    {"path": "tabs.md", "sha256": "863d02fcaeec1fc408a8753feec90d26f00050db18c5caf5f18b72f2b26f89f0", "bytes": 150, "origin": "generated"},
+    {"path": "bad-math.md", "sha256": "a5526370d38048e42a6ca53d387078e3aee9202da67522299a930f40663afa6d", "bytes": 157, "origin": "generated"}
+  ],
+  "stress_specs": [
+    {"name": "stress-200kib-2k-lines", "generator": "每行固定 ASCII 语义文本，LF 结尾，最终长度 >= 200KiB 且 >= 2000 行；具体算法实现于 T02/T04 测试，首次固化后回填 sha256 与行数"},
+    {"name": "stress-1mib", "generator": "同上规则扩至 >= 1MiB，仅供 parse/性能预算用"},
+    {"name": "stress-10mib", "generator": "同上规则扩至 >= 10MiB，仅 parse/性能预算用，不进入任何交互编辑断言"}
+  ]
+}

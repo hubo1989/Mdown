@@ -97,4 +97,48 @@ final class EditorStorageOwnershipTests: XCTestCase {
         XCTAssertTrue(first.hasPrefix("![](uploading-"))
         XCTAssertTrue(first.hasSuffix("...)"))
     }
+
+    /// T01 风险 #3：wysiwyg 模式下，Cmd+S / close / quit 硬保存点从
+    /// source 编辑器 buffer 采集。owner 匹配（同一 note 从 source 切到
+    /// wysiwyg 后 textStorage 停留在旧 v1）时，旧 v1 会覆盖 Vditor 已写进
+    /// note.content 的 v2——用户输入丢失。修复前红：
+    /// `editor.saveTextStorageContent(to: noteA)` 得到 v1。
+    @MainActor
+    func testHardSavePointMustNotOverwriteVditorContentWithStaleSourceBuffer() {
+        let noteA = makeNote("a.md", body: "v1")
+        let editor = EditTextView(frame: .zero)
+        let vditor = VditorEditView()
+
+        // source 模式加载 A：buffer=v1，owner=A；切 wysiwyg 后 buffer 不变
+        editor.publishStorage(NSAttributedString(string: "v1"), owner: noteA)
+        // wysiwyg：Vditor 加载 A 并收到合法 token 的用户编辑消息
+        vditor.loadNote(noteA)
+        vditor.handleContentChanged("v2", token: vditor.currentLoadTokenValue)
+        XCTAssertEqual(noteA.content.string, "v2")
+
+        ActiveEditingBackend.captureBuffer(
+            for: noteA, sourceEditor: editor,
+            vditorView: vditor, isWysiwygActive: true
+        )
+
+        XCTAssertEqual(
+            noteA.content.string, "v2",
+            "wysiwyg 活动时硬保存点不得用旧 source buffer 覆盖 Vditor 内容")
+        XCTAssertFalse(vditor.hasUnsavedChanges, "flush 后 Vditor 不再挂起未保存状态")
+    }
+
+    /// 反向：非 wysiwyg 时硬保存点仍从 source 编辑器采集（owner guard 不变）。
+    @MainActor
+    func testCaptureBufferUsesSourceEditorWhenWysiwygInactive() {
+        let noteA = makeNote("a.md", body: "v1")
+        let editor = EditTextView(frame: .zero)
+
+        editor.publishStorage(NSAttributedString(string: "v1 edited"), owner: noteA)
+        ActiveEditingBackend.captureBuffer(
+            for: noteA, sourceEditor: editor,
+            vditorView: nil, isWysiwygActive: false
+        )
+
+        XCTAssertEqual(noteA.content.string, "v1 edited")
+    }
 }

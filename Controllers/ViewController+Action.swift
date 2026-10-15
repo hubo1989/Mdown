@@ -1615,8 +1615,16 @@ extension ViewController {
             // Toast only when something was actually flushed; otherwise a
             // user spamming Cmd+S sees a constant stream of "Saved~" toasts
             // even when there is nothing pending.
-            if let activeNote = EditTextView.note {
-                editArea.saveTextStorageContent(to: activeNote)
+            // T01: 硬保存点从活动编辑后端采集（wysiwyg 时 Vditor 是权威，
+            // source textStorage 停留在旧内容，owner 匹配也会覆盖新输入）。
+            let wysiwygActive = sessionLayoutMode == .wysiwyg
+            if let activeNote = ActiveEditingBackend.activeNote(
+                sourceNote: EditTextView.note, vditorView: vditorEditView, isWysiwygActive: wysiwygActive
+            ) {
+                ActiveEditingBackend.captureBuffer(
+                    for: activeNote, sourceEditor: editArea,
+                    vditorView: vditorEditView, isWysiwygActive: wysiwygActive
+                )
             }
             let hadUnsavedChanges = storage.noteList.contains { $0.needsSave }
             let allSaved = storage.flushPendingSaves()

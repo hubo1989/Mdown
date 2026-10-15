@@ -22,6 +22,11 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
     private var isEditorReady = false
     nonisolated(unsafe) private var saveWorkItem: DispatchWorkItem?
     private var lastLoadedMarkdown: String?
+    /// T01: 每次程序化加载自增；vditorChange 必须携带匹配的 token 才会被
+    /// 采纳，拒绝切换 note 前发出的晚到消息（消息缺少身份时会写坏新 note）。
+    private var loadToken = 0
+    /// 测试观察口：当前程序化加载的 token。
+    var currentLoadTokenValue: Int { loadToken }
 
     public init() {
         let configuration = WKWebViewConfiguration()
@@ -75,7 +80,8 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
 
     private func loadEditorHTML() {
         guard let bundle = HtmlManager.getDownViewBundle(),
-              let editorURL = bundle.url(forResource: "editor", withExtension: "html") else {
+            let editorURL = bundle.url(forResource: "editor", withExtension: "html")
+        else {
             AppDelegate.trackError(
                 NSError(domain: "VditorEditView", code: 1, userInfo: [NSLocalizedDescriptionKey: "editor.html not found"]),
                 context: "VditorEditView.loadEditorHTML"
@@ -101,7 +107,8 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
         let initialMarkdown = (targetNote?.isContentLoaded == true) ? (targetNote?.content.string ?? "") : ""
         let jsSafeContent = serializeToJSON(initialMarkdown)
 
-        let initScript = "initEditor(\(jsSafeContent), \(isDark));"
+        loadToken += 1
+        let initScript = "initEditor(\(jsSafeContent), \(isDark), \(loadToken));"
         evaluateJavaScript(initScript, completionHandler: nil)
     }
 
@@ -114,10 +121,12 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
             }
         } else if message.name == "vditorChange" {
             guard let body = message.body as? [String: Any],
-                  let markdown = body["markdown"] as? String else {
+                let markdown = body["markdown"] as? String
+            else {
                 return
             }
-            handleContentChanged(markdown)
+            let token = body["token"] as? Int
+            handleContentChanged(markdown, token: token)
         }
     }
 
@@ -135,6 +144,10 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
         hasUnsavedChanges = false
 
         currentNote = note
+        // 立即作废旧加载身份：未加载的 note 走异步 ensureContentLoadedAsync，
+        // 完成前 webview 仍显示旧 note，旧 token 的消息若不被拒会写进刚切换
+        // 的 currentNote。applyNoteToEditor 装载新内容时会再自增一次。
+        loadToken += 1
 
         if note.isContentLoaded {
             applyNoteToEditor(note)
@@ -157,11 +170,18 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
         }
 
         pendingNote = nil
+        loadToken += 1
         let jsSafeContent = serializeToJSON(note.content.string)
-        evaluateJavaScript("setMarkdown(\(jsSafeContent));", completionHandler: nil)
+        evaluateJavaScript("setMarkdown(\(jsSafeContent), \(loadToken));", completionHandler: nil)
     }
 
-    private func handleContentChanged(_ markdown: String) {
+    // T01: internal 供桥契约测试注入晚到的 vditorChange 消息（消息与
+    // currentNote 切换的竞态无法从真实 WKWebView 精确编排）。
+    func handleContentChanged(_ markdown: String, token: Int? = nil) {
+        guard token == loadToken else {
+            // 晚到消息（旧加载身份）或无身份消息：一律拒绝，不得写当前 note。
+            return
+        }
         guard let note = currentNote else { return }
         guard markdown != lastLoadedMarkdown else { return }
         lastLoadedMarkdown = markdown
@@ -209,7 +229,8 @@ public final class VditorEditView: WKWebView, WKNavigationDelegate {
 
     private func serializeToJSON(_ text: String) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: [text], options: []),
-              let jsonString = String(data: data, encoding: .utf8) else {
+            let jsonString = String(data: data, encoding: .utf8)
+        else {
             return "''"
         }
         // Extract string from JSON array [ "..." ]
