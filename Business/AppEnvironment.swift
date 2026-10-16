@@ -12,4 +12,5 @@ struct AppEnvironment {
     let versionManager: NoteVersionManager = NoteVersionManager.shared
     let userData: UserDataService = UserDataService.instance
     let session: EditorSessionState = AppContext.shared.sessionState
+    let editingTransitions: EditingTransitionCoordinator = EditingTransitionCoordinator()
 }

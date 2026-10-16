@@ -1014,6 +1014,18 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         syncEditingSession(with: content, owner: owner)
     }
 
+    /// T08: finish an in-flight IME composition so leaving points capture the
+    /// confirmed text instead of a buffer missing the composing draft
+    /// (NE-13). Returns false while a composition stays active — transition
+    /// gates must then keep the user in the original context instead of
+    /// capturing a partial buffer.
+    @discardableResult
+    func finishActiveComposition() -> Bool {
+        guard hasMarkedText() else { return true }
+        unmarkText()
+        return !hasMarkedText()
+    }
+
     func saveTextStorageContent(to note: Note) {
         guard let storage = textStorage else { return }
         // Refuse cross-note writes: when the buffer belongs to a different

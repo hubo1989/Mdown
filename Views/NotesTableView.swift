@@ -392,17 +392,17 @@ class NotesTableView: NSTableView {
         if noteList.indices.contains(selectedRow) {
             let note = noteList[selectedRow]
             if let currentNote = EditTextView.note, currentNote != note, vc.shouldUseEditorTextContent {
-                if vc.sessionLayoutMode == .wysiwyg {
-                    vc.vditorEditView?.flushPendingSave()
-                } else if vc.editArea.storageNote === currentNote {
-                    vc.editArea.saveTextStorageContent(to: currentNote)
-                    currentNote.save(content: currentNote.content)
-                } else {
-                    let mismatch = NSError(
-                        domain: "com.tw93.miaoyan.race",
-                        code: 2,
-                        userInfo: [NSLocalizedDescriptionKey: "textStorage owner drift in tableViewSelectionDidChange"])
-                    AppDelegate.trackError(mismatch, context: "NotesTableView.tableViewSelectionDidChange.ownerGuard")
+                // T08: 切换前统一网关——提交组合输入、从活动后端捕获
+                // outgoing buffer 并立即落盘（不等 1.5s debounce，最后
+                // 0.5s 的输入不丢）；写失败时 Retry/Save Copy/Discard/
+                // Cancel，Cancel = 选择不切换（还原选中行，编辑器仍在
+                // 原笔记，同 export-guard 的还原模式）。owner 漂移防护由
+                // saveTextStorageContent 的 owner guard 承担。
+                if !AppEnvironment.current.editingTransitions.prepareNoteSwitch(from: currentNote, in: vc) {
+                    if let row = self.getIndex(currentNote), row != self.selectedRow {
+                        self.selectRowIndexes([row], byExtendingSelection: false)
+                    }
+                    return
                 }
             }
 

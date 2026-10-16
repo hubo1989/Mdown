@@ -681,6 +681,25 @@ public class Note: NSObject {
         }
     }
 
+    /// T08: abandon the in-session draft without touching the disk file.
+    /// Discard is the explicit user choice from the transition gate — it only
+    /// drops this session's uncommitted changes (the debounced/failed draft),
+    /// reloads `content` from the on-disk truth, and bumps the generation so a
+    /// write that raced with the discard completes as `.superseded` instead of
+    /// resurrecting the dropped draft or clearing dirty state.
+    public func discardUnsavedChanges() {
+        guard !isRetired else { return }
+        if let workItem = saveWorkItem, !workItem.isCancelled {
+            workItem.cancel()
+            saveWorkItem = nil
+        }
+        editGeneration += 1
+        committedRevision = 0
+        inFlightWrite = nil
+        hasUnpersistedChanges = false
+        forceReload()
+    }
+
     private func debounceSave(attributedString: NSAttributedString, globalStorage: Bool = true) {
         guard !isRetired else { return }
         saveWorkItem?.cancel()

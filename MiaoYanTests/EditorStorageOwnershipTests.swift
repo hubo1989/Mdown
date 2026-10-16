@@ -116,10 +116,12 @@ final class EditorStorageOwnershipTests: XCTestCase {
         vditor.handleContentChanged("v2", token: vditor.currentLoadTokenValue)
         XCTAssertEqual(noteA.content.string, "v2")
 
-        ActiveEditingBackend.captureBuffer(
-            for: noteA, sourceEditor: editor,
-            vditorView: vditor, isWysiwygActive: true
-        )
+        // T08: 硬保存点统一入口（wysiwyg 活动时 Vditor 是权威）。
+        let context = BackendCaptureStubContext(
+            activeNote: noteA, sourceEditor: editor,
+            vditorView: vditor, isWysiwygActive: true)
+        _ = EditingTransitionCoordinator().finishActiveEditing(
+            in: context, forceCompositionFinish: false)
 
         XCTAssertEqual(
             noteA.content.string, "v2",
@@ -134,10 +136,12 @@ final class EditorStorageOwnershipTests: XCTestCase {
         let editor = EditTextView(frame: .zero)
 
         editor.publishStorage(NSAttributedString(string: "v1 edited"), owner: noteA)
-        ActiveEditingBackend.captureBuffer(
-            for: noteA, sourceEditor: editor,
-            vditorView: nil, isWysiwygActive: false
-        )
+        // T08: 硬保存点统一入口（source 模式从编辑器采集，owner guard 不变）。
+        let context = BackendCaptureStubContext(
+            activeNote: noteA, sourceEditor: editor,
+            vditorView: nil, isWysiwygActive: false)
+        _ = EditingTransitionCoordinator().finishActiveEditing(
+            in: context, forceCompositionFinish: false)
 
         XCTAssertEqual(noteA.content.string, "v1 edited")
     }

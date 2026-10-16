@@ -314,3 +314,10 @@
 "Light" = "ライト";
 "Dark" = "ダーク";
 
+
+/* T08 EditingTransitionCoordinator */
+"Failed to save \"%@\"" = "「%@」を保存できませんでした";
+"Your changes could not be written to disk. Retry the save, keep a copy elsewhere, or discard this draft." = "変更内容をディスクに書き込めませんでした。再試行するか、別の場所にコピーを保存するか、この下書きを破棄してください。";
+"Retry" = "再試行";
+"Save Copy…" = "コピーを保存…";
+"Discard Changes" = "変更を破棄";
