@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "scope": "macOS 原生编辑器替换的拟定验收；不等于已观测的 Typora 行为全集",
+  "fixture": "editor-behavior.md",
+  "measurement_status": "not-run",
+  "typora_target_sha256": "6fc6b2cf726f7366b8b0a62d0e2fa557ef8ec186dea9079c3f758c5a1e46962f",
+  "case_fields": {
+    "contract": "Mdown 必须满足的独立实现合同",
+    "compare_in_typora": "需要在官方 Typora 中补测后锁定的细节",
+    "observed_result": "必须由实际运行填入；本轮均为 null"
+  },
+  "cases": [
+    {
+      "id": "IME-01",
+      "surface": "paragraph",
+      "steps": ["在 Unicode 段落插入点启动拼音组合输入", "逐字母更新候选", "选词提交", "撤销一次并重做"],
+      "contract": ["marked text 存在时不重建当前块、变更正文属性或触发 Markdown 自动格式", "光标、候选与文档 owner 稳定", "组合提交形成一项逻辑编辑事务"],
+      "compare_in_typora": ["候选期间标记可见性", "一次撤销的精确范围", "候选取消后的光标位置"],
+      "observed_result": null
+    },
+    {
+      "id": "IME-02",
+      "surface": "table-and-code",
+      "steps": ["在表格单元格内启动拼音组合", "按候选选择键", "在 fenced code 内重复输入"],
+      "contract": ["候选选择键不会被表格导航或列表输入规则抢走", "代码内容不做智能标点或行内格式转换"],
+      "compare_in_typora": ["Enter 与 Tab 的组合态分派", "表格内提交后的下一次 Enter 行为"],
+      "observed_result": null
+    },
+    {
+      "id": "UNICODE-01",
+      "surface": "selection",
+      "steps": ["分别选中 family emoji 与组合重音", "向左和向右移动光标", "删除一个可见字符", "撤销"],
+      "contract": ["UTF-8、UTF-16 与 grapheme 坐标转换不截断 Unicode", "删除/撤销完整恢复原始文本", "源码与渲染选区映射一致"],
+      "compare_in_typora": ["按字符移动与按词移动的边界"],
+      "observed_result": null
+    },
+    {
+      "id": "INLINE-01",
+      "surface": "inline-projection",
+      "steps": ["进入与离开粗体、链接、行内代码", "拖选跨行内边界", "切换源码再切回"],
+      "contract": ["渲染标记与原始 Markdown 有双向选择映射", "没有编辑时原始字节不变化", "链接 destination 不被文本清理改写"],
+      "compare_in_typora": ["标记何时展示", "光标进入/离开时的 caret 位置", "点击链接与编辑链接的修饰键"],
+      "observed_result": null
+    },
+    {
+      "id": "BLOCK-01",
+      "surface": "block-editing",
+      "steps": ["在标题末尾 Enter", "在下一段开头 Backspace", "跨段选取并替换文字", "撤销再重做"],
+      "contract": ["拆块和合块是单一事务", "序列化保存与视图一致", "撤销恢复结构、正文和选区"],
+      "compare_in_typora": ["标题后的新块类型", "块首 Backspace 的降级优先顺序"],
+      "observed_result": null
+    },
+    {
+      "id": "LIST-01",
+      "surface": "list",
+      "steps": ["列表项末尾 Enter", "空列表项 Enter", "Tab 与 Shift-Tab", "任务勾选后撤销"],
+      "contract": ["输入规则不会作用于 fenced/inline code 或组合输入", "列表/引用层级与任务标记可逆", "不存在选区丢失或额外文本"],
+      "compare_in_typora": ["自动编号", "空项退出规则", "连续 Enter 与缩进撤销分组"],
+      "observed_result": null
+    },
+    {
+      "id": "TABLE-01",
+      "surface": "table",
+      "steps": ["单元格内 Tab、Shift-Tab、Enter", "在末格追加行", "插入与移动列", "含 pipe 的单元格编辑后切换源码"],
+      "contract": ["表格模型保留对齐、单元格原文和转义", "结构操作可撤销", "IME 优先于快捷键导航"],
+      "compare_in_typora": ["Tab 在末格的行为", "Enter 与 Shift-Enter 的意义", "跨单元格选区与粘贴"],
+      "observed_result": null
+    },
+    {
+      "id": "RAW-01",
+      "surface": "fences-math-diagram",
+      "steps": ["进入代码、数学与 Mermaid 块", "编辑并退出", "对错误图表再次编辑", "撤销源码修改"],
+      "contract": ["块源码为权威状态", "错误渲染仍可继续编辑与保存", "异步结果仅匹配当前 noteID、blockID 和 revision 时发布"],
+      "compare_in_typora": ["源码与渲染视图何时并存", "退出块的键盘路径", "焦点保持与块高度变化"],
+      "observed_result": null
+    },
+    {
+      "id": "HISTORY-01",
+      "surface": "undo",
+      "steps": ["连续输入", "移动光标后再输入", "修改格式", "切换模式", "撤销到最初并重做"],
+      "contract": ["历史与文档会话绑定", "格式、拆块、表格与文本事务有明确边界", "新编辑清理 redo 分支", "模式切换不无意清空历史"],
+      "compare_in_typora": ["连续输入聚合时间窗", "删除与输入能否同组", "模式切换的撤销边界"],
+      "observed_result": null
+    },
+    {
+      "id": "ROUNDTRIP-01",
+      "surface": "source-persistence",
+      "steps": ["打开样例并直接关闭", "仅切换模式然后保存", "生成 CRLF 版本重复", "删除末尾换行重复"],
+      "contract": ["无编辑时字节一致", "frontmatter、引用定义、脚注与受保护源码完整", "CRLF 和末尾换行策略明确并保留", "不以 HTML 回转生成权威 Markdown"],
+      "compare_in_typora": ["真正编辑后 Typora 对空行和定界符的正规化范围"],
+      "observed_result": null
+    },
+    {
+      "id": "OWNER-01",
+      "surface": "document-session",
+      "steps": ["编辑笔记 A", "切换预览并选择笔记 B", "让 A 的延迟高亮、附件或渲染任务完成", "立即保存、关闭再打开"],
+      "contract": ["保存目标是 buffer owner", "A 的结果不覆盖 B", "删除或移出库的 owner 不被回调重新保存"],
+      "compare_in_typora": ["同一文档多窗口的同步与独立选区"],
+      "observed_result": null
+    },
+    {
+      "id": "DISK-01",
+      "surface": "external-file-change",
+      "steps": ["外部修改当前 Markdown", "保持当前 buffer 未保存修改", "等待 watcher 事件", "执行冲突恢复或保留"],
+      "contract": ["dirty 状态不被外部读取静默覆盖", "冲突选择与快照归属明确", "异步磁盘结果核对 revision"],
+      "compare_in_typora": ["外部修改通知、选择与刷新时机"],
+      "observed_result": null
+    },
+    {
+      "id": "SCALE-01",
+      "surface": "large-document",
+      "steps": ["复制样例形成约 1 MB 和 10 MB 固定输入", "记录打开、首帧、输入、撤销和模式切换时间", "记录峰值内存与慢图表状态"],
+      "contract": ["输入主线程不执行全篇同步解析/渲染", "渐进解析与降级不丢正文", "性能结果注明硬件、版本和样例哈希"],
+      "compare_in_typora": ["大文档转换阈值", "转换提示和可返回路径", "性能基准"],
+      "observed_result": null
+    },
+    {
+      "id": "EXPORT-01",
+      "surface": "html-image-pdf",
+      "steps": ["在离线环境导出 HTML、整文图片与 PDF", "导出单张合法 Mermaid", "检查错误图表、缺失图片与未就绪字体", "输入期间启动导出"],
+      "contract": ["导出使用不可变的文档 revision", "渲染资源有成功、失败与超时结果", "PNG/SVG 无裁切与缺字", "不改变编辑历史或当前选区"],
+      "compare_in_typora": ["资源等待策略", "导出格式各自的样式与回退", "单块图表导出是否存在"],
+      "observed_result": null
+    },
+    {
+      "id": "EXPORT-02",
+      "surface": "pdf-semantics",
+      "steps": ["搜索 PDF 中的中文验收词", "复制混排文字", "点击内部链接", "展开三级和五级 outline", "检查页眉页脚和总页数"],
+      "contract": ["文字可检索、可复制且 Unicode 正确", "目录层级与目的位置正确", "页码和边距一致", "错误与取消不回报成功"],
+      "compare_in_typora": ["中文字体 ToUnicode 效果", "分页规则与目录锚点位置"],
+      "observed_result": null
+    },
+    {
+      "id": "EXPORT-03",
+      "surface": "cancellation",
+      "steps": ["在保存面板取消", "在渲染等待时取消", "模拟写入失败", "重复同一目标导出"],
+      "contract": ["取消与失败是不同终态", "只有实际成功才展示完成", "未授权覆盖不改旧文件", "临时任务和渲染产物有任务级清理"],
+      "compare_in_typora": ["进度状态与取消入口", "输出文件恢复策略"],
+      "observed_result": null
+    }
+  ]
+}
