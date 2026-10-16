@@ -141,4 +141,64 @@ final class EditorStorageOwnershipTests: XCTestCase {
 
         XCTAssertEqual(noteA.content.string, "v1 edited")
     }
+
+    /// T05: 会话推进（watcher 重载/显式替换/formatter 等程序化路径）而
+    /// buffer 停在旧 revision 时，整篇写回必须被拒——旧 v1 不得覆盖
+    /// session/Note 已接受的 v2（PLAN §5 testSameOwnerStaleBufferCannotSave
+    /// 的 source 模式形态）。
+    @MainActor
+    func testStaleBufferRevisionCannotWholeSave() {
+        let noteA = makeNote("t05-stale.md", body: "v1")
+        let editor = EditTextView(frame: .zero)
+
+        // source 模式装载：buffer=v1，会话基线 rev0
+        editor.publishStorage(NSAttributedString(string: "v1"), owner: noteA)
+        XCTAssertEqual(editor.storageRevision, 0)
+        let session = editor.editingSession
+        XCTAssertNotNil(session, "publishStorage 必须建立源码会话")
+
+        // 会话侧前进到 v2（commit 镜像同步进 Note；buffer 未重新 publish）
+        noteA.content = NSMutableAttributedString(string: "v2")
+        _ = session?.replaceAll(markdown: "v2")
+
+        editor.saveTextStorageContent(to: noteA)
+
+        XCTAssertEqual(noteA.content.string, "v2", "旧 buffer（rev0）不得整篇写回覆盖 rev1 内容")
+    }
+
+    /// 反向：正常输入路径不受防护误伤——buffer 与会话同处基线 revision
+    /// 时（T05 输入不逐键 apply，双方都在 rev0），保存照常成功。
+    @MainActor
+    func testTypingThenSaveStillWorksUnderSessionGuard() {
+        let noteA = makeNote("t05-typing.md", body: "v1")
+        let editor = EditTextView(frame: .zero)
+
+        editor.publishStorage(NSAttributedString(string: "v1"), owner: noteA)
+        // 用户输入（textStorage 直接演进；会话 revision 不动）
+        editor.textStorage?.replaceCharacters(in: NSRange(location: 0, length: 0), with: "x")
+        editor.saveTextStorageContent(to: noteA)
+
+        XCTAssertEqual(noteA.content.string, "xv1", "同 revision 的正常输入必须能保存")
+    }
+
+    /// publishStorage 对外发布内容时同步登记会话基线：模板/版本恢复等
+    /// 整篇替换调用点无需各自维护 revision 元数据。
+    @MainActor
+    func testPublishStorageRebasesSessionAndKeepsGuardAligned() {
+        let noteA = makeNote("t05-rebase.md", body: "v1")
+        let editor = EditTextView(frame: .zero)
+
+        editor.publishStorage(NSAttributedString(string: "v1"), owner: noteA)
+        let firstSession = editor.editingSession
+
+        // 整篇替换（模板路径形态）
+        editor.publishStorage(NSAttributedString(string: "v2 template"), owner: noteA)
+
+        XCTAssertIdentical(editor.editingSession, firstSession, "同 URL 复用会话")
+        XCTAssertEqual(firstSession?.snapshot.markdown, "v2 template", "会话基线跟随发布内容")
+        XCTAssertEqual(editor.storageRevision, firstSession?.revision, "buffer revision 与会话对齐")
+
+        editor.saveTextStorageContent(to: noteA)
+        XCTAssertEqual(noteA.content.string, "v2 template", "发布后的 buffer 保存不受防护拦截")
+    }
 }
