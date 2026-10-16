@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "authority": "Mdown 独立编写的测试输入；不是运行证据",
+  "files": [
+    {
+      "path": "editor-behavior.md",
+      "sha256": "fc7364b7dff7aebd6762fee86337d73463077bb2fc91e848922ba602cb7747d6",
+      "bytes": 2618,
+      "crlf": 0,
+      "standalone_lf": 117,
+      "has_final_newline": true
+    },
+    {
+      "path": "roundtrip-crlf.md",
+      "sha256": "0d6e052637a5e481da48c9ee6df48e4261b6aa6fe8e8cb04b10670387ba2b58c",
+      "bytes": 273,
+      "crlf": 15,
+      "standalone_lf": 0,
+      "has_final_newline": true
+    },
+    {
+      "path": "roundtrip-no-final-newline.md",
+      "sha256": "8241309527b6f25f606dc3cd49cad4b223f19f81c28300eeb34ad2f564dd8390",
+      "bytes": 148,
+      "crlf": 0,
+      "standalone_lf": 9,
+      "has_final_newline": false
+    },
+    {
+      "path": "behavior-cases.json",
+      "sha256": "f3b8b9e638d991b22a84ef9385e201d9f80d1356c68393b63577415e72b26177",
+      "bytes": 8639,
+      "crlf": 0,
+      "standalone_lf": 142,
+      "has_final_newline": true
+    }
+  ]
+}

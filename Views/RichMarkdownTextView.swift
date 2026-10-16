@@ -33,6 +33,16 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     private(set) var history = MarkdownEditorHistory()
 
     private var composingGuard = false  // 重建刷新 textStorage 的重入保护
+    /// T06：marked 期间的临时 textStorage 变化不是持久化 transaction——
+    /// source 实时跟随 display（保证预览/映射新鲜），但不登记历史。提交
+    /// （unmarkText 紧随的 textDidChange）把整段 marked 内容一次成组记入
+    /// history；取消则 source 已在 marked 期间逐步跟随，unmark 时无 diff，
+    /// 自然不产生历史。
+    private var markedSourceBefore: String?
+    private var markedSelectionBefore: MarkdownSelection?
+    /// unmarkText 紧随的 textDidChange 是 composition 提交。一次性：
+    /// textDidChange 消费后清零。
+    private var justUnmarked = false
     /// 最近一次 display→source 同步被拒的原因（nil = 无拒绝）。
     /// 测试/诊断观察口：拒绝本身合法（映射歧义），静默接受 display 才是 bug。
     private(set) var lastSyncRejection: EditRejection?
@@ -148,6 +158,38 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         let newDisplay = string
         guard newDisplay != cachedDisplay else { return }
 
+        // T06：marked 期间的临时变化只同步 source，不登记历史（SPEC §5.3：
+        // 临时 textStorage 变化不是多个持久化 transaction）。source 跟随
+        // 保证预览/映射新鲜；历史由提交时一次成组。
+        // 判断条件：hasMarkedText() 当前为 true（marked 期间的增量），或
+        // justUnmarked == true（insertText 已标记这是 composition 提交），或
+        // markedSourceBefore != nil（marked 会话中，包括取消路径的
+        // setMarkedText("")——那时 hasMarkedText() 已 false 但基线还在）。
+        if hasMarkedText() || justUnmarked || markedSourceBefore != nil {
+            // 若是 composition 提交（justUnmarked），先记录历史再同步 source。
+            if justUnmarked, let baseSource = markedSourceBefore,
+                let baseSelection = markedSelectionBefore
+            {
+                let commitPatch = Self.wholeRangePatch(from: baseSource, to: newDisplay)
+                let sel = selectedRange()
+                history.record(
+                    MarkdownEditorHistory.RecordInput(
+                        patches: [commitPatch], sourceBefore: baseSource,
+                        selectionBefore: baseSelection,
+                        selectionAfter: MarkdownSelection(
+                            anchorUTF16: sel.location, focusUTF16: NSMaxRange(sel), affinity: .downstream
+                        ),
+                        origin: .composition, name: "composition"
+                    ))
+                markedSourceBefore = nil
+                markedSelectionBefore = nil
+                justUnmarked = false
+            }
+            syncSourceFromDisplayWithoutHistory(newDisplay: newDisplay)
+            cachedDisplay = newDisplay
+            return
+        }
+
         let diff = Self.fastDiff(old: cachedDisplay, new: newDisplay)
         let prefix = diff.prefix
         let replacement = diff.replacement
@@ -173,15 +215,24 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             switch MarkdownPatchApplier.applyPatches([patch], to: source) {
             case .success(let newSource):
                 let selectionBefore = selectedRange()
+                // T06：composition 提交已在上方 marked/justUnmarked 分支
+                // 处理（一次成组 + 清基线）。这里只剩普通 typing。
                 history.record(
-                    patches: [patch], sourceBefore: source, revision: revision,
-                    selectionBefore: MarkdownSelection(
-                        anchorUTF16: selectionBefore.location,
-                        focusUTF16: NSMaxRange(selectionBefore),
-                        affinity: .downstream
-                    ),
-                    name: "typing"
-                )
+                    MarkdownEditorHistory.RecordInput(
+                        patches: [patch], sourceBefore: source,
+                        selectionBefore: MarkdownSelection(
+                            anchorUTF16: selectionBefore.location,
+                            focusUTF16: NSMaxRange(selectionBefore),
+                            affinity: .downstream
+                        ),
+                        selectionAfter: MarkdownSelection(
+                            anchorUTF16: selectionBefore.location + replacement.utf16.count,
+                            focusUTF16: selectionBefore.location + replacement.utf16.count,
+                            affinity: .downstream
+                        ),
+                        origin: .typing,
+                        name: "typing"
+                    ))
                 source = newSource
                 revision += 1
             case .failure(let rejection):
@@ -213,6 +264,48 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         let prefix: Int
         let replacement: String
         let oldText: String
+    }
+
+    /// T06：marked 期间的 source 同步（不登记历史）。映射逻辑与
+    /// textDidChange 主路径相同，只是跳过 history.record——SPEC §5.3
+    /// 要求临时变化不产生持久化 transaction。
+    private func syncSourceFromDisplayWithoutHistory(newDisplay: String) {
+        let diff = Self.fastDiff(old: cachedDisplay, new: newDisplay)
+        let prefix = diff.prefix
+        let replacement = diff.replacement
+        let oldText = diff.oldText
+
+        let editDisplayStart = prefix
+        for item in rendered
+        where editDisplayStart >= item.displayStart
+            && editDisplayStart <= item.displayStart + item.projection.display.utf16.count
+        {
+            let projection = item.projection
+            let localDisplay = editDisplayStart - item.displayStart
+            let sourceStart = projection.sourceOffset(forDisplay: localDisplay) ?? item.block.rangeUTF16.location
+
+            let patch = SourcePatch(
+                rangeUTF16: NSRange(location: sourceStart, length: oldText.utf16.count),
+                expectedText: oldText,
+                replacement: replacement
+            )
+            if case .success(let newSource) = MarkdownPatchApplier.applyPatches([patch], to: source) {
+                source = newSource
+                revision += 1
+            }
+            break
+        }
+    }
+
+    /// 构造「整段替换」patch：从 base 到 target 的单一 SourcePatch。
+    /// 用于 composition 提交把整段 marked 内容一次成组（undo 回 composition
+    /// 前需要 base 是 marked 前的 source，而不是最后一次增量前的）。
+    private static func wholeRangePatch(from base: String, to target: String) -> SourcePatch {
+        SourcePatch(
+            rangeUTF16: NSRange(location: 0, length: base.utf16.count),
+            expectedText: base,
+            replacement: target
+        )
     }
 
     private static func fastDiff(old: String, new: String) -> DiffResult {
@@ -368,13 +461,21 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     ) {
         let selectionBefore = selectedRange()
         if case .success(let newSource) = MarkdownPatchApplier.applyPatches(patches, to: source) {
+            let caretAfter = restoreSourceCaret ?? sourceCaret()
             history.record(
-                patches: patches, sourceBefore: source, revision: revision,
-                selectionBefore: MarkdownSelection(
-                    anchorUTF16: selectionBefore.location, focusUTF16: NSMaxRange(selectionBefore), affinity: .downstream
-                ),
-                name: name
-            )
+                MarkdownEditorHistory.RecordInput(
+                    patches: patches, sourceBefore: source,
+                    selectionBefore: MarkdownSelection(
+                        anchorUTF16: selectionBefore.location,
+                        focusUTF16: NSMaxRange(selectionBefore),
+                        affinity: .downstream
+                    ),
+                    selectionAfter: MarkdownSelection(
+                        anchorUTF16: caretAfter, focusUTF16: caretAfter, affinity: .downstream
+                    ),
+                    origin: .structure,
+                    name: name
+                ))
             source = newSource
             revision += 1
             rebuildProjection()
@@ -451,12 +552,15 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
 
     // MARK: - undo / redo
 
+    /// T06：undo/redo 经 history 返回新 source 与 selection，view 推进
+    /// 自己的 revision（每次外观变更都是新 revision，包括 undo）。不允许
+    /// 以「回退到旧 revision」冒充——旧 async 任务必须按 revision 失效。
     @discardableResult
     public func performUndo() -> Bool {
         rebuildProjection()
-        guard let undo = history.undo(currentSource: source, currentRevision: revision) else { return false }
+        guard let undo = history.undo(currentSource: source) else { return false }
         source = undo.source
-        revision = undo.revision
+        revision += 1
         rebuildProjection()
         if undo.selection.focusUTF16 <= (string as NSString).length {
             setSelectedRange(NSRange(location: undo.selection.focusUTF16, length: 0))
@@ -467,9 +571,9 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     @discardableResult
     public func performRedo() -> Bool {
         rebuildProjection()
-        guard let redo = history.redo(currentSource: source, currentRevision: revision) else { return false }
+        guard let redo = history.redo(currentSource: source) else { return false }
         source = redo.source
-        revision = redo.revision
+        revision += 1
         rebuildProjection()
         if redo.selection.focusUTF16 <= (string as NSString).length {
             setSelectedRange(NSRange(location: redo.selection.focusUTF16, length: 0))
@@ -480,21 +584,51 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     // MARK: - composition 观测（G0 探针）
 
     public override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
+        // T06：进入 marked 时记录基线（composition 提交的历史 base）。
+        // 仅首次进入记录；marked 期间的 update 不覆盖。
+        if markedSourceBefore == nil {
+            let currentRange = self.selectedRange()
+            markedSourceBefore = source
+            markedSelectionBefore = MarkdownSelection(
+                anchorUTF16: currentRange.location,
+                focusUTF16: NSMaxRange(currentRange),
+                affinity: .downstream
+            )
+        }
         super.setMarkedText(string, selectedRange: selectedRange, replacementRange: replacementRange)
         didChangeText()  // input 协议路径不自动通知 delegate（无 keyDown 上下文时）
     }
 
     public override func insertText(_ string: Any, replacementRange: NSRange) {
+        // T06：composition 提交前的标记。NSTextView 的 IME 路径是
+        // setMarkedText → ... → insertText(committed) → unmarkText。
+        // insertText 触发 didChangeText → textDidChange 时 markedTextRange
+        // 已被清空（insertText 先清 marked 再插入），所以必须在 insertText
+        // 前标记，让随后的 textDidChange 知道这是 composition 提交。
+        if markedSourceBefore != nil {
+            justUnmarked = true
+        }
         super.insertText(string, replacementRange: replacementRange)
         didChangeText()
     }
 
     public override func unmarkText() {
         super.unmarkText()
-        // 提交后重建投影（composition 期间被推迟的那次）
-        if cachedDisplay != string {
+        // T06：justUnmarked 可能已在 insertText 前置位（composition 提交路径）。
+        // 若 cachedDisplay == string，说明 marked 期间 source 已通过
+        // syncSourceFromDisplayWithoutHistory 完全跟随，或取消后无净变化。
+        let hasCommittedContent = cachedDisplay != string
+        if hasCommittedContent && !justUnmarked {
+            // 非 insertText 路径的提交（如外部直接 unmarkText）：标记。
+            justUnmarked = true
+        }
+        if hasCommittedContent {
             textDidChange(Notification(name: NSText.didChangeNotification, object: self))
         } else {
+            // 取消或无净变化：清掉基线，不留下一次提交的假 composition。
+            markedSourceBefore = nil
+            markedSelectionBefore = nil
+            justUnmarked = false
             // G0 修复：保存/恢复 selection（setAttributedString 会重置到 0）
             let sel = selectedRange()
             rebuildProjection()
