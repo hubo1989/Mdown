@@ -291,3 +291,10 @@
 "Transparent" = "透明";
 "Light" = "淺色";
 "Dark" = "深色";
+
+/* T08 EditingTransitionCoordinator */
+"Failed to save \"%@\"" = "儲存「%@」失敗";
+"Your changes could not be written to disk. Retry the save, keep a copy elsewhere, or discard this draft." = "修改內容無法寫入磁碟。可以重試儲存、將副本另存到其他位置，或放棄這份草稿。";
+"Retry" = "重試";
+"Save Copy…" = "另存副本…";
+"Discard Changes" = "放棄修改";

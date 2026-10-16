@@ -312,3 +312,10 @@
 "Light" = "Claro";
 "Dark" = "Oscuro";
 
+
+/* T08 EditingTransitionCoordinator */
+"Failed to save \"%@\"" = "No se pudo guardar \"%@\"";
+"Your changes could not be written to disk. Retry the save, keep a copy elsewhere, or discard this draft." = "Tus cambios no se pudieron escribir en el disco. Reintenta el guardado, guarda una copia en otro lugar o descarta este borrador.";
+"Retry" = "Reintentar";
+"Save Copy…" = "Guardar copia…";
+"Discard Changes" = "Descartar cambios";
