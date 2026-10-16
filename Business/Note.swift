@@ -41,6 +41,9 @@ public class Note: NSObject {
         !isRetired && hasUnpersistedChanges
     }
 
+    /// T05: 源码会话接线用（EditTextView+EditingSession）；存储保持 private。
+    var isRetiredForEditing: Bool { isRetired }
+
     private var decryptedTemporarySrc: URL?
     public var ciphertextWriter = OperationQueue()
 
