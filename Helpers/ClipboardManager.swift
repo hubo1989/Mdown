@@ -133,6 +133,9 @@ class ClipboardManager {
         let note: Note
         let viewController: ViewController
         let placeholder: String
+        /// T09 (NE-22): 上传启动时捕获的会话身份。完成回调用它核对，会话
+        /// 代际已推进（watcher 重载 / rename / 退役）时结果被拒。
+        let jobContext: MarkdownEditingSession.JobContext?
     }
 
     /// Placeholder inserted while an upload is in flight. Must be unique per
@@ -159,9 +162,31 @@ class ClipboardManager {
                 vc.toastUpload(status: true)
                 let defaultImageString = "![](\(path))"
                 let serverURL = uploadServerURL
+                // T09 (NE-22): 捕获上传启动时的会话身份，完成回调核对。
+                let jobContext = textView.captureEditingJobContext()
 
                 postToPicGo(imagePath: imagePath, serverURL: serverURL) { [weak self, weak textView, weak vc] result, error in
                     Task { @MainActor in
+                        // 会话代际已推进（watcher 重载 / rename / 退役）时整个
+                        // 结果作废：既不插进当前 buffer，也不追加进 note——那是
+                        // 把迟到结果写进别人的正文。
+                        if let textView, let jobContext,
+                            !textView.editingSessionAccepts(resultFor: jobContext)
+                        {
+                            if let error {
+                                AppDelegate.trackError(error, context: "ClipboardManager.uploadToCloudAsync")
+                            }
+                            AppDelegate.trackError(
+                                NSError(
+                                    domain: "com.tw93.miaoyan.race",
+                                    code: 6,
+                                    userInfo: [
+                                        NSLocalizedDescriptionKey:
+                                            "upload result for \(note.url.lastPathComponent) rejected: session generation moved on"
+                                    ]),
+                                context: "ClipboardManager.postToPicGo.completion")
+                            return
+                        }
                         let finalImage: NSAttributedString
                         if let resultString = result {
                             finalImage = NSAttributedString(string: "![](\(resultString))")
@@ -206,7 +231,8 @@ class ClipboardManager {
                     textView: textView,
                     note: note,
                     viewController: vc,
-                    placeholder: placeholderText
+                    placeholder: placeholderText,
+                    jobContext: textView.captureEditingJobContext()
                 )
                 uploadToCloudAsync(parameters: uploadParams)
             } else {
@@ -325,6 +351,22 @@ class ClipboardManager {
 
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
+                // T09 (NE-22): 会话代际已推进（watcher 重载 / rename / 退役）时
+                // 整个结果作废——placeholder 已不属于当前正文，替换会写错位置。
+                if let jobContext = parameters.jobContext,
+                    !textView.editingSessionAccepts(resultFor: jobContext)
+                {
+                    AppDelegate.trackError(
+                        NSError(
+                            domain: "com.tw93.miaoyan.race",
+                            code: 6,
+                            userInfo: [
+                                NSLocalizedDescriptionKey:
+                                    "upload result for \(note.url.lastPathComponent) rejected: session generation moved on"
+                            ]),
+                        context: "ClipboardManager.uploadToCloudAsync.completion")
+                    return
+                }
                 if let validURL = uploadedURL {
                     self.replacePlaceholderWithURL(
                         placeholder: placeholder,

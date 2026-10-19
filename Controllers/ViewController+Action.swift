@@ -271,6 +271,16 @@ extension ViewController {
             return
         }
 
+        // T09 (PLAN)：改名是硬保存点，必须先经统一网关——提交组合输入、
+        // dirty 草稿先落盘并解决写失败（Retry/Save Copy/Discard/Cancel），
+        // 不允许绕开 coordinator 直接 moveItem；失败路径 URL 不动。
+        let transitions = AppEnvironment.current.editingTransitions
+        guard transitions.prepareCommandTargeting(note, in: self), transitions.flushOrResolve(note) else {
+            note.parseURL()
+            sender.stringValue = note.getTitleWithoutLabel()
+            return
+        }
+
         // Suppress our own FSEvent during the rename so the editor isn't
         // reloaded mid-flight. Even on failure the 0.2s window self-resets.
         blockFSUpdates()
@@ -284,6 +294,10 @@ extension ViewController {
         do {
             try FileManager.default.moveItem(at: url, to: newUrl)
             note.overwrite(url: newUrl)
+            // T09 (NE-20): rename 成功后才把源码会话同步到新 URL——代际提升
+            // 使按旧 URL 捕获的 buffer/任务身份失效，改名后的保存不会写回旧
+            // 位置。失败路径不动 session。
+            editArea.syncSessionAfterRename(of: note)
             updateTitleAndFinishImport(note: note, title: value)
         } catch {
             AppDelegate.trackError(error, context: "Note.rename.moveItem")
@@ -816,6 +830,8 @@ extension ViewController {
             }
 
             _ = note.move(to: destination, project: project)
+            // T09 (NE-20): 移动成功后同步会话 canonical URL（代际提升）。
+            editArea.syncSessionAfterRename(of: note)
 
             if !isFit(note: note, shouldLoadMain: true) {
                 notesTableView.removeByNotes(notes: [note])
@@ -1293,6 +1309,9 @@ extension ViewController {
 
     @IBAction func showVersionHistory(_ sender: Any) {
         guard let note = notesTableView.getSelectedNote() else { return }
+        // T09：面板里的当前版本必须含用户未保存输入——先采集 session 提交
+        // 原文（local recovery trigger；buffer 不属于该 note 时 no-op）。
+        captureSessionSourceForVersionSnapshot(of: note)
         NoteVersionManager.shared.saveVersionIfNeeded(for: note, force: false) { [weak self] in
             guard let self else { return }
             let controller = VersionHistoryViewController(note: note)
