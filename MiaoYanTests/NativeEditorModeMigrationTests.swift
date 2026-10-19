@@ -66,6 +66,7 @@ final class NativeEditorModeMigrationTests: XCTestCase {
     /// G0 同款:挂 window 保证文本输入协议(firstResponder)稳定。
     private var testWindow: NSWindow?
 
+    @MainActor
     private func makeHost() -> NativeRichEditorHostView {
         let host = NativeRichEditorHostView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         let window = NSWindow(
