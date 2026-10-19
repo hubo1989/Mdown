@@ -202,8 +202,9 @@ final class NativeEditorModeMigrationTests: XCTestCase {
         let host = makeHost()
         host.loadNote(note)
 
-        // display: "标题\n\n正文段落。\n" → caret 落"落"与"。"之间（display 7）
-        host.textView.setSelectedRange(NSRange(location: 7, length: 0))
+        // display: "标(0)题(1)\n(2)\n(3)正(4)文(5)段(6)落(7)。(8)\n(9)"
+        // → caret 落"落"与"。"之间 = display 8
+        host.textView.setSelectedRange(NSRange(location: 8, length: 0))
         host.textView.insertText("新")
 
         XCTAssertEqual(
@@ -211,8 +212,13 @@ final class NativeEditorModeMigrationTests: XCTestCase {
             "编辑必须即时镜像进 note.content（预览/保存读镜像）")
 
         host.flushPendingSave()
+        // flush → persistNote → note.save(content:)（与 Vditor persistNote
+        // 同层，commit 即 dirty）；同步磁盘写是 Note 层职责，模拟 T08
+        // 离开点的完整链。
+        XCTAssertTrue(note.needsSave, "flush 必须把草稿 commit 进 Note（dirty 立即可见）")
+        XCTAssertTrue(note.flushPendingSave())
         let onDisk = try? String(contentsOf: note.url, encoding: .utf8)
-        XCTAssertEqual(onDisk, "# 标题\n\n正文段落新。\n", "flush 后正文必须落盘")
+        XCTAssertEqual(onDisk, "# 标题\n\n正文段落新。\n", "T08 离开点链路下正文必须落盘")
     }
 
     @MainActor
@@ -226,6 +232,8 @@ final class NativeEditorModeMigrationTests: XCTestCase {
 
         host.loadNote(noteB)
 
+        XCTAssertTrue(noteA.needsSave, "切换前旧笔记草稿必须已 commit（不丢草稿）")
+        _ = noteA.flushPendingSave()
         XCTAssertEqual(
             try? String(contentsOf: noteA.url, encoding: .utf8), "A+ 原文\n",
             "切换笔记前必须把旧笔记未保存草稿落盘（不丢草稿）")
