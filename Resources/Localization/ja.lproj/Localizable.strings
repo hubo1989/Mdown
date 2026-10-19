@@ -289,6 +289,7 @@
 "Reload" = "再読み込み";
 "Note reloaded~" = "ノートを再読み込みしました~";
 "Font size: %d" = "文字サイズ：%d";
+"Native editor failed to load this note; showing source." = "ネイティブエディタでこのノートを読み込めませんでした。ソース表示に戻します。";
 
 /* Version History */
 "Version History" = "バージョン履歴";

@@ -174,7 +174,11 @@ final class VditorIntegrationTests: XCTestCase {
     func testEnableWysiwygModeSetsLayoutVisibility() {
         guard let vc = ViewController.shared() else { return }
         vc.enableWysiwygMode()
-        XCTAssertEqual(vc.vditorEditView?.isHidden, false)
+        // T10：enableWysiwygMode 经 activeWysiwygBackend 路由——活动
+        // backend 可见，另一个必须隐藏（单一 backend 发布正文）。
+        let native = UserDefaultsManagement.useNativeWysiwyg
+        XCTAssertEqual(vc.nativeRichHost?.isHidden, !native, "native 默认时 host 必须可见")
+        XCTAssertEqual(vc.vditorEditView?.isHidden, native, "legacy 非活动时必须隐藏")
         XCTAssertEqual(vc.editAreaScroll.isHidden, true)
     }
 }

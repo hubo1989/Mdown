@@ -158,6 +158,17 @@ public enum UserDefaultsManagement {
         static let EditorContentSplitPosition = "editorContentSplitPosition"
         static let EditorModeKey = "editorMode"
         static let EditorLayoutModeKey = "editorLayoutMode"
+        /// T10：wysiwyg 正文后端开关（true = native rich，默认）。
+        /// 开发期 legacy Vditor 回退逃生舱，无设置 UI——defaults write 用。
+        static let UseNativeWysiwyg = "useNativeWysiwyg"
+    }
+
+    /// 测试注入面：迁移测试需要按真实 key 清空/恢复 defaults，硬编码
+    /// 字符串会随实现漂移。internal，仅测试 target 经 @testable 使用。
+    enum LayoutDefaultsTesting {
+        static let editorLayoutMode = Constants.EditorLayoutModeKey
+        static let splitViewMode = Constants.SplitViewMode
+        static let useNativeWysiwyg = Constants.UseNativeWysiwyg
     }
 
     private static func resolvedFontName(forKey key: String) -> String {
@@ -900,6 +911,22 @@ public enum UserDefaultsManagement {
             } else if editorLayoutMode == .wysiwyg {
                 editorLayoutMode = .source
             }
+        }
+    }
+
+    /// T10 (SPEC NE-01/NE-36)：wysiwyg 的正文后端。默认 true = native
+    /// RichMarkdownTextView；false = 开发期 legacy Vditor（回退逃生舱）。
+    /// 同一时刻只有一个 backend 发布正文，由布局层
+    /// `activeWysiwygBackend` 保证。
+    static var useNativeWysiwyg: Bool {
+        get {
+            if let stored = UserDefaults.standard.object(forKey: Constants.UseNativeWysiwyg) as? Bool {
+                return stored
+            }
+            return true
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Constants.UseNativeWysiwyg)
         }
     }
     static var editorContentSplitPosition: Double {
