@@ -58,7 +58,8 @@
 | Debug build（`MACOSX_DEPLOYMENT_TARGET=12.0 CODE_SIGNING_ALLOWED=NO`） | **SUCCEEDED**（含新 storyboard 菜单项 ibtool 编译） |
 | swiftlint --strict（改动文件） | 0 violations（全仓 178 files 0 violations） |
 | swift-format --strict（改动文件） | 0 violations |
-| 本机单测（`NativeEditorModeMigrationTests` 16 用例） | **blocked（环境故障，见下）**；转 CI 执行 |
+| 本机单测（`NativeEditorModeMigrationTests` 16 用例） | **blocked（环境故障，见下）** |
+| CI | **不触发**：`ci.yml` 只认 `pull_request: branches: [main]`，栈式 PR（base=T09 分支）不产生 run |
 | App 冒烟 | 启动/quit 正常（open + AppleScript quit） |
 | 实机 UI 冒烟（菜单驱动） | blocked（System Events AppleEvent 超时，同环境故障） |
 
@@ -84,9 +85,10 @@ establishing connection* 失败。证据链：
    故障，非项目因素。
 4. `MiaoYan.app` 直接启动正常（上表冒烟通过），构建链路全程正常。
 
-处理：单测验证转 CI（`.github/workflows/ci.yml`：macos-15 +
-CODE_SIGNING_ALLOWED=NO，与 BASELINE §2 记录的可行组合一致）。本机故障
-疑似需重启恢复；重启属破坏性操作，未执行，待维护者决定。
+处理：本机故障疑似需重启恢复；重启属破坏性操作，未执行，待维护者决定。
+栈式 PR 不触发 CI（见上表），合栈到 main 前需在本机恢复后跑
+`xcodebuild test -only-testing:MiaoYanTests/NativeEditorModeMigrationTests`
+（可行组合见 BASELINE §2），或等栈到 main 后由 CI 执行。
 
 ## 未验证范围
 
