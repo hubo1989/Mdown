@@ -205,6 +205,9 @@
 /* Class = "NSMenuItem"; title = "Toggle Split View"; ObjectID = "Tgl-Spl-View"; */
 "Tgl-Spl-View.title" = "切換分欄";
 
+/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "Tgl-Wys-Menu"; */
+"Tgl-Wys-Menu.title" = "切換所見即所得";
+
 /* Class = "NSMenuItem"; title = "Toggle TOC"; ObjectID = "Tgl-TOC-Menu"; */
 "Tgl-TOC-Menu.title" = "切換目錄";
 

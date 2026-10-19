@@ -106,6 +106,7 @@ extension ViewController {
 
         if !sessionPreviewMode {
             savedEditorSelection = editArea.selectedRange()
+            saveNativeRichSelectionAnchorIfNeeded()
             savedEditorScrollRatio = editorScrollRatio
             savedEditorNoteURL = EditTextView.note?.url
             savedLayoutModeBeforePreview = sessionLayoutMode
@@ -205,7 +206,7 @@ extension ViewController {
         // accounts for it.
         previewScrollView?.isHidden = false
         editAreaScroll.isHidden = false
-        vditorEditView?.isHidden = true
+        setVisibleWysiwygBackend(nil)
 
         // Force layout update BEFORE setting display mode to ensure correct bounds
         contentSplitView.layoutSubtreeIfNeeded()
@@ -472,19 +473,20 @@ extension ViewController {
         }
     }
 
+    /// ⌘3 / previewButton 的共同入口。T10 (AC-16)：Toggle Preview 只做
+    /// 纯 preview 进出（MPreviewView 独占，enablePreview 保存当前布局、
+    /// disablePreview 经 restoreEditorLayoutAfterPreview 回到 saved layout，
+    /// 含 wysiwyg）。wysiwyg 是独立菜单/设置入口，不经此处切换。
     func togglePreview() {
         saveTitleSafely()
 
-        if sessionPreviewMode || sessionLayoutMode == .wysiwyg {
+        if sessionPreviewMode {
             disablePreview()
-            sessionLayoutMode = .source
-            applyEditorModePreferenceChange()
         } else {
             if sessionSplitMode {
                 disableSplitViewMode()
             }
-            sessionLayoutMode = .wysiwyg
-            applyEditorModePreferenceChange()
+            enablePreview()
         }
     }
 
@@ -509,11 +511,35 @@ extension ViewController {
 
     // MARK: - WYSIWYG Mode Management
 
+    /// T10 (NE-36)：native 装载失败的笔记只在本次会话内回 source——
+    /// sessionLayoutMode 保持用户的 wysiwyg pref，pref 不被失败改写；
+    /// 切换到其它笔记后失败标记清除。
+    func handleNativeWysiwygLoadFailure(_ note: Note) {
+        guard sessionLayoutMode == .wysiwyg, nativeRichHost != nil else { return }
+        wysiwygLoadFailureNote = note
+        // 只影响显示：source 面接手，backend 隐藏；pref（用户选择）不动。
+        setVisibleWysiwygBackend(nil)
+        editAreaScroll.isHidden = false
+        editAreaScroll.alphaValue = 1.0
+        if !isFocusedTitle {
+            focusEditArea()
+        }
+        toast(message: I18n.str("Native editor failed to load this note; showing source."), style: .info)
+    }
+
+    /// T10 (SPEC §13)：显示活动 backend、隐藏另一个。同一时刻只有一个
+    /// backend 可见/被装载——布局层只经 activeWysiwygBackend 路由。
+    private func setVisibleWysiwygBackend(_ backend: (WysiwygEditingBackend & NSView)?) {
+        vditorEditView?.isHidden = (backend !== vditorEditView)
+        nativeRichHost?.isHidden = (backend !== nativeRichHost)
+    }
+
     func enableWysiwygMode() {
         saveTitleSafely()
 
+        let backend = activeWysiwygBackend
+        setVisibleWysiwygBackend(backend)
         editAreaScroll.isHidden = true
-        vditorEditView?.isHidden = false
         editorContentSplitView?.setDisplayMode(.editorOnly, animated: false)
 
         titleBarView.isHidden = false
@@ -525,29 +551,51 @@ extension ViewController {
                 editArea.saveTextStorageContent(to: note)
             }
 
-            vditorEditView?.loadNote(note)
+            if backend === nativeRichHost, wysiwygLoadFailureNote === note {
+                // 该笔记本会话内装载失败过：留在 source 面，不再反复装载。
+                setVisibleWysiwygBackend(nil)
+                editAreaScroll.isHidden = false
+                if !isFocusedTitle {
+                    focusEditArea()
+                }
+                return
+            }
+
+            backend?.loadNote(note)
 
             let isTrashNote = note.project.isTrash
             titleLabel.isEditable = !isTrashNote
 
             if !isFocusedTitle {
-                vditorEditView?.focus()
+                backend?.focus()
             }
         }
         updateToolbarButtonTints()
     }
 
-    func disableWysiwygMode() {
-        guard vditorEditView?.isHidden == false || sessionLayoutMode != .wysiwyg else { return }
+    /// T10 (AC-16)：离开 wysiwyg（进 preview/presentation/PPT、切布局）
+    /// 前保存 native 面的 selection 锚点，退出后经 host 按笔记身份恢复。
+    func saveNativeRichSelectionAnchorIfNeeded() {
+        guard sessionLayoutMode == .wysiwyg,
+            UserDefaultsManagement.useNativeWysiwyg,
+            let host = nativeRichHost
+        else { return }
+        host.saveSelectionAnchor()
+    }
 
-        vditorEditView?.flushPendingSave { [weak self] in
+    func disableWysiwygMode() {
+        guard activeWysiwygBackend?.isHidden == false || sessionLayoutMode != .wysiwyg else { return }
+
+        saveNativeRichSelectionAnchorIfNeeded()
+        let backend = activeWysiwygBackend
+        backend?.flushPendingSave(completion: { [weak self] in
             guard let self = self else { return }
             if self.notesTableView.getSelectedNote() != nil {
                 self.refillEditArea(suppressSave: true)
             }
-        }
+        })
 
-        vditorEditView?.isHidden = true
+        setVisibleWysiwygBackend(nil)
         editAreaScroll.isHidden = false
 
         if notesTableView.getSelectedNote() != nil {
@@ -600,7 +648,7 @@ extension ViewController {
             disableWysiwygMode()
             editAreaScroll.isHidden = false
             editAreaScroll.alphaValue = 1.0
-            vditorEditView?.isHidden = true
+            setVisibleWysiwygBackend(nil)
             editorContentSplitView?.setDisplayMode(.editorOnly, animated: false)
             revealEditor()
             if !isFocusedTitle {
@@ -668,7 +716,8 @@ extension ViewController {
         sessionPresentationMode = true
         savedLayoutModeBeforePreview = sessionLayoutMode
         if sessionLayoutMode == .wysiwyg {
-            vditorEditView?.flushPendingSave()
+            saveNativeRichSelectionAnchorIfNeeded()
+            activeWysiwygBackend?.flushPendingSave(completion: nil)
         }
         savePresentationLayout()
         hideNoteList("")
@@ -797,7 +846,8 @@ extension ViewController {
         sessionMagicPPTMode = true
         savedLayoutModeBeforePreview = sessionLayoutMode
         if sessionLayoutMode == .wysiwyg {
-            vditorEditView?.flushPendingSave()
+            saveNativeRichSelectionAnchorIfNeeded()
+            activeWysiwygBackend?.flushPendingSave(completion: nil)
         }
         savePresentationLayout()
         hideNoteList("")
@@ -1432,7 +1482,7 @@ extension ViewController {
     func focusEditArea(firstResponder: NSResponder? = nil, restoreCursor: Bool = true) {
         guard EditTextView.note != nil else { return }
         if sessionLayoutMode == .wysiwyg {
-            vditorEditView?.focus()
+            activeWysiwygBackend?.focus()
             return
         }
         var resp: NSResponder = editArea
@@ -1477,7 +1527,7 @@ extension ViewController {
     /// owner 不匹配（buffer 属于别的 note，#543）时是安全 no-op。
     func captureSessionSourceForVersionSnapshot(of note: Note) {
         guard sessionLayoutMode != .wysiwyg else {
-            vditorEditView?.flushPendingSave()
+            activeWysiwygBackend?.flushPendingSave(completion: nil)
             return
         }
         guard editArea.storageNote === note else { return }
@@ -1557,14 +1607,20 @@ extension ViewController {
                     self.editArea.setSelectedRange(NSRange(location: location, length: 0))
 
                     if self.sessionLayoutMode == .wysiwyg {
-                        self.vditorEditView?.loadNote(note)
-                        self.editAreaScroll.isHidden = true
-                        self.vditorEditView?.isHidden = false
-                        self.vditorEditView?.alphaValue = 1.0
+                        let backend = self.activeWysiwygBackend
+                        if let backend {
+                            backend.loadNote(note)
+                            self.editAreaScroll.isHidden = true
+                            backend.isHidden = false
+                            backend.alphaValue = 1.0
+                        } else {
+                            self.editAreaScroll.isHidden = false
+                            self.editAreaScroll.alphaValue = 1.0
+                        }
                     } else {
                         self.editAreaScroll.isHidden = false
                         self.editAreaScroll.alphaValue = 1.0
-                        self.vditorEditView?.isHidden = true
+                        self.setVisibleWysiwygBackend(nil)
                     }
                     self.revealEditor()
                 }

@@ -266,6 +266,7 @@
 "Reload" = "重新載入";
 "Note reloaded~" = "筆記已重新載入~";
 "Font size: %d" = "字體大小：%d";
+"Native editor failed to load this note; showing source." = "原生編輯器載入此筆記失敗，已切回原始碼顯示。";
 
 /* Version History */
 "Version History" = "版本歷史";

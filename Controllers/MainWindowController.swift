@@ -77,6 +77,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, NSWindowRestor
             vc.editArea.applySystemAppearance()
             vc.editArea.markdownView?.updateAppearance()
             vc.vditorEditView?.updateAppearance()
+            vc.nativeRichHost?.updateAppearance()
             vc.applyModernChromeStyling()
             vc.updateToolbarButtonTints()
 

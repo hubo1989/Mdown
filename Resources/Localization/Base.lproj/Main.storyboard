@@ -256,6 +256,11 @@ CA
                                                 <action selector="toggleSplitMode:" target="Ady-hI-5gd" id="Act-Tgl-Spl"/>
                                             </connections>
                                         </menuItem>
+                                        <menuItem title="Toggle WYSIWYG" identifier="viewMenu.toggleWysiwyg" id="Tgl-Wys-Menu">
+                                            <connections>
+                                                <action selector="toggleWysiwygMode:" target="Ady-hI-5gd" id="Act-Tgl-Wys"/>
+                                            </connections>
+                                        </menuItem>
                                         <menuItem title="Toggle TOC" image="list.bullet" catalog="system" keyEquivalent="5" identifier="viewMenu.toggleTOC" id="Tgl-TOC-Menu">
                                             <connections>
                                                 <action selector="toggleTOC:" target="N0L-g4-qwj" id="Act-Tgl-TOC"/>

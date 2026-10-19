@@ -414,8 +414,8 @@ class NotesTableView: NSTableView {
                 vc.editArea.fill(note: note, options: .silent)
                 if vc.sessionLayoutMode == .wysiwyg {
                     vc.editAreaScroll.isHidden = true
-                    vc.vditorEditView?.isHidden = false
-                    vc.vditorEditView?.loadNote(note)
+                    vc.activeWysiwygBackend?.isHidden = false
+                    vc.activeWysiwygBackend?.loadNote(note)
                 }
                 vc.revealEditor()
             }

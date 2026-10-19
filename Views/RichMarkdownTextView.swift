@@ -17,7 +17,15 @@ import AppKit
 ///   任何 source 化。
 @MainActor
 public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
-    public private(set) var source: String
+    /// T10：source 提交观察口。每次 source 变化（typing / composition /
+    /// 结构命令 / undo / redo / 程序化 setSource）后回调；host（
+    /// NativeRichEditorHostView）用它镜像 note.content 并安排 debounce
+    /// 保存。程序化装载由 host 的 lastLoaded 守卫丢弃，不产生假编辑。
+    public var onSourceCommitted: ((String) -> Void)?
+
+    public private(set) var source: String {
+        didSet { onSourceCommitted?(source) }
+    }
     public private(set) var revision: UInt64 = 0
     private let parser = LosslessMarkdownParser()
     private let builder = MarkdownProjectionBuilder()
@@ -124,18 +132,24 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             in: NSRange(location: 0, length: storage.length),
             with: NSAttributedString(string: newDisplay)
         )
-        let defaultFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
         let displayLength = (newDisplay as NSString).length
-        storage.addAttribute(.font, value: defaultFont, range: NSRange(location: 0, length: displayLength))
+        storage.addAttribute(.font, value: bodyFont, range: NSRange(location: 0, length: displayLength))
         applyDisplayAttributes()
         storage.endEditing()
         composingGuard = false
     }
 
+    /// T10：host 注入的正文/代码字体（NE-32 字体/缩放经设置与 ⌘± 联动）。
+    /// 变化后需调用 `refreshFontAttributes()` 重刷属性。
+    public var bodyFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+    public var codeFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+    /// T10：host 注入的正文前景色（深浅色主题）。
+    public var contentTextColor = NSColor.black
+
     /// G0 原型的最小样式：保护块等宽字体、code span 等宽（视觉验证用）。
     private func applyDisplayAttributes() {
         guard let storage = textStorage else { return }
-        let mono = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        let mono = codeFont
         for item in rendered {
             let block = item.block; let projection = item.projection; let start = item.displayStart
             if case .codeFence = block.kind {
@@ -149,6 +163,15 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 }
             }
         }
+    }
+
+    /// T10：字体变化后重刷全文属性（display 已在 storage 中，只重铺字体）。
+    public func refreshFontAttributes() {
+        guard let storage = textStorage else { return }
+        let full = NSRange(location: 0, length: storage.length)
+        storage.addAttribute(.font, value: bodyFont, range: full)
+        storage.addAttribute(.foregroundColor, value: contentTextColor, range: full)
+        applyDisplayAttributes()
     }
 
     // MARK: - display → source 同步（textDidChange 驱动）
