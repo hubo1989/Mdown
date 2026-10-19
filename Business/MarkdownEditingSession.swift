@@ -52,6 +52,11 @@ public final class MarkdownEditingSession {
     private(set) var storageRevision: UInt64 = 0
     private(set) var storageGeneration: UInt64 = 0
 
+    /// T09: watcher 检测到磁盘外部版本但本地有 dirty/CompositionDraft 时
+    /// 保留下来的外部正文（SPEC §7.3：保留双方，不自动覆盖、不宣称三方
+    /// 合并）。用户经 `adoptPendingExternal` 显式接受后才成为会话基线。
+    private(set) var pendingExternalContent: String?
+
     init(
         identity: EditingIdentity,
         markdown: String,
@@ -77,7 +82,8 @@ public final class MarkdownEditingSession {
     func apply(_ transaction: EditTransaction) -> EditApplyResult {
         if isRetired { return .rejected(.retired) }
         if transaction.identity.ownerToken != identity.ownerToken
-            || transaction.identity.canonicalURL != identity.canonicalURL {
+            || transaction.identity.canonicalURL != identity.canonicalURL
+        {
             return .rejected(.ownerChanged)
         }
         if transaction.identity.generation != identity.generation {
@@ -156,6 +162,62 @@ public final class MarkdownEditingSession {
         )
     }
 
+    // MARK: - T09 文件事件 / 版本恢复（SPEC §7.3）
+
+    /// watcher 的外部文件变化。语义（NE-19）：
+    /// - 无本地改动（无 dirty / 无 CompositionDraft）：全量替换为磁盘真值，
+    ///   提升代际使旧 buffer 与旧任务身份失效，返回 true；
+    /// - 有本地改动：**保留双方**——不推进代际、不覆盖会话基线，只把外部
+    ///   正文记入 `pendingExternalContent` 供用户显式选择，返回 false。
+    ///
+    /// 只做会话侧的身份/基线判定：不读磁盘、不弹窗、不触碰 buffer。调用方
+    /// （EditTextView+EditingSession）负责重新发布 buffer 与 UI 提示。
+    @discardableResult
+    func reloadFromDisk(externalContent: String?, hasLocalChanges: Bool) -> Bool {
+        guard !isRetired else { return false }
+        guard let externalContent else { return false }
+        guard !hasLocalChanges else {
+            pendingExternalContent = externalContent
+            return false
+        }
+        pendingExternalContent = nil
+        replaceAll(markdown: externalContent)
+        return true
+    }
+
+    /// 显式接受 watcher 保留的外部版本（local recovery trigger，不是保存
+    /// 成功）：代际提升、基线换成外部正文。
+    @discardableResult
+    func adoptPendingExternal() -> Bool {
+        guard !isRetired, let external = pendingExternalContent else { return false }
+        pendingExternalContent = nil
+        replaceAll(markdown: external)
+        return true
+    }
+
+    /// 版本恢复：显式 source replacement（SPEC §7.3）。与 `replaceAll` 的
+    /// 差别只在调用语境——调用方已按 history policy 存下恢复前内容。恢复后
+    /// 会话代际已推进，恢复前的 undo 动作不再作用于新基线。
+    @discardableResult
+    func replaceWithRestoredVersion(markdown restored: String) -> Bool {
+        guard !isRetired else { return false }
+        pendingExternalContent = nil
+        replaceAll(markdown: restored)
+        return true
+    }
+
+    /// 退役后 undo 历史是否还能作用到当前基线。`replaceAll`（watcher 重载、
+    /// 版本恢复、显式接受外部版本）已把会话推进到新代际：此前的 undo 动作
+    /// 指向的文本不再属于当前基线，Cmd-Z 不得把它带回编辑器。返回 false 即
+    /// 调用方应清空 note.undoManager（恢复前内容由版本库承担，不是编辑历史）。
+    var undoHistoryTargetsCurrentBaseline: Bool {
+        identity.generation == storageGeneration
+    }
+
+    /// 会话是否已退役（Trash/删除）。`owns(url:)` 在退役后同样返回 false，
+    /// 但两者的调用方语义不同：这个属性表达「拒绝写入」而不是「这不归我管」。
+    var isRetiredForSave: Bool { isRetired }
+
     // MARK: - buffer 防护（SPEC：为旧 source buffer 增加 revision metadata）
 
     /// 该会话当前绑定的文件是否为 url（ownerToken + URL 共同决定，
@@ -163,6 +225,10 @@ public final class MarkdownEditingSession {
     func owns(url: URL) -> Bool {
         identity.canonicalURL == url && !isRetired
     }
+
+    /// 会话当前绑定的 canonical URL。rename/move 后由调用方比对，决定是否
+    /// 需要推进代际（T09）。
+    var canonicalURL: URL { identity.canonicalURL }
 
     /// publishStorage 时记录 buffer 对应的当前身份（generation + revision）。
     func markStoragePublished() {

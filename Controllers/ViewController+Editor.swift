@@ -1469,6 +1469,21 @@ extension ViewController {
     }
 
     // MARK: - Editor Content Management
+    /// T09 (PLAN)：版本快照点（导航离开 / 打开版本面板 / 恢复前）先把活动
+    /// buffer 的已确认原文采集进 note 镜像，快照才是用户实际所见正文，而不是
+    /// 落后于输入的旧镜像。这是 local recovery trigger，与真实写盘成功后保存
+    /// 的版本（Note.performDiskWrite → saveVersionIfNeeded）区分：它不代表
+    /// 保存成功，只保证离开/覆盖前正文可从版本库找回。
+    /// owner 不匹配（buffer 属于别的 note，#543）时是安全 no-op。
+    func captureSessionSourceForVersionSnapshot(of note: Note) {
+        guard sessionLayoutMode != .wysiwyg else {
+            vditorEditView?.flushPendingSave()
+            return
+        }
+        guard editArea.storageNote === note else { return }
+        editArea.saveTextStorageContent(to: note)
+    }
+
     func refillEditArea(
         cursor: Int? = nil,
         previewOnly: Bool = false,
@@ -1685,6 +1700,9 @@ extension ViewController {
         let result = attemptSave(note: note, title: newTitle, current: currentName)
         if case .success = result {
             note.title = newTitle
+            // T09 (NE-20): 改名成功后同步源码会话 canonical URL（代际提升），
+            // 否则按旧 URL 捕获的身份仍可通过防护写回旧位置。
+            editArea.syncSessionAfterRename(of: note)
             notesTableView.reloadRow(note: note)
         }
     }
