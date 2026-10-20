@@ -137,6 +137,62 @@ struct MarkdownEditorHistory {
         return true
     }
 
+    /// 输入规则触发（结构前缀完成，T12）时把栈顶构成该前缀的连续纯插入
+    /// typing entry 合并为单条——「一键 undo 回完整字面前缀」（SPEC §4.3）。
+    /// 这是跨时间窗的显式重组（用户可能在符号与空格间停顿超过
+    /// coalescingInterval）；链不完整（点击/删除/结构命令打断了前缀输入）
+    /// 则不动，undo 按既有粒度分次——分次不吞字，合并只影响粒度。
+    mutating func collapseTypingPrefix(
+        prefixRange: NSRange, selectionAfter: MarkdownSelection, name: String
+    ) -> Bool {
+        let prefixEnd = NSMaxRange(prefixRange)
+        // 从栈顶向下收集：纯插入、patch 顺序相邻、合并后恰好覆盖
+        // [prefixRange.location, prefixEnd)。entry 内可能已是 coalesce 过
+        // 的多 patch，末尾按 replacement 实际长度推进。
+        var collected: [Entry] = []
+        var expectedEnd = prefixEnd
+        for entry in undoStack.reversed() {
+            guard entry.origin == .typing, !entry.patches.isEmpty,
+                entry.patches.allSatisfy({ $0.expectedText.isEmpty && $0.rangeUTF16.length == 0 })
+            else { break }
+            let entryStart = entry.patches.first!.rangeUTF16.location
+            var cursor = entryStart
+            var adjacent = true
+            for patch in entry.patches where adjacent {
+                if patch.rangeUTF16.location != cursor { adjacent = false }
+                cursor += patch.replacement.utf16.count
+            }
+            guard adjacent, cursor == expectedEnd, entryStart >= prefixRange.location else { break }
+            collected.append(entry)
+            expectedEnd = entryStart
+        }
+        guard let first = collected.last,
+            first.patches.first!.rangeUTF16.location == prefixRange.location
+        else { return false }
+
+        // 收集的 patch 坐标属于各自中间版本，不能作为同一 base 的多 patch
+        // 重放；连续插入合成一条，undo/redo 才保持同一文本顺序。
+        let mergedText = collected.reversed().flatMap(\.patches).map(\.replacement).joined()
+        let mergedPatches = [
+            SourcePatch(
+                rangeUTF16: NSRange(location: prefixRange.location, length: 0),
+                expectedText: "", replacement: mergedText)
+        ]
+        // 重组改变 undo 链形态：既有 redo 重放坐标可能过期，直接作废
+        // （fail-closed；record 后的触发路径 redo 本就为空，这里消除对
+        // 调用顺序的隐式依赖）。
+        redoStack.removeAll()
+        undoStack.removeLast(collected.count)
+        undoStack.append(
+            Entry(
+                patches: mergedPatches, sourceBefore: first.sourceBefore,
+                selectionBefore: first.selectionBefore,
+                selectionAfter: selectionAfter,
+                origin: .typing, undoGroupID: UUID(),
+                recordedAt: now(), name: name))
+        return true
+    }
+
     struct Result: Equatable {
         let source: String
         let selection: MarkdownSelection
