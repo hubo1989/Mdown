@@ -1,5 +1,9 @@
 import AppKit
 
+private func ascii16(_ c: Character) -> unichar {
+    unichar(c.unicodeScalars.first!.value)
+}
+
 /// T04 / G0 可行性原型：TextKit 1 上的 rich Markdown 编辑面。
 /// 纯内存 session（source + revision + selection），不读 Note/Storage；
 /// T05 通过 G0 后收敛到正式 MarkdownEditingSession。
@@ -571,6 +575,179 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 SourcePatch(rangeUTF16: NSRange(location: lineRange.location, length: markerLength), expectedText: marker, replacement: "")
             ], name: "list-unmark", restoreSourceCaret: lineRange.location)
         return true
+    }
+
+    // MARK: - T11 行内格式命令与链接（source patch，AC-01/NE-05/NE-06/NE-12）
+
+    /// T11：modifier+click 开链接与普通 click 编辑 caret 的区分入口。
+    /// target 交给 host 解析（相对路径需 note 上下文）；未注册回调或
+    /// 点击处无 link 时走默认 caret 行为。
+    public var onOpenLink: ((InlineLinkSpan) -> Void)?
+
+    /// 行内格式 toggle：选中区间 wrap/unwrap delimiter（空选中取光标处
+    /// 连续非空白词）。patch 原子应用，未选中范围不动；origin .format。
+    @discardableResult
+    public func applyInlineFormat(_ kind: MarkdownInlineFormat) -> Bool {
+        rebuildProjection()
+        let sel = selectedRange()
+        let ns = string as NSString
+        let displayRange: NSRange
+        if sel.length == 0 {
+            displayRange = Self.wordRange(at: sel.location, in: ns)
+            guard displayRange.length > 0 else { return false }
+        } else {
+            displayRange = sel
+        }
+        guard let sourceRange = sourceRange(forDisplayRange: displayRange) else {
+            return false  // 跨块/映射歧义：不猜，显式拒绝
+        }
+        let sourceNS = source as NSString
+        guard NSMaxRange(sourceRange) <= sourceNS.length else { return false }
+        let unwrap = InlineFormatPlanner.shouldUnwrap(kind, source: sourceNS, selected: sourceRange)
+        // code wrap：紧邻 backtick 时插入会制造歧义 run（``x`` → ```x```），
+        // 显式拒绝而不是破坏既有 span。
+        if kind == .code && !unwrap {
+            if sourceRange.location >= 1,
+                sourceNS.character(at: sourceRange.location - 1) == ascii16("`")
+            {
+                return false
+            }
+            if NSMaxRange(sourceRange) < sourceNS.length,
+                sourceNS.character(at: NSMaxRange(sourceRange)) == ascii16("`")
+            {
+                return false
+            }
+        }
+        let planned = InlineFormatPlanner.patches(kind, selected: sourceRange, source: sourceNS, unwrap: unwrap)
+
+        let selectionBefore = selectedRange()
+        guard case .success(let newSource) = MarkdownPatchApplier.applyPatches(planned.patches, to: source) else {
+            return false
+        }
+        history.record(
+            MarkdownEditorHistory.RecordInput(
+                patches: planned.patches, sourceBefore: source,
+                selectionBefore: MarkdownSelection(
+                    anchorUTF16: selectionBefore.location,
+                    focusUTF16: NSMaxRange(selectionBefore), affinity: .downstream
+                ),
+                selectionAfter: MarkdownSelection(
+                    anchorUTF16: planned.selectionAfter.location,
+                    focusUTF16: NSMaxRange(planned.selectionAfter), affinity: .downstream
+                ),
+                origin: .format, name: "format-\(kind.rawValue)"
+            ))
+        source = newSource
+        revision += 1
+        rebuildProjection()
+        // selectionAfter 是 source 坐标，映射回 display（unwrap 后区间已在界内）
+        let anchor =
+            displayOffset(forSourceOffset: planned.selectionAfter.location)
+            ?? planned.selectionAfter.location
+        let focus =
+            displayOffset(forSourceOffset: NSMaxRange(planned.selectionAfter))
+            ?? NSMaxRange(planned.selectionAfter)
+        setSelectedRange(NSRange(location: min(anchor, focus), length: abs(focus - anchor)))
+        return true
+    }
+
+    /// 光标处连续非空白 run（CJK 连续文字自然成词），供空选中的格式 toggle。
+    private static func wordRange(at location: Int, in ns: NSString) -> NSRange {
+        guard location <= ns.length else { return NSRange(location: 0, length: 0) }
+        func isWord(_ c: unichar) -> Bool {
+            c != ascii16(" ") && c != ascii16("\t") && c != 0x0A && c != 0x0D
+        }
+        var start = min(location, ns.length)
+        while start > 0, isWord(ns.character(at: start - 1)) {
+            start -= 1
+        }
+        var end = min(location, ns.length)
+        while end < ns.length, isWord(ns.character(at: end)) {
+            end += 1
+        }
+        return NSRange(location: start, length: end - start)
+    }
+
+    /// display 选中区间 → source 区间（须落在单块内；跨块/边界歧义 nil）。
+    private func sourceRange(forDisplayRange range: NSRange) -> NSRange? {
+        for item in rendered {
+            let blockDisplay = item.projection.display.utf16.count
+            guard range.location >= item.displayStart,
+                NSMaxRange(range) <= item.displayStart + blockDisplay
+            else { continue }
+            let start = item.projection.sourceOffset(forDisplay: range.location - item.displayStart)
+            let end = item.projection.sourceOffset(forDisplay: NSMaxRange(range) - item.displayStart)
+            if let s = start, let e = end {
+                return NSRange(location: min(s, e), length: abs(e - s))
+            }
+            return nil
+        }
+        return nil
+    }
+
+    /// selection/caret 命中的 inline link（label 或 target 均算命中）。
+    public func linkAtSelection() -> InlineLinkSpan? {
+        rebuildProjection()
+        let caret = sourceCaret()
+        return InlineLinkScanner.scan(source).first { span in
+            caret >= span.fullRangeUTF16.location && caret <= NSMaxRange(span.fullRangeUTF16)
+        }
+    }
+
+    /// 编辑 link target（label 与 target 独立：改 target 不动 label 字节）。
+    /// 安全 scheme 白名单校验；拒绝时不动 source 并返回 false。
+    @discardableResult
+    public func updateLinkTarget(_ newTarget: String) -> Bool {
+        rebuildProjection()
+        guard let span = linkAtSelection(), !span.isImage else { return false }
+        guard MarkdownLinkSafety.isEditableTarget(newTarget), newTarget != span.target else {
+            return false
+        }
+        let patch = SourcePatch(
+            rangeUTF16: span.targetRangeUTF16, expectedText: span.target, replacement: newTarget
+        )
+        guard case .success(let newSource) = MarkdownPatchApplier.applyPatches([patch], to: source) else {
+            return false
+        }
+        let selectionBefore = selectedRange()
+        let caretAfter = span.targetRangeUTF16.location + (newTarget as NSString).length
+        history.record(
+            MarkdownEditorHistory.RecordInput(
+                patches: [patch], sourceBefore: source,
+                selectionBefore: MarkdownSelection(
+                    anchorUTF16: selectionBefore.location,
+                    focusUTF16: NSMaxRange(selectionBefore), affinity: .downstream
+                ),
+                selectionAfter: MarkdownSelection(
+                    anchorUTF16: caretAfter, focusUTF16: caretAfter, affinity: .downstream
+                ),
+                origin: .format, name: "link-target"
+            ))
+        source = newSource
+        revision += 1
+        rebuildProjection()
+        if let display = displayOffset(forSourceOffset: caretAfter) {
+            setSelectedRange(NSRange(location: display, length: 0))
+        }
+        return true
+    }
+
+    /// modifier → link open 意图：仅 ⌘ 且命中非 image inline link 返回
+    /// span。判定独立成纯方法：mouseDown 的 super 转发路径不能在测试
+    /// 环境驱动（无真实事件源会同步等待窗口服务）。
+    public func openLinkIntent(modifierFlags: NSEvent.ModifierFlags) -> InlineLinkSpan? {
+        guard modifierFlags.contains(.command) else { return nil }
+        guard let span = linkAtSelection(), !span.isImage else { return nil }
+        return span
+    }
+
+    /// T11：⌘+click 开链接；普通 click 只移动 caret（默认行为，不 resourceify）。
+    public override func mouseDown(with event: NSEvent) {
+        if let span = openLinkIntent(modifierFlags: event.modifierFlags) {
+            onOpenLink?(span)
+            return
+        }
+        super.mouseDown(with: event)
     }
 
     // MARK: - undo / redo
