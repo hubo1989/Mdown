@@ -177,8 +177,8 @@ final class MarkdownInlineEditingTests: XCTestCase {
 
     func testEscapedMarkerIsLiteralAndEditable() {
         let view = makeView("字面 \\*not em\\* 尾\n")
-        XCTAssertEqual(view.displayText, "字面 \\*not em\\* 尾\n", "转义 marker 不做样式")
-        view.setSelectedRange(NSRange(location: 11, length: 0))  // "m" 后
+        XCTAssertEqual(view.displayText, "字面 *not em* 尾\n", "转义 marker 不做样式")
+        view.setSelectedRange(NSRange(location: 10, length: 0))
         view.insertText("X")
         XCTAssertEqual(view.source, "字面 \\*not emX\\* 尾\n")
     }

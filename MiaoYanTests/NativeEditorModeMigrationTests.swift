@@ -89,6 +89,21 @@ final class NativeEditorModeMigrationTests: XCTestCase {
     // MARK: - 迁移语义（NE-01）
 
     @MainActor
+    func testNativeTextSurfaceReceivesMouseAcrossViewportAfterResize() throws {
+        let host = makeHost()
+        host.loadNote(makeNote(body: String(repeating: "正文 **text** ", count: 80)))
+        for size in [NSSize(width: 400, height: 300), NSSize(width: 600, height: 450)] {
+            host.setFrameSize(size)
+            host.layoutSubtreeIfNeeded()
+            let clip = try XCTUnwrap(host.textView.enclosingScrollView?.contentView)
+            let point = host.convert(NSPoint(x: clip.bounds.midX, y: clip.bounds.midY), from: clip)
+            XCTAssertTrue(host.hitTest(point) === host.textView)
+            XCTAssertEqual(host.textView.frame.width, clip.bounds.width, accuracy: 1)
+            XCTAssertGreaterThanOrEqual(host.textView.frame.height, clip.bounds.height)
+        }
+    }
+
+    @MainActor
     func testFreshDefaultsMigrateToSourceMode() {
         withIsolatedLayoutDefaults {
             XCTAssertEqual(

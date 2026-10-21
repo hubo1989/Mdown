@@ -1,5 +1,15 @@
 /* About Window */
 "About" = "关于";
+"Copy Visible Text" = "拷贝可见文本";
+"Copy Markdown" = "拷贝 Markdown";
+"Paste Plain Text" = "粘贴纯文本";
+"Paste Markdown" = "粘贴 Markdown";
+"Edit Image" = "编辑图片";
+"Save" = "保存";
+"Alternative Text" = "替代文本";
+"Image URL" = "图片地址";
+"Image Title" = "图片标题";
+"Attachment could not be inserted. Please try again." = "附件插入失败，请重试。";
 
 /* No comment provided by engineer. */
 "Add" = "添加";

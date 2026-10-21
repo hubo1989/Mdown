@@ -1,5 +1,15 @@
 /* About Window */
 "About" = "Acerca de Mdown";
+"Copy Visible Text" = "Copiar texto visible";
+"Copy Markdown" = "Copiar Markdown";
+"Paste Plain Text" = "Pegar texto sin formato";
+"Paste Markdown" = "Pegar Markdown";
+"Edit Image" = "Editar imagen";
+"Save" = "Guardar";
+"Alternative Text" = "Texto alternativo";
+"Image URL" = "URL de imagen";
+"Image Title" = "Título de imagen";
+"Attachment could not be inserted. Please try again." = "No se pudo insertar el archivo adjunto. Inténtalo de nuevo.";
 
 /* No comment provided by engineer. */
 "Add" = "Añadir";

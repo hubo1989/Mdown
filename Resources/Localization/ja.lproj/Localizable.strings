@@ -1,5 +1,15 @@
 /* About Window */
 "About" = "Mdownについて";
+"Copy Visible Text" = "表示テキストをコピー";
+"Copy Markdown" = "Markdown をコピー";
+"Paste Plain Text" = "プレーンテキストをペースト";
+"Paste Markdown" = "Markdown をペースト";
+"Edit Image" = "画像を編集";
+"Save" = "保存";
+"Alternative Text" = "代替テキスト";
+"Image URL" = "画像 URL";
+"Image Title" = "画像タイトル";
+"Attachment could not be inserted. Please try again." = "添付ファイルを挿入できませんでした。もう一度お試しください。";
 
 /* No comment provided by engineer. */
 "Add" = "追加";

@@ -12,8 +12,8 @@ private let nestedUnderbraceFormula =
 
 final class HtmlManagerTests: XCTestCase {
     func testPreviewCurrencyGuardPreservesNumericMath() throws {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        let source = try String(contentsOf: root.appendingPathComponent("Resources/DownView.bundle/js/common.js"), encoding: .utf8)
+        let bundleURL = try XCTUnwrap(Bundle.main.url(forResource: "DownView", withExtension: "bundle"))
+        let source = try String(contentsOf: bundleURL.appendingPathComponent("js/common.js"), encoding: .utf8)
         let declaration = try XCTUnwrap(
             source.components(separatedBy: .newlines).first {
                 $0.trimmingCharacters(in: .whitespaces).hasPrefix("const currencyRegex = ")

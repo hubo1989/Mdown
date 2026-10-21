@@ -43,7 +43,7 @@ final class MarkdownProjectionTests: XCTestCase {
 
     func testEscapedMarkersStayLiteral() {
         let p = projection(of: "\\*文字\\*\n")
-        XCTAssertEqual(p.display, "\\*文字\\*\n", "转义星号必须原样（不含隐藏段）")
+        XCTAssertEqual(p.display, "*文字*\n")
         XCTAssertTrue(p.segments.allSatisfy { $0.kind != .hiddenMarker })
     }
 
@@ -68,9 +68,9 @@ final class MarkdownProjectionTests: XCTestCase {
 
     func testImageShowsPlaceholder() {
         let p = projection(of: "![本地缺失图片](/i/missing.png)\n")
-        XCTAssertEqual(p.display, "[图]\n")
+        XCTAssertEqual(p.display, "本地缺失图片\n")
         let placeholder = p.segments.first { $0.kind == .attachmentPlaceholder }
-        XCTAssertEqual(placeholder?.sourceRangeUTF16, NSRange(location: 2, length: 6), "alt 文字是占位的 source")
+        XCTAssertEqual(placeholder?.sourceRangeUTF16, NSRange(location: 0, length: 25), "图片占位作为完整引用映射")
     }
 
     func testHeadingMarkerHidden() {

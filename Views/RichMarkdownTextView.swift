@@ -65,6 +65,13 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     /// T12：粘贴/拖放期间置位（readSelectionFromPasteboard 覆盖点），
     /// 输入规则不评估——粘贴不是 typing（NE-21）。
     private var isPastingFlag = false
+    private var pendingDisplayEdit: (range: NSRange, replacement: String)?
+    private var attachmentOwnerURL: URL?
+    private var attachmentOwnerIsValid: (() -> Bool)?
+    private var attachmentAnchors: [UUID: NSRange] = [:]
+    private var completedAttachmentRequests: Set<UUID> = []
+    var onAttachmentFinished: ((Result<URL, Error>) -> Void)?
+    private(set) var lastAttachmentError: Error?
 
     public init(source: String) {
         self.source = source
@@ -87,6 +94,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         isAutomaticQuoteSubstitutionEnabled = false
         isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false
+        registerForDraggedTypes(readablePasteboardTypes)
         rebuildProjection()
     }
 
@@ -96,6 +104,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     // MARK: - source 装载
 
     public func setSource(_ newSource: String) {
+        invalidateAttachmentRequests()
+        pendingDisplayEdit = nil
         source = newSource
         revision += 1
         document = parser.parse(source)
@@ -108,6 +118,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     // MARK: - 投影重建
 
     private func rebuildProjection() {
+        guard !hasMarkedText() else { return }
         document = parser.parse(source)
         var pieces: [String] = []
         pieces.reserveCapacity(document.blocks.count)
@@ -120,7 +131,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             pieces.append(projection.display)
             cursor += projection.display.utf16.count
             // 块显示之间保证一个换行（投影 display 通常已含行尾；空缺时补）
-            if let last = pieces.last, !last.hasSuffix("\n"), block != document.blocks.last {
+            if let last = pieces.last, last.utf16.last != 10, block != document.blocks.last {
                 pieces.append("\n")
                 cursor += 1
             }
@@ -178,6 +189,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
 
     /// T10：字体变化后重刷全文属性（display 已在 storage 中，只重铺字体）。
     public func refreshFontAttributes() {
+        guard !hasMarkedText() else { return }
         guard let storage = textStorage else { return }
         let full = NSRange(location: 0, length: storage.length)
         storage.addAttribute(.font, value: bodyFont, range: full)
@@ -200,31 +212,16 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         // markedSourceBefore != nil（marked 会话中，包括取消路径的
         // setMarkedText("")——那时 hasMarkedText() 已 false 但基线还在）。
         if hasMarkedText() || justUnmarked || markedSourceBefore != nil {
-            // 若是 composition 提交（justUnmarked），先记录历史再同步 source。
-            if justUnmarked, let baseSource = markedSourceBefore,
-                let baseSelection = markedSelectionBefore
-            {
-                let commitPatch = Self.wholeRangePatch(from: baseSource, to: newDisplay)
-                let sel = selectedRange()
-                history.record(
-                    MarkdownEditorHistory.RecordInput(
-                        patches: [commitPatch], sourceBefore: baseSource,
-                        selectionBefore: baseSelection,
-                        selectionAfter: MarkdownSelection(
-                            anchorUTF16: sel.location, focusUTF16: NSMaxRange(sel), affinity: .downstream
-                        ),
-                        origin: .composition, name: "composition"
-                    ))
-                markedSourceBefore = nil
-                markedSelectionBefore = nil
-                justUnmarked = false
-            }
             syncSourceFromDisplayWithoutHistory(newDisplay: newDisplay)
             cachedDisplay = newDisplay
+            if justUnmarked {
+                finishCompositionHistory()
+                rebuildProjection()
+            }
             return
         }
 
-        let diff = Self.fastDiff(old: cachedDisplay, new: newDisplay)
+        let diff = displayEditDiff(newDisplay: newDisplay)
         let prefix = diff.prefix
         let replacement = diff.replacement
         let oldText = diff.oldText
@@ -239,22 +236,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         where editDisplayStart >= item.displayStart
             && editDisplayStart <= item.displayStart + item.projection.display.utf16.count
         {
-            let projection = item.projection
-            let localDisplay = editDisplayStart - item.displayStart
-            let sourceStart = projection.sourceOffset(forDisplay: localDisplay) ?? item.block.rangeUTF16.location
-
-            let patch = SourcePatch(
-                rangeUTF16: NSRange(location: sourceStart, length: oldText.utf16.count),
-                expectedText: oldText,
-                replacement: replacement
-            )
-            // patch 必须完整落在本块内：跨块编辑窗（oldText 含块间换行）
-            // 的 display 文本可能与 source 侧后续块内容碰巧重合，仅凭
-            // expectedText 匹配不能证明单块映射成立——越界的一律交给
-            // 跨块 span 路径验证（marked 期间无 span 路径，回退显示）。
-            let withinBlock = sourceStart >= item.block.rangeUTF16.location
-                && sourceStart + oldText.utf16.count <= NSMaxRange(item.block.rangeUTF16)
-            if withinBlock,
+            if let patch = singleBlockPatch(
+                item, displayRange: NSRange(location: editDisplayStart, length: oldText.utf16.count), replacement: replacement),
                 case .success(let newSource) = MarkdownPatchApplier.applyPatches([patch], to: source)
             {
                 // T06：composition 提交已在上方 marked/justUnmarked 分支
@@ -277,7 +260,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                         origin: .typing,
                         name: "typing"
                     ))
-                source = newSource
+                publishSource(newSource, patches: [patch])
                 revision += 1
                 applied = true
                 // T12 输入规则（§4.3 空段前缀）：单空格纯插入完成段首结构
@@ -314,7 +297,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                         origin: .typing,
                         name: "typing-replace"
                     ))
-                source = newSource
+                publishSource(newSource, patches: [patch])
                 revision += 1
                 applied = true
             }
@@ -341,7 +324,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 let lastPatch = history.undoStack.last?.patches.last
             {
                 let sourceCaretAfter = lastPatch.rangeUTF16.location + lastPatch.replacement.utf16.count
-                let display = displayOffset(forSourceOffset: sourceCaretAfter)
+                let display =
+                    displayOffset(forSourceOffset: sourceCaretAfter)
                     ?? min(restore.location, max(0, (string as NSString).length - restore.length))
                 setSelectedRange(NSRange(location: min(display, (string as NSString).length), length: 0))
             } else {
@@ -361,11 +345,30 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         let oldText: String
     }
 
+    private func singleBlockPatch(_ item: RenderedBlock, displayRange: NSRange, replacement: String) -> SourcePatch? {
+        let local = NSRange(location: displayRange.location - item.displayStart, length: displayRange.length)
+        guard local.location >= 0, NSMaxRange(local) <= item.projection.display.utf16.count else { return nil }
+        for segment in item.projection.segments {
+            let range = segment.displayRangeUTF16
+            if range.length == 0, range.location > local.location, range.location < NSMaxRange(local) { return nil }
+            if segment.kind == .attachmentPlaceholder, local.length > 0, NSIntersectionRange(range, local).length > 0,
+                local.location > range.location || NSMaxRange(local) < NSMaxRange(range)
+            {
+                return nil
+            }
+        }
+        let start = item.projection.sourceOffset(forDisplay: local.location) ?? item.block.rangeUTF16.location
+        let end = local.length == 0 ? start : item.projection.sourceOffset(forDisplay: NSMaxRange(local))
+        guard let end, start <= end, start >= item.block.rangeUTF16.location, end <= NSMaxRange(item.block.rangeUTF16) else { return nil }
+        let range = NSRange(location: start, length: end - start)
+        return SourcePatch(rangeUTF16: range, expectedText: (source as NSString).substring(with: range), replacement: replacement)
+    }
+
     /// T06：marked 期间的 source 同步（不登记历史）。映射逻辑与
     /// textDidChange 主路径相同，只是跳过 history.record——SPEC §5.3
     /// 要求临时变化不产生持久化 transaction。
     private func syncSourceFromDisplayWithoutHistory(newDisplay: String) {
-        let diff = Self.fastDiff(old: cachedDisplay, new: newDisplay)
+        let diff = displayEditDiff(newDisplay: newDisplay)
         let prefix = diff.prefix
         let replacement = diff.replacement
         let oldText = diff.oldText
@@ -387,22 +390,47 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             // marked 期间投影保持进入组合时的版本，块长不会随候选增长。
             // 不能拿冻结的块尾验证当前候选范围；实际旧文本由 patch 校验。
             if case .success(let newSource) = MarkdownPatchApplier.applyPatches([patch], to: source) {
-                source = newSource
+                publishSource(newSource, patches: [patch])
                 revision += 1
             }
             break
         }
     }
 
-    /// 构造「整段替换」patch：从 base 到 target 的单一 SourcePatch。
-    /// 用于 composition 提交把整段 marked 内容一次成组（undo 回 composition
-    /// 前需要 base 是 marked 前的 source，而不是最后一次增量前的）。
-    private static func wholeRangePatch(from base: String, to target: String) -> SourcePatch {
-        SourcePatch(
-            rangeUTF16: NSRange(location: 0, length: base.utf16.count),
-            expectedText: base,
-            replacement: target
-        )
+    private func finishCompositionHistory() {
+        guard let baseline = markedSourceBefore, let selection = markedSelectionBefore else { return }
+        if baseline != source {
+            let diff = Self.fastDiff(old: baseline, new: source)
+            let caret = diff.prefix + diff.replacement.utf16.count
+            history.record(
+                MarkdownEditorHistory.RecordInput(
+                    patches: [SourcePatch(rangeUTF16: NSRange(location: diff.prefix, length: diff.oldText.utf16.count), expectedText: diff.oldText, replacement: diff.replacement)],
+                    sourceBefore: baseline, selectionBefore: selection,
+                    selectionAfter: MarkdownSelection(anchorUTF16: caret, focusUTF16: caret, affinity: .downstream),
+                    origin: .composition, name: "composition"))
+        }
+        markedSourceBefore = nil
+        markedSelectionBefore = nil
+        justUnmarked = false
+    }
+
+    public override func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?) -> Bool {
+        let accepted = super.shouldChangeText(in: affectedCharRange, replacementString: replacementString)
+        if accepted, !composingGuard, let replacementString {
+            pendingDisplayEdit = (affectedCharRange, replacementString)
+        }
+        return accepted
+    }
+
+    private func displayEditDiff(newDisplay: String) -> DiffResult {
+        defer { pendingDisplayEdit = nil }
+        if let edit = pendingDisplayEdit, edit.range.location >= 0,
+            NSMaxRange(edit.range) <= (cachedDisplay as NSString).length,
+            (cachedDisplay as NSString).replacingCharacters(in: edit.range, with: edit.replacement) == newDisplay
+        {
+            return DiffResult(prefix: edit.range.location, replacement: edit.replacement, oldText: (cachedDisplay as NSString).substring(with: edit.range))
+        }
+        return Self.fastDiff(old: cachedDisplay, new: newDisplay)
     }
 
     private static func fastDiff(old: String, new: String) -> DiffResult {
@@ -413,11 +441,20 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         while prefix < minLen, oldNS.character(at: prefix) == newNS.character(at: prefix) {
             prefix += 1
         }
+        while prefix > 0, !MarkdownSourceMap(source: old).isGraphemeBoundary(prefix) || !MarkdownSourceMap(source: new).isGraphemeBoundary(prefix) {
+            prefix -= 1
+        }
         var suffix = 0
         while suffix < minLen - prefix,
             oldNS.character(at: oldNS.length - 1 - suffix) == newNS.character(at: newNS.length - 1 - suffix)
         {
             suffix += 1
+        }
+        while suffix > 0,
+            !MarkdownSourceMap(source: old).isGraphemeBoundary(oldNS.length - suffix)
+                || !MarkdownSourceMap(source: new).isGraphemeBoundary(newNS.length - suffix)
+        {
+            suffix -= 1
         }
         let oldStart = prefix
         let oldEnd = oldNS.length - suffix
@@ -450,6 +487,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     // MARK: - 结构命令（Enter/Tab/Backspace/Delete；T12 MarkdownBlockModel 规划）
 
     public func text(_: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        guard !hasMarkedText() else { return false }
         rebuildProjection()  // 结构命令需要准确的块定位
         switch commandSelector {
         case #selector(insertNewline(_:)):
@@ -527,7 +565,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 origin: .structure,
                 name: name
             ))
-        source = newSource
+        publishSource(newSource, patches: patches)
         revision += 1
         rebuildProjection()
         if let caret = restoreSourceCaret {
@@ -535,7 +573,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             // 无 display 映射，回退试下一 unit（行尾换行），再不行 clamp
             // 到 display 末尾（拆分尾空行的落点）。
             let sourceLen = (source as NSString).length
-            let display = displayOffset(forSourceOffset: caret)
+            let display =
+                displayOffset(forSourceOffset: caret)
                 ?? displayOffset(forSourceOffset: min(caret + 1, sourceLen))
                 ?? (string as NSString).length
             setSelectedRange(NSRange(location: min(display, (string as NSString).length), length: 0))
@@ -597,6 +636,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     /// 连续非空白词）。patch 原子应用，未选中范围不动；origin .format。
     @discardableResult
     public func applyInlineFormat(_ kind: MarkdownInlineFormat) -> Bool {
+        guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
         rebuildProjection()
         let sel = selectedRange()
         let ns = string as NSString
@@ -645,7 +685,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 ),
                 origin: .format, name: "format-\(kind.rawValue)"
             ))
-        source = newSource
+        publishSource(newSource, patches: planned.patches)
         revision += 1
         rebuildProjection()
         // selectionAfter 是 source 坐标，映射回 display（unwrap 后区间已在界内）
@@ -724,7 +764,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 // 终点落在块缝：下一块起点的隐藏 marker 一并进入替换区间，
                 // 不得泄漏成可见字面
                 let next = rendered[index + 1]
-                let value = next.projection.sourceOffset(forDisplay: 0)
+                let value =
+                    next.projection.sourceOffset(forDisplay: 0)
                     ?? next.block.rangeUTF16.location
                 return (index + 1, value)
             }
@@ -744,10 +785,12 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     // 重组 undo 单元并留下观察口）
 
     private func evaluateInputRule(insertedOffset: Int) {
-        guard let match = MarkdownInputRules.matchPrefixInsertion(
-            source: source, insertedOffset: insertedOffset,
-            protectedRanges: protectedBlockRanges()
-        ) else { return }
+        guard
+            let match = MarkdownInputRules.matchPrefixInsertion(
+                source: source, insertedOffset: insertedOffset,
+                protectedRanges: protectedBlockRanges()
+            )
+        else { return }
         lastInputRuleTriggered = match
         // 一键 undo 回完整字面前缀：把构成前缀的连续纯插入 typing 合并
         // 为单条（跨时间窗的显式重组；链不完整则保持既有粒度，不吞字）。
@@ -767,7 +810,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     private func protectedBlockRanges() -> [NSRange] {
         document.blocks.compactMap { block in
             switch block.kind {
-            case .codeFence, .codeIndented, .htmlBlock, .table, .frontmatter:
+            case .codeFence, .codeIndented, .htmlBlock, .mathBlock, .table, .frontmatter:
                 return block.rangeUTF16
             default:
                 return nil
@@ -778,15 +821,322 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     /// 粘贴/拖放统一入口：⌘V 与 drop 都经读板路径，在这里置位排除输入
     /// 规则（NE-21 粘贴不触发 typing rule）。
     public override func paste(_ sender: Any?) {
-        isPastingFlag = true
-        defer { isPastingFlag = false }
-        super.paste(sender)
+        _ = readSelection(from: .general)
     }
 
     public override func readSelection(from pboard: NSPasteboard) -> Bool {
+        guard isEditable, !hasMarkedText() else { return false }
+        if let urls = pboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
+            guard urls.count == 1, let url = urls.first else { return false }
+            return importAttachment(.file(url)) != nil
+        }
+        if let bytes = pboard.data(forType: .png) ?? pboard.data(forType: .tiff) {
+            return importAttachment(.image(bytes)) != nil
+        }
+        return paste(from: pboard, mode: .automatic)
+    }
+
+    public override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        readSelection(from: pboard)
+    }
+
+    public override var readablePasteboardTypes: [NSPasteboard.PasteboardType] {
+        [MarkdownClipboardAdapter.markdownType, .fileURL, .png, .tiff, .html, .string]
+    }
+
+    public override var writablePasteboardTypes: [NSPasteboard.PasteboardType] {
+        [.string, MarkdownClipboardAdapter.markdownType]
+    }
+
+    public override func writeSelection(to pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        let range = selectedRange()
+        guard range.length > 0, NSMaxRange(range) <= (string as NSString).length else { return false }
+        if type == .string { return pboard.setString((string as NSString).substring(with: range), forType: type) }
+        guard type == MarkdownClipboardAdapter.markdownType, let selected = clipboardSourceRange() else { return false }
+        return pboard.setString((source as NSString).substring(with: selected), forType: type)
+    }
+
+    @objc func copyVisibleText(_ sender: Any?) {
+        guard selectedRange().length > 0 else { return }
+        NSPasteboard.general.clearContents()
+        _ = writeSelection(to: .general, type: .string)
+    }
+
+    @objc func copyMarkdown(_ sender: Any?) {
+        guard let range = clipboardSourceRange() else { return }
+        NSPasteboard.general.clearContents()
+        let markdown = (source as NSString).substring(with: range)
+        NSPasteboard.general.setString(markdown, forType: .string)
+        NSPasteboard.general.setString(markdown, forType: MarkdownClipboardAdapter.markdownType)
+    }
+
+    @objc func pasteMarkdown(_ sender: Any?) {
+        _ = paste(from: .general, mode: .markdown)
+    }
+
+    public override func pasteAsPlainText(_ sender: Any?) {
+        _ = paste(from: .general, mode: .plain)
+    }
+
+    @discardableResult
+    func paste(from board: NSPasteboard, mode: MarkdownClipboardAdapter.PasteMode) -> Bool {
+        guard isEditable, !hasMarkedText() else { return false }
+        rebuildProjection()
+        guard let range = editingSourceRange(),
+            let text = MarkdownClipboardAdapter.text(from: board, mode: mode, literal: selectionIsLiteral)
+        else { return false }
         isPastingFlag = true
         defer { isPastingFlag = false }
-        return super.readSelection(from: pboard)
+        return replaceSource(range, with: text, origin: .paste, name: "paste")
+    }
+
+    private var selectionIsLiteral: Bool {
+        if selectionIsProtectedBlock { return true }
+        let caret = sourceCaret()
+        for item in rendered {
+            for segment in item.projection.segments where segment.kind == .codeSpan {
+                if caret >= segment.sourceRangeUTF16.location && caret <= NSMaxRange(segment.sourceRangeUTF16) { return true }
+            }
+        }
+        return false
+    }
+
+    private var selectionIsProtectedBlock: Bool {
+        let caret = sourceCaret()
+        for block in document.blocks where caret >= block.rangeUTF16.location && caret < NSMaxRange(block.rangeUTF16) {
+            switch block.kind {
+            case .codeFence, .codeIndented, .htmlBlock, .mathBlock, .frontmatter: return true
+            default: break
+            }
+        }
+        return false
+    }
+
+    private func editingSourceRange() -> NSRange? {
+        let range = selectedRange()
+        guard range.location != NSNotFound, NSMaxRange(range) <= (string as NSString).length else { return nil }
+        if range.location == 0, range.length == (string as NSString).length {
+            return NSRange(location: 0, length: source.utf16.count)
+        }
+        if range.length == 0 { return NSRange(location: sourceCaret(), length: 0) }
+        return sourceRangeSpanningBlocks(forDisplayRange: range) ?? sourceRange(forDisplayRange: range)
+    }
+
+    private func clipboardSourceRange() -> NSRange? {
+        guard selectedRange().length > 0, var range = editingSourceRange() else { return nil }
+        let selection = selectedRange()
+        for item in rendered {
+            for segment in item.projection.segments where segment.displayRangeUTF16.length == 0 {
+                let position = item.displayStart + segment.displayRangeUTF16.location
+                if (position == selection.location && segment.isOpening)
+                    || (position == NSMaxRange(selection) && !segment.isOpening)
+                {
+                    range = NSUnionRange(range, segment.sourceRangeUTF16)
+                }
+            }
+        }
+        return range
+    }
+
+    @discardableResult
+    private func replaceSource(_ range: NSRange, with replacement: String, origin: EditOrigin, name: String) -> Bool {
+        guard isEditable, !hasMarkedText(), range.location >= 0, range.length >= 0,
+            NSMaxRange(range) <= (source as NSString).length
+        else { return false }
+        let patch = SourcePatch(rangeUTF16: range, expectedText: (source as NSString).substring(with: range), replacement: replacement)
+        guard case .success(let updated) = MarkdownPatchApplier.applyPatches([patch], to: source) else { return false }
+        if source == updated { return true }
+        let caret = range.location + replacement.utf16.count
+        history.record(
+            MarkdownEditorHistory.RecordInput(
+                patches: [patch], sourceBefore: source,
+                selectionBefore: MarkdownSelection(anchorUTF16: range.location, focusUTF16: NSMaxRange(range), affinity: .downstream),
+                selectionAfter: MarkdownSelection(anchorUTF16: caret, focusUTF16: caret, affinity: .downstream), origin: origin, name: name))
+        publishSource(updated, patches: [patch])
+        revision += 1
+        rebuildProjection()
+        restoreSelectionFromSource(MarkdownSelection(anchorUTF16: caret, focusUTF16: caret, affinity: .downstream))
+        return true
+    }
+
+    public override func menu(for event: NSEvent) -> NSMenu? {
+        guard let menu = super.menu(for: event) else { return nil }
+        menu.addItem(.separator())
+        let actions: [(String, Selector)] = [
+            ("Copy Visible Text", #selector(copyVisibleText(_:))), ("Copy Markdown", #selector(copyMarkdown(_:))),
+            ("Paste Plain Text", #selector(pasteAsPlainText(_:))), ("Paste Markdown", #selector(pasteMarkdown(_:))),
+        ]
+        for (title, action) in actions {
+            let item = NSMenuItem(title: I18n.str(title), action: action, keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+        if linkAtSelection()?.isImage == true {
+            let item = NSMenuItem(title: I18n.str("Edit Image"), action: #selector(editImage(_:)), keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    func configureAttachmentOwner(url: URL, isValid: @escaping () -> Bool) {
+        invalidateAttachmentRequests()
+        attachmentOwnerURL = url
+        attachmentOwnerIsValid = isValid
+    }
+
+    func invalidateAttachmentRequests() {
+        attachmentAnchors.removeAll()
+    }
+
+    func beginAttachmentRequest() -> UUID? {
+        guard isEditable, !hasMarkedText(), !selectionIsLiteral,
+            attachmentOwnerIsValid?() == true, let range = editingSourceRange()
+        else { return nil }
+        let requestID = UUID()
+        attachmentAnchors[requestID] = range
+        return requestID
+    }
+
+    @discardableResult
+    func completeAttachmentRequest(_ requestID: UUID, written: MarkdownAttachmentWriter.Written) -> Bool {
+        guard !completedAttachmentRequests.contains(requestID) else { return false }
+        guard let range = attachmentAnchors.removeValue(forKey: requestID),
+            attachmentOwnerIsValid?() == true, !hasMarkedText()
+        else {
+            MarkdownAttachmentWriter.discard(written)
+            return false
+        }
+        guard replaceSource(range, with: written.markdown, origin: .attachment, name: "attachment") else {
+            MarkdownAttachmentWriter.discard(written)
+            return false
+        }
+        completedAttachmentRequests.insert(requestID)
+        return true
+    }
+
+    @discardableResult
+    func importAttachment(_ input: MarkdownAttachmentWriter.Input) -> Task<Void, Never>? {
+        guard let noteURL = attachmentOwnerURL, let requestID = beginAttachmentRequest() else { return nil }
+        return Task { @MainActor [weak self] in
+            let result = await Task.detached {
+                Result { try MarkdownAttachmentWriter.write(input, noteURL: noteURL) }
+            }.value
+            guard let self else {
+                if case .success(let written) = result { MarkdownAttachmentWriter.discard(written) }
+                return
+            }
+            switch result {
+            case .success(let written):
+                if self.completeAttachmentRequest(requestID, written: written) {
+                    self.lastAttachmentError = nil
+                    self.onAttachmentFinished?(.success(written.url))
+                } else {
+                    self.lastAttachmentError = EditRejection.staleRevision
+                    self.onAttachmentFinished?(.failure(EditRejection.staleRevision))
+                    AppDelegate.trackError(EditRejection.staleRevision, context: "RichMarkdownTextView.attachmentAnchor")
+                }
+            case .failure(let error):
+                self.attachmentAnchors.removeValue(forKey: requestID)
+                self.lastAttachmentError = error
+                self.onAttachmentFinished?(.failure(error))
+                AppDelegate.trackError(error, context: "RichMarkdownTextView.importAttachment")
+            }
+        }
+    }
+
+    private func publishSource(_ updated: String, patches: [SourcePatch]) {
+        for patch in patches.sorted(by: { $0.rangeUTF16.location > $1.rangeUTF16.location }) {
+            let change = patch.rangeUTF16
+            let delta = patch.replacement.utf16.count - change.length
+            for (requestID, anchor) in attachmentAnchors {
+                if anchor.length == 0, change.length > 0, NSMaxRange(change) == anchor.location {
+                    attachmentAnchors.removeValue(forKey: requestID)
+                } else if NSMaxRange(change) <= anchor.location {
+                    attachmentAnchors[requestID] = NSRange(location: anchor.location + delta, length: anchor.length)
+                } else if change.location < NSMaxRange(anchor) || (anchor.length == 0 && change.location <= anchor.location) {
+                    attachmentAnchors.removeValue(forKey: requestID)
+                }
+            }
+        }
+        source = updated
+    }
+
+    public override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        acceptedDragOperation(sender)
+    }
+
+    public override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        acceptedDragOperation(sender)
+    }
+
+    public override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        acceptedDragOperation(sender) == .copy
+    }
+
+    private func acceptedDragOperation(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard isEditable, !hasMarkedText(), sender.draggingSourceOperationMask.contains(.copy),
+            sender.draggingPasteboard.availableType(from: readablePasteboardTypes) != nil
+        else { return [] }
+        if let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
+            guard urls.count == 1, attachmentOwnerIsValid?() == true else { return [] }
+        }
+        return .copy
+    }
+
+    public override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard acceptedDragOperation(sender) == .copy else { return false }
+        let point = convert(sender.draggingLocation, from: nil)
+        let offset = characterIndexForInsertion(at: point)
+        setSelectedRange(NSRange(location: offset, length: 0))
+        return readSelection(from: sender.draggingPasteboard)
+    }
+
+    @discardableResult
+    func updateImage(alt: String, target: String, title: String?) -> Bool {
+        guard !selectionIsLiteral, let span = linkAtSelection(), span.isImage,
+            MarkdownLinkSafety.isEditableTarget(target), !alt.contains("\n"), !alt.contains("\r"),
+            !target.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
+            title?.contains("\n") != true, title?.contains("\r") != true
+        else { return false }
+        let label = alt.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]")
+        let destination = target.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "(", with: "\\(").replacingOccurrences(of: ")", with: "\\)")
+            .replacingOccurrences(of: " ", with: "%20")
+            .replacingOccurrences(of: "<", with: "%3C").replacingOccurrences(of: ">", with: "%3E").replacingOccurrences(of: "\"", with: "%22")
+        let suffix = title.map { " \"" + $0.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\"" } ?? ""
+        return replaceSource(span.fullRangeUTF16, with: "![\(label)](\(destination)\(suffix))", origin: .format, name: "image-metadata")
+    }
+
+    @objc private func editImage(_ sender: Any?) {
+        guard isEditable, !hasMarkedText(), let span = linkAtSelection(), span.isImage else { return }
+        let capturedRevision = revision
+        let alert = NSAlert()
+        alert.messageText = I18n.str("Edit Image")
+        alert.addButton(withTitle: I18n.str("Save"))
+        alert.addButton(withTitle: I18n.str("Cancel"))
+        let fields = [
+            NSTextField(string: InlineLinkScanner.unescape(span.label)),
+            NSTextField(string: InlineLinkScanner.unescape(span.target)), NSTextField(string: span.title ?? ""),
+        ]
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 8
+        for (field, title) in zip(fields, ["Alternative Text", "Image URL", "Image Title"]) {
+            stack.addArrangedSubview(NSTextField(labelWithString: I18n.str(title)))
+            field.setAccessibilityLabel(I18n.str(title))
+            field.widthAnchor.constraint(equalToConstant: 320).isActive = true
+            stack.addArrangedSubview(field)
+        }
+        stack.frame = NSRect(x: 0, y: 0, width: 320, height: 164)
+        alert.accessoryView = stack
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard revision == capturedRevision else { NSSound.beep(); return }
+        if !updateImage(alt: fields[0].stringValue, target: fields[1].stringValue, title: fields[2].stringValue.isEmpty ? nil : fields[2].stringValue) {
+            NSSound.beep()
+        }
     }
 
     /// selection/caret 命中的 inline link（label 或 target 均算命中）。
@@ -802,6 +1152,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     /// 安全 scheme 白名单校验；拒绝时不动 source 并返回 false。
     @discardableResult
     public func updateLinkTarget(_ newTarget: String) -> Bool {
+        guard isEditable, !hasMarkedText(), !selectionIsLiteral else { return false }
         rebuildProjection()
         guard let span = linkAtSelection(), !span.isImage else { return false }
         guard MarkdownLinkSafety.isEditableTarget(newTarget), newTarget != span.target else {
@@ -826,7 +1177,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 ),
                 origin: .format, name: "link-target"
             ))
-        source = newSource
+        publishSource(newSource, patches: [patch])
         revision += 1
         rebuildProjection()
         if let display = displayOffset(forSourceOffset: caretAfter) {
@@ -855,6 +1206,38 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
 
     // MARK: - undo / redo
 
+    @objc(undo:) public func undoAction(_ sender: Any?) {
+        _ = performUndo()
+    }
+
+    @objc(redo:) public func redoAction(_ sender: Any?) {
+        _ = performRedo()
+    }
+
+    public override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        switch item.action {
+        case NSSelectorFromString("undo:"):
+            return isEditable && !hasMarkedText() && history.canUndo
+        case NSSelectorFromString("redo:"):
+            return isEditable && !hasMarkedText() && history.canRedo
+        case #selector(copyVisibleText(_:)), #selector(copyMarkdown(_:)):
+            return selectedRange().length > 0
+        case #selector(pasteMarkdown(_:)), #selector(pasteAsPlainText(_:)):
+            return isEditable && !hasMarkedText() && NSPasteboard.general.availableType(from: [.string, MarkdownClipboardAdapter.markdownType]) != nil
+        case #selector(editImage(_:)):
+            return isEditable && !hasMarkedText() && linkAtSelection()?.isImage == true
+        default:
+            return super.validateUserInterfaceItem(item)
+        }
+    }
+
+    public override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == NSSelectorFromString("undo:") || menuItem.action == NSSelectorFromString("redo:") {
+            return validateUserInterfaceItem(menuItem)
+        }
+        return super.validateMenuItem(menuItem)
+    }
+
     /// T06：undo/redo 经 history 返回新 source 与 selection，view 推进
     /// 自己的 revision（每次外观变更都是新 revision，包括 undo）。不允许
     /// 以「回退到旧 revision」冒充——旧 async 任务必须按 revision 失效。
@@ -863,8 +1246,10 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     /// 映射失败 clamp 到 display 长度，绝不落到投影外。
     @discardableResult
     public func performUndo() -> Bool {
+        guard isEditable, !hasMarkedText() else { return false }
         rebuildProjection()
         guard let undo = history.undo(currentSource: source) else { return false }
+        invalidateAttachmentRequests()
         source = undo.source
         revision += 1
         rebuildProjection()
@@ -874,8 +1259,10 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
 
     @discardableResult
     public func performRedo() -> Bool {
+        guard isEditable, !hasMarkedText() else { return false }
         rebuildProjection()
         guard let redo = history.redo(currentSource: source) else { return false }
+        invalidateAttachmentRequests()
         source = redo.source
         revision += 1
         rebuildProjection()
@@ -885,7 +1272,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
 
     private func restoreSelectionFromSource(_ selection: MarkdownSelection) {
         let displayLen = (string as NSString).length
-        let focus = displayOffset(forSourceOffset: selection.focusUTF16)
+        let focus =
+            displayOffset(forSourceOffset: selection.focusUTF16)
             ?? min(selection.focusUTF16, displayLen)
         setSelectedRange(NSRange(location: min(focus, displayLen), length: 0))
     }
@@ -935,9 +1323,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             textDidChange(Notification(name: NSText.didChangeNotification, object: self))
         } else {
             // 取消或无净变化：清掉基线，不留下一次提交的假 composition。
-            markedSourceBefore = nil
-            markedSelectionBefore = nil
-            justUnmarked = false
+            finishCompositionHistory()
             // G0 修复：保存/恢复 selection（setAttributedString 会重置到 0）
             let sel = selectedRange()
             rebuildProjection()

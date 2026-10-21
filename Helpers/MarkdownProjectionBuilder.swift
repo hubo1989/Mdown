@@ -48,6 +48,7 @@ struct MarkdownProjectionBuilder {
             if let inner = segments.first(where: {
                 offset > $0.displayRangeUTF16.location && offset < NSMaxRange($0.displayRangeUTF16)
             }) {
+                if inner.kind == .attachmentPlaceholder { return NSMaxRange(inner.sourceRangeUTF16) }
                 return linearMap(offset, from: inner.displayRangeUTF16, to: inner.sourceRangeUTF16)
             }
             // 边界匹配跳过 0 显示长的段：marker 段无显示表面，其端点不代表
@@ -112,7 +113,7 @@ struct MarkdownProjectionBuilder {
         switch block.kind {
         case .frontmatter:
             return plain(blockText, kind: .metadata, base: block.rangeUTF16.location)
-        case .codeFence, .codeIndented, .htmlBlock, .table, .thematicBreak, .blank:
+        case .codeFence, .codeIndented, .htmlBlock, .mathBlock, .table, .thematicBreak, .blank:
             return plain(blockText, kind: .plainFallback, base: block.rangeUTF16.location)
         case .heading(let level):
             let text = blockText as NSString
@@ -237,8 +238,15 @@ struct MarkdownProjectionBuilder {
         while cursor < total {
             let ch = ns.character(at: cursor)
             // 转义：下一个字符原样并入文本
-            if ch == asciiUnit("\\"), cursor + 1 < total {
-                appendText(cursor, cursor + 2)
+            if ch == asciiUnit("\\"), cursor + 1 < total,
+                let scalar = UnicodeScalar(ns.character(at: cursor + 1)), CharacterSet.punctuationCharacters.union(.symbols).contains(scalar),
+                scalar.isASCII
+            {
+                segments.append(
+                    Segment(
+                        kind: .text,
+                        sourceRangeUTF16: NSRange(location: base + cursor, length: 2),
+                        displayRangeUTF16: NSRange(location: -1, length: 1), displayText: String(scalar)))
                 cursor += 2
                 continue
             }
@@ -496,6 +504,15 @@ struct MarkdownProjectionBuilder {
     }
 
     private func linkSegments(at i: Int, in ns: NSString, isImage: Bool, base: Int, limit: Int) -> [Segment]? {
+        if isImage, let span = InlineLinkScanner.span(at: i, in: ns as String), NSMaxRange(span.fullRangeUTF16) <= limit {
+            return [
+                Segment(
+                    kind: .attachmentPlaceholder,
+                    sourceRangeUTF16: NSRange(location: base + i, length: span.fullRangeUTF16.length),
+                    displayRangeUTF16: NSRange(location: -1, length: 0),
+                    displayText: span.label.isEmpty ? "[图]" : InlineLinkScanner.unescape(span.label))
+            ]
+        }
         let openBracket = i + (isImage ? 1 : 0)
         guard let labelEnd = findUnescaped("]", from: openBracket + 1, in: ns, limit: limit),
             labelEnd + 1 < limit,
@@ -527,7 +544,7 @@ struct MarkdownProjectionBuilder {
                 kind: isImage ? .attachmentPlaceholder : .text,
                 sourceRangeUTF16: NSRange(location: base + labelStart, length: labelRange.length),
                 displayRangeUTF16: NSRange(location: -1, length: labelRange.length),
-                displayText: isImage ? "[图]" : ns.substring(with: labelRange)
+                displayText: isImage && labelRange.length == 0 ? "[图]" : ns.substring(with: labelRange)
             ))
         segments.append(
             Segment(

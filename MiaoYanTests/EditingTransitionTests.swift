@@ -9,9 +9,11 @@ import XCTest
 final class EditingTransitionTests: XCTestCase {
 
     private var tempDir: URL!
+    private var saveErrors: [NSError] = []
 
     override func setUp() {
         super.setUp()
+        saveErrors = []
         tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("MiaoYanEditingTransitionTests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -93,6 +95,9 @@ final class EditingTransitionTests: XCTestCase {
         try body.write(to: url, atomically: true, encoding: .utf8)
         let project = Project(url: tempDir, label: "test", isRoot: true)
         let note = Note(url: url, with: project)
+        note.saveErrorPresenter = { [weak self] error in
+            self?.saveErrors.append(error as NSError)
+        }
         note.content = NSMutableAttributedString(string: body)
         return note
     }
@@ -180,6 +185,30 @@ final class EditingTransitionTests: XCTestCase {
     // MARK: - 退出网关（close/quit 可取消）
 
     @MainActor
+    func testWriteFailureReportsErrorWithoutModalAndRetryPersistsDraft() async throws {
+        let note = try makeNote(body: "orig")
+        note.commit(content: NSMutableAttributedString(string: "draft"))
+        try makeDirReadOnly()
+
+        XCTAssertEqual(note.flushPendingSaveOutcome(globalStorage: false), .failed)
+        XCTAssertEqual(saveErrors.count, 1)
+        XCTAssertEqual(saveErrors.first?.domain, NSCocoaErrorDomain)
+        XCTAssertEqual(saveErrors.first?.code, CocoaError.fileWriteNoPermission.rawValue)
+        XCTAssertTrue(note.needsSave)
+        XCTAssertEqual(note.content.string, "draft")
+        XCTAssertEqual(try diskBody(note), "orig")
+
+        let modalWindow = NSApp.modalWindow
+        await Task.yield()
+        XCTAssertTrue(NSApp.modalWindow === modalWindow)
+        try makeDirWritable()
+        XCTAssertEqual(note.flushPendingSaveOutcome(globalStorage: false), .saved)
+        XCTAssertFalse(note.needsSave)
+        XCTAssertEqual(try diskBody(note), "draft")
+        XCTAssertEqual(saveErrors.count, 1)
+    }
+
+    @MainActor
     func testPrepareExitAllowsCleanCloseWithoutAlert() throws {
         let note = try makeNote(body: "orig")
         let context = StubContext(note: note)
@@ -198,6 +227,7 @@ final class EditingTransitionTests: XCTestCase {
         let (coordinator, presenter) = makeCoordinator(choices: [.cancel])
 
         XCTAssertFalse(coordinator.prepareExit(in: context), "Cancel 必须阻止关窗/退出")
+        XCTAssertEqual(saveErrors.count, 1)
         XCTAssertEqual(presenter.alertCount, 1)
         XCTAssertTrue(note.needsSave, "失败后草稿保持 dirty 可重试")
     }
@@ -225,6 +255,7 @@ final class EditingTransitionTests: XCTestCase {
 
         XCTAssertTrue(coordinator.prepareExit(in: context))
         XCTAssertFalse(note.needsSave)
+        XCTAssertEqual(saveErrors.count, 1)
         XCTAssertEqual(try diskBody(note), "draft")
     }
 

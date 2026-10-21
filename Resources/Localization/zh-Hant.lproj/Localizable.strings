@@ -1,5 +1,15 @@
 /* About Window */
 "About" = "關於";
+"Copy Visible Text" = "拷貝可見文字";
+"Copy Markdown" = "拷貝 Markdown";
+"Paste Plain Text" = "貼上純文字";
+"Paste Markdown" = "貼上 Markdown";
+"Edit Image" = "編輯圖片";
+"Save" = "儲存";
+"Alternative Text" = "替代文字";
+"Image URL" = "圖片位址";
+"Image Title" = "圖片標題";
+"Attachment could not be inserted. Please try again." = "附件插入失敗，請重試。";
 
 /* No comment provided by engineer. */
 "%d MiaoYan" = "%d 篇 Mdown";

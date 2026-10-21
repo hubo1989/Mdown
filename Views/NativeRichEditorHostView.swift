@@ -23,6 +23,12 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
     public private(set) var textView: RichMarkdownTextView
     public private(set) weak var currentNote: Note?
 
+    public override var isHidden: Bool {
+        didSet {
+            if isHidden { textView.invalidateAttachmentRequests() }
+        }
+    }
+
     /// 装载失败回调（T10 降级路径，NE-36）：磁盘读取失败的笔记由调用方
     /// 仅对当前笔记回 source 显示；全局 layout pref 不动。
     var onNoteLoadFailure: ((Note) -> Void)?
@@ -47,7 +53,11 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = false
-        // RichMarkdownTextView 自带 textContainer（widthTracksTextView=false）
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
         scrollView.documentView = textView
         addSubview(scrollView)
         NSLayoutConstraint.activate([
@@ -67,9 +77,19 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    public override func layout() {
+        super.layout()
+        let viewport = scrollView.contentSize
+        textView.minSize = NSSize(width: 0, height: viewport.height)
+        if textView.frame.width != viewport.width || textView.frame.height < viewport.height {
+            textView.setFrameSize(NSSize(width: viewport.width, height: max(textView.frame.height, viewport.height)))
+        }
+    }
+
     // MARK: - WysiwygEditingBackend
 
     public func loadNote(_ note: Note) {
+        textView.invalidateAttachmentRequests()
         // 旧笔记的未保存草稿先落盘（与 Vditor loadNote 一致：纯浏览切换
         // 不得写盘，有编辑才写）。
         if let outgoing = currentNote, hasUnsavedChanges {
@@ -136,6 +156,21 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
         let markdown = note.content.string
         lastLoadedMarkdown = markdown
         textView.setSource(markdown)
+        let token = loadToken
+        let url = note.url
+        let generation = note.editGeneration
+        textView.configureAttachmentOwner(url: url) { [weak self, weak note] in
+            guard let self, let note else { return false }
+            return self.currentNote === note && self.loadToken == token && !self.isHidden
+                && !note.isRetiredForEditing && !note.project.isTrash
+                && note.url == url && note.editGeneration == generation
+                && FileManager.default.fileExists(atPath: url.path)
+        }
+        textView.onAttachmentFinished = { [weak self] result in
+            if case .failure = result {
+                self?.getViewController()?.toast(message: I18n.str("Attachment could not be inserted. Please try again."), style: .info)
+            }
+        }
         restoreSelectionAnchor()
     }
 
