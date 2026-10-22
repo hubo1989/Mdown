@@ -20,10 +20,12 @@ WebView)——未进入预览/分栏时为 nil,保持既有 no-op 行为,不新�
 
 ## T20 剩余(不冒充)
 
-1. 运行级导出验证(PDF 中文/emoji/复制搜索/链接/outline/页眉页脚、
-   Mermaid PNG/SVG 单块):需 UI 流程;Mermaid/KaTeX 运行用例在本机
-   WebKit 环境不可运行(基线已证,见 T13/T23 记录)——独立调查进行中,
-   结论出来前不计 pass。
+1. 运行级导出验证:
+   - ~~Mermaid/KaTeX 运行用例~~ **已通**——原"环境限制"是测试 harness
+     的外置卷 file:// 沙箱问题,修复后 HtmlManagerTests/MermaidExportTests
+     全绿;单块导出的 RenderedBlockExportController 路径有覆盖。
+   - PDF 面板导出(中文/emoji/复制搜索/链接/outline/页眉页脚)是
+     NSSavePanel 驱动的 UI 流程,不能 headless 自动化,留实机验证。
 2. iOS 读取回归(共享 resource 触及时 mobile build + simulator)——
    本阶段未触 iOS target。
 3. 预检期间 source/主题变化取消旧操作的运行级矩阵(T17 状态层有单测)。
