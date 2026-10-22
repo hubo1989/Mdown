@@ -228,6 +228,8 @@
 		A11B0C0DEF01020304050607 /* MarkdownInlineEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B60 /* MarkdownListEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B62 /* MarkdownInputRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */; };
+		C15000000000000000000001 /* NativeCodeHighlighterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C15000000000000000000002 /* NativeCodeHighlighterTests.swift */; };
+		C15000000000000000000003 /* NativeCodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C15000000000000000000004 /* NativeCodeHighlighter.swift */; };
 		C14000000000000000000001 /* MarkdownEditorCommandAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14000000000000000000002 /* MarkdownEditorCommandAdapter.swift */; };
 		C14000000000000000000003 /* MarkdownCommandRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14000000000000000000004 /* MarkdownCommandRoutingTests.swift */; };
 		C14000000000000000000005 /* PreviewEditIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14000000000000000000006 /* PreviewEditIntentTests.swift */; };
@@ -495,6 +497,8 @@
 		A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInlineEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownListEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInputRulesTests.swift; sourceTree = "<group>"; };
+		C15000000000000000000002 /* NativeCodeHighlighterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCodeHighlighterTests.swift; sourceTree = "<group>"; };
+		C15000000000000000000004 /* NativeCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCodeHighlighter.swift; sourceTree = "<group>"; };
 		C14000000000000000000002 /* MarkdownEditorCommandAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorCommandAdapter.swift; sourceTree = "<group>"; };
 		C14000000000000000000004 /* MarkdownCommandRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownCommandRoutingTests.swift; sourceTree = "<group>"; };
 		C14000000000000000000006 /* PreviewEditIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewEditIntentTests.swift; sourceTree = "<group>"; };
@@ -633,6 +637,7 @@
 				C13000000000000000000002 /* MarkdownClipboardTests.swift */,
 				C13000000000000000000004 /* MarkdownRawBlockEditingTests.swift */,
 				C14000000000000000000004 /* MarkdownCommandRoutingTests.swift */,
+				C15000000000000000000002 /* NativeCodeHighlighterTests.swift */,
 				C14000000000000000000006 /* PreviewEditIntentTests.swift */,
 				B6B788393DA817D0A6AD2FE3 /* MarkdownEditingSessionTests.swift */,
 				1C7BA8C505C9D6F2A9562427 /* MarkdownCompositionTests.swift */,
@@ -910,6 +915,7 @@
 				A1B2C3D4E5F60718293A4B5F /* MarkdownInputRules.swift */,
 				C13000000000000000000006 /* MarkdownClipboardAdapter.swift */,
 				C14000000000000000000002 /* MarkdownEditorCommandAdapter.swift */,
+				C15000000000000000000004 /* NativeCodeHighlighter.swift */,
 				C13000000000000000000008 /* MarkdownAttachmentWriter.swift */,
 );
 			path = Helpers;
@@ -1225,6 +1231,7 @@
 				C13000000000000000000001 /* MarkdownClipboardTests.swift in Sources */,
 				C13000000000000000000003 /* MarkdownRawBlockEditingTests.swift in Sources */,
 				C14000000000000000000003 /* MarkdownCommandRoutingTests.swift in Sources */,
+				C15000000000000000000001 /* NativeCodeHighlighterTests.swift in Sources */,
 				C14000000000000000000005 /* PreviewEditIntentTests.swift in Sources */,
 				5287E2EC852C6B3430FB5872 /* MarkdownEditingSessionTests.swift in Sources */,
 				51E95D8D4B21865372D42D48 /* MarkdownCompositionTests.swift in Sources */,
@@ -1356,6 +1363,7 @@
 				A1B2C3D4E5F60718293A4B5E /* MarkdownInputRules.swift in Sources */,
 				C13000000000000000000005 /* MarkdownClipboardAdapter.swift in Sources */,
 				C14000000000000000000001 /* MarkdownEditorCommandAdapter.swift in Sources */,
+				C15000000000000000000003 /* NativeCodeHighlighter.swift in Sources */,
 				C13000000000000000000007 /* MarkdownAttachmentWriter.swift in Sources */,
 				A5AF1EC1E3506C998ECE0C7A /* MarkdownEditingSession.swift in Sources */,
 				109B149EC1A3DDE3E3CD248B /* EditTextView+EditingSession.swift in Sources */,

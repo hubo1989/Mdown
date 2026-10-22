@@ -1,5 +1,4 @@
 import Cocoa
-import Highlightr
 
 @MainActor
 enum CodeBlockHighlighter {
@@ -43,34 +42,26 @@ enum CodeBlockHighlighter {
             return
         }
 
-        guard let highlighter = NotesTextProcessor.getHighlighter() else {
-            applyBasicCodeStyle(attributedString: attributedString, range: range)
-            return
-        }
-
         let codeString = attributedString.mutableString.substring(with: range)
         let preDefinedLanguage = language ?? NotesTextProcessor.getLanguage(codeString)
 
-        guard let code = highlighter.highlight(codeString, as: preDefinedLanguage),
-            code.string == attributedString.mutableString.substring(with: range)
+        // T15:NativeCodeHighlighter token(UTF-16 子区间)上色,正文不变;
+        // 未知语言返回 nil → 基础 code 样式。
+        guard
+            let tokens = NativeCodeHighlighter.highlight(
+                code: codeString, language: preDefinedLanguage)
         else {
             applyBasicCodeStyle(attributedString: attributedString, range: range)
             return
         }
 
-        code.enumerateAttributes(in: NSRange(location: 0, length: code.length)) { attrs, locRange, _ in
-            let fixedRange = NSRange(
-                location: range.location + locRange.location,
-                length: min(locRange.length, attributedString.length - (range.location + locRange.location))
-            )
-
-            guard fixedRange.length > 0, fixedRange.upperBound <= attributedString.length else {
-                return
-            }
-
-            attributedString.addAttributes(attrs, range: fixedRange)
-            if let font = NotesTextProcessor.codeFont {
-                attributedString.addAttribute(.font, value: font, range: fixedRange)
+        applyBasicCodeStyle(attributedString: attributedString, range: range)
+        let palette = tokenPalette(isDark: AppEnvironment.current.userData.isDark)
+        for tk in tokens {
+            let fixed = NSRange(location: range.location + tk.range.location, length: tk.range.length)
+            guard fixed.length > 0, NSMaxRange(fixed) <= attributedString.length else { continue }
+            if let color = palette[tk.kind] {
+                attributedString.addAttribute(.foregroundColor, value: color, range: fixed)
             }
         }
 
@@ -100,6 +91,33 @@ enum CodeBlockHighlighter {
             }
             highlightCode(attributedString: attributedString, range: codeRange)
         }
+    }
+
+    /// token 类别 → 主题色(明暗两套;与既有 code 基色同风格的手挑值)。
+    private static func tokenPalette(isDark: Bool) -> [NativeCodeTokenKind: NSColor] {
+        isDark
+            ? [
+                .keyword: NSColor(calibratedRed: 0.78, green: 0.55, blue: 0.96, alpha: 1),
+                .string: NSColor(calibratedRed: 0.79, green: 0.82, blue: 0.48, alpha: 1),
+                .number: NSColor(calibratedRed: 0.87, green: 0.63, blue: 0.44, alpha: 1),
+                .comment: NSColor(calibratedRed: 0.45, green: 0.50, blue: 0.56, alpha: 1),
+                .type: NSColor(calibratedRed: 0.55, green: 0.80, blue: 0.90, alpha: 1),
+                .property: NSColor(calibratedRed: 0.55, green: 0.80, blue: 0.90, alpha: 1),
+                .tag: NSColor(calibratedRed: 0.55, green: 0.80, blue: 0.90, alpha: 1),
+                .attribute: NSColor(calibratedRed: 0.79, green: 0.82, blue: 0.48, alpha: 1),
+                .literal: NSColor(calibratedRed: 0.87, green: 0.63, blue: 0.44, alpha: 1),
+            ]
+            : [
+                .keyword: NSColor(calibratedRed: 0.53, green: 0.18, blue: 0.72, alpha: 1),
+                .string: NSColor(calibratedRed: 0.36, green: 0.46, blue: 0.10, alpha: 1),
+                .number: NSColor(calibratedRed: 0.70, green: 0.25, blue: 0.10, alpha: 1),
+                .comment: NSColor(calibratedRed: 0.45, green: 0.50, blue: 0.56, alpha: 1),
+                .type: NSColor(calibratedRed: 0.10, green: 0.35, blue: 0.75, alpha: 1),
+                .property: NSColor(calibratedRed: 0.10, green: 0.35, blue: 0.75, alpha: 1),
+                .tag: NSColor(calibratedRed: 0.10, green: 0.35, blue: 0.75, alpha: 1),
+                .attribute: NSColor(calibratedRed: 0.36, green: 0.46, blue: 0.10, alpha: 1),
+                .literal: NSColor(calibratedRed: 0.70, green: 0.25, blue: 0.10, alpha: 1),
+            ]
     }
 
     private static func applyBasicCodeStyle(attributedString: NSMutableAttributedString, range: NSRange) {

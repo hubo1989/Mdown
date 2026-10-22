@@ -1,6 +1,5 @@
 import Carbon.HIToolbox
 import Cocoa
-import Highlightr
 
 // Configuration options for EditTextView fill operations
 struct FillOptions {
@@ -1167,7 +1166,6 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
             UserDataService.instance.isDark = effectiveAppearance.isDark
         }
 
-        NotesTextProcessor.hl = nil
         NotesTextProcessor.highlight(note: note)
 
         // Don't toggle preview mode on theme change - just refresh the preview content
