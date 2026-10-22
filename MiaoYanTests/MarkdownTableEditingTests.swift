@@ -141,3 +141,57 @@ final class MarkdownTableEditingTests: XCTestCase {
         }
     }
 }
+
+// MARK: - rich 面表格交互(T16 part 2;G0 定单 TextKit 投影)
+
+extension MarkdownTableEditingTests {
+
+    private var tableSource: String { "| a | bb |\n| --- | --- |\n| c | d |\n" }
+
+    @MainActor
+    private func makeTable() -> RichMarkdownTextView {
+        RichMarkdownTextView(source: tableSource)
+    }
+
+    @MainActor
+    func testTabMovesCaretBetweenCells() {
+        let view = makeTable()
+        // caret 在 "a" 后(display 与 source 在 table 块内 1:1)
+        view.setSelectedRange(NSRange(location: 2, length: 0))
+        XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertTab(_:))))
+        XCTAssertEqual(view.selectedRange().location, 6, "Tab 应跳到第二格 \"bb\" 起点")
+
+        XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertBacktab(_:))))
+        XCTAssertEqual(view.selectedRange().location, 2, "Shift+Tab 应回到 \"a\" 内")
+    }
+
+    @MainActor
+    func testEnterInLastCellAppendsRowAsUndoableTransaction() {
+        let view = makeTable()
+        view.setSelectedRange(NSRange(location: 32, length: 0))  // "d" 后
+        let revisionBefore = view.revision
+        XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertNewline(_:))))
+        XCTAssertEqual(view.revision, revisionBefore + 1, "加行是一次结构事务")
+        XCTAssertTrue(view.source.hasSuffix("|  |  |\n"), view.source)
+        XCTAssertTrue(view.performUndo())
+        XCTAssertEqual(view.source, tableSource, "单步 undo 回到原表")
+    }
+
+    @MainActor
+    func testEnterInNonLastRowJumpsToCellBelow() {
+        let view = makeTable()
+        view.setSelectedRange(NSRange(location: 2, length: 0))  // "a" 后
+        XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertNewline(_:))))
+        XCTAssertEqual(view.selectedRange().location, 27, "Enter 应跳到正下方 \"c\" 起点")
+        XCTAssertEqual(view.source, tableSource, "非末行 Enter 不改正文")
+    }
+
+    @MainActor
+    func testTabOutsideTableFallsBackToStructuralHandling() {
+        let view = RichMarkdownTextView(source: "- item\n")
+        view.setSelectedRange(NSRange(location: 3, length: 0))
+        // list 内 Tab 走既有缩进路径;返回值真假不重要,关键是 source 变为缩进
+        _ = view.text(NSTextView(), doCommandBy: #selector(NSText.insertTab(_:)))
+        XCTAssertTrue(view.source.hasPrefix("  - item"), "list 缩进不受表格分支影响")
+    }
+}

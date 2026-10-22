@@ -514,6 +514,11 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     public func text(_: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         guard !hasMarkedText() else { return false }
         rebuildProjection()  // 结构命令需要准确的块定位
+        // T16:caret 在 table 块内时,Tab/Shift+Tab/Enter 走表格导航与
+        // 结构事务(单 TextKit 投影,不建独立 grid)。
+        if let handled = handleTableCommand(commandSelector) {
+            return handled
+        }
         switch commandSelector {
         case #selector(insertNewline(_:)):
             return handleStructuralEnter()
@@ -636,6 +641,110 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             let plan = MarkdownBlockModel.planDeleteForward(line: line, source: source as NSString, caret: sourceCaret())
         else { return false }
         return applyStructurePatches(plan.patches, name: plan.name, restoreSourceCaret: plan.caretAfterUTF16)
+    }
+
+    // MARK: - T16 表格命令(table 块内 Tab/Enter;G0 单投影决定)
+
+    /// caret 所在的 table 块模型;非 table 块返回 nil。
+    private func tableModelAtCaret() -> MarkdownTableModel? {
+        let caret = sourceCaret()
+        for item in rendered {
+            guard case .table = item.block.kind,
+                caret >= item.block.rangeUTF16.location,
+                caret <= NSMaxRange(item.block.rangeUTF16)
+            else { continue }
+            return MarkdownTableModel.parse(source: source, blockRange: item.block.rangeUTF16)
+        }
+        return nil
+    }
+
+    /// caret 的 (行, 列);不在任何 cell 区间(如管道/分隔行)返回 nil。
+    private func tablePosition(
+        _ model: MarkdownTableModel, caret: Int
+    ) -> (row: Int, column: Int)? {
+        for (r, row) in model.rows.enumerated() where !row.isDelimiter {
+            for (c, cell) in row.cells.enumerated()
+            where caret >= cell.rangeUTF16.location && caret <= NSMaxRange(cell.rangeUTF16) {
+                return (r, c)
+            }
+        }
+        return nil
+    }
+
+    /// 把 source 偏移按 table 块 1:1 投影设为 caret。
+    private func setTableCaret(_ sourceOffset: Int) {
+        if let display = displayOffset(forSourceOffset: sourceOffset) {
+            setSelectedRange(NSRange(location: display, length: 0))
+        }
+    }
+
+    /// 表格命令;返回 nil = 不在表格内(回落既有结构处理)。
+    private func handleTableCommand(_ selector: Selector) -> Bool? {
+        guard let model = tableModelAtCaret() else { return nil }
+        let caret = sourceCaret()
+        guard let pos = tablePosition(model, caret: caret) else { return true }
+        let editableRows = model.rows.indices.filter { !model.rows[$0].isDelimiter }
+
+        switch selector {
+        case #selector(insertTab(_:)):
+            let next = nextCell(pos, rows: editableRows, model: model, forward: true)
+            if let next { setTableCaret(cellStart(model, next)) }
+            return true
+        case #selector(insertBacktab(_:)):
+            let prev = nextCell(pos, rows: editableRows, model: model, forward: false)
+            if let prev { setTableCaret(cellStart(model, prev)) }
+            return true
+        case #selector(insertNewline(_:)):
+            // 末行:Enter = 追加行(一次结构事务,可撤销)
+            if pos.row == editableRows.last {
+                guard let plan = model.appendRow(columnCount: model.columnCount) else {
+                    return true
+                }
+                applyStructurePatches(
+                    plan.patches, name: "table-add-row",
+                    restoreSourceCaret: plan.caretAfterUTF16, origin: .structure)
+                return true
+            }
+            // 非末行:跳到正下方同列(列不存在则行首格)
+            let below = editableRows.first { $0 > pos.row } ?? pos.row
+            var target = pos
+            if below != pos.row {
+                target = (below, min(pos.column, model.rows[below].cells.count - 1))
+            }
+            setTableCaret(cellStart(model, target))
+            return true
+        default:
+            return nil  // 其他命令交给既有处理(如 Backspace)
+        }
+    }
+
+    /// 前一格/后一格(只在可编辑行内)。
+    private func nextCell(
+        _ pos: (row: Int, column: Int),
+        rows editableRows: [Int],
+        model: MarkdownTableModel,
+        forward: Bool
+    ) -> (row: Int, column: Int)? {
+        var r = pos.row
+        var c = pos.column + (forward ? 1 : -1)
+        while editableRows.contains(r) {
+            let count = model.rows[r].cells.count
+            if c >= 0, c < count { return (r, c) }
+            if let nr = editableRows.first(where: { forward ? $0 > r : $0 < r }) {
+                r = nr
+                c = forward ? 0 : model.rows[r].cells.count - 1
+            } else {
+                return nil  // 首/末格:原地
+            }
+        }
+        return nil
+    }
+
+    private func cellStart(_ model: MarkdownTableModel, _ pos: (row: Int, column: Int)) -> Int {
+        guard model.rows.indices.contains(pos.row),
+            model.rows[pos.row].cells.indices.contains(pos.column)
+        else { return sourceCaret() }
+        return model.rows[pos.row].cells[pos.column].rangeUTF16.location
     }
 
     /// task 勾选翻转：精确替换括号内单字符（NE-07 精确 span toggle）。

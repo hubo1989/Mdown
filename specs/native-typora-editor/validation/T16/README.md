@@ -25,11 +25,21 @@
 | 全量套件 | 553 tests,8 failures = 既有 3 个 WebKit 环境用例多次断言(基线已证) |
 | SwiftLint --strict | 0 violations;触及文件 swift-format 干净 |
 
+## 阶段 2(同日补交):rich 面表格交互
+
+- `RichMarkdownTextView`:caret 在 table 块内时 Tab/Shift+Tab 在可编辑
+  行的 cell 间导航(首/末格原地),Enter 在末行 = `appendRow` 一次
+  结构事务(origin .structure、可撤销),非末行跳正下方同列;
+  管道/分隔行上的 Tab/Enter 吞键不动正文。G0 决定单 TextKit 投影,
+  未建独立 grid 控件;cell 定位/落点全部以模型区间为权威坐标。
+- 测试:4 个 view 层用例(Tab 往返、末格加行+undo、非末行跳格、
+  list 内 Tab 回落不受影响);套件 15/15;全量 557(同 8 环境失败);
+  strict lint/format 干净。调试期曾加运行时诊断定位坐标权威性,
+  已全部移除(assert 复查 0 残留)。
+
 ## T16 剩余(不声称完成)
 
-1. rich 面表格投影与交互:cell 内直接编辑(IME)、Tab/ShiftTab 跨格、
-   Enter 软换行/末格加行、⌘Enter 退出块、跨 cell 选区与粘贴语义、
-   行列 insert/delete/move/对齐的菜单或手势入口——经
-   RichMarkdownTextView 以本模型 + applyStructurePatches 事务落地
-   (G0 已定单 TextKit 投影,不建独立 grid 控件)。
+1. cell 文本编辑经投影映射的完整矩阵(IME marked 区)、跨 cell 选区
+   与粘贴语义、行列 insert/delete/move/对齐的菜单/手势入口、
+   ⌘Enter 退出块。
 2. 表格行内嵌 code/转义混合的边界 corpus 扩充与真实 IME 实测。
