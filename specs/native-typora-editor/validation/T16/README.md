@@ -37,9 +37,17 @@
   strict lint/format 干净。调试期曾加运行时诊断定位坐标权威性,
   已全部移除(assert 复查 0 残留)。
 
+## 阶段 3(同日补交):模型字节保真与行列移动
+
+- 行缓存改存逐行原字节+真实行尾(CRLF/混合/无末换行保真);expectedText
+  全部取缓存原字节;backtick run 定长配对;反斜杠奇偶判定转义;
+  setCell 只转义未转义管道(不双转义);insertRow 头行后落分隔行后
+  (GFM 不变量);deleteRow 护头/分隔行并保块尾形态;deleteColumn 拒
+  单列表格;新增 moveRow/moveColumn(快照内稳定 UUID/columnIDs)。
+- 模型级断言 43 条(独立 swiftc harness 连真实 SourcePatch applier 验证)。
+
 ## T16 剩余(不声称完成)
 
 1. cell 文本编辑经投影映射的完整矩阵(IME marked 区)、跨 cell 选区
-   与粘贴语义、行列 insert/delete/move/对齐的菜单/手势入口、
-   ⌘Enter 退出块。
-2. 表格行内嵌 code/转义混合的边界 corpus 扩充与真实 IME 实测。
+   与粘贴语义、行列操作/对齐的菜单/手势入口(模型命令已备,UI 未接)。
+2. 真实 IME cell 输入实测。

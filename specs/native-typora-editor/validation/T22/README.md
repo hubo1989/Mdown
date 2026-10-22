@@ -50,5 +50,5 @@ before establishing connection");还原为 com.tw93.miaoyan 后即恢复。
 2. 实机 typing/format/highlight/save/导出回归(产物级证据已具备,
    运行级 smoke 在 T21 矩阵内)。
 3. `useNativeWysiwyg` defaults key 的存废未清(保留读取兼容,无 UI)。
-4. `MarkdownEditorCommandAdapter` 的 `legacyVditor` 路由 case 保留
-   (测试仍覆盖其"adapter 不写"语义),T21 后可裁剪。
+4. ~~legacyVditor 路由 case~~ 已裁剪(随 Vditor 依赖移除;旧值迁移
+   语义由 NativeEditorModeMigrationTests 源码体断言钉住)。
