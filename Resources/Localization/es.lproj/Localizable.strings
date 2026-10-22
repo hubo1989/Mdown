@@ -331,3 +331,16 @@
 "Save Copy…" = "Guardar copia…";
 "Discard Changes" = "Descartar cambios";
 "Task checkboxes need an active editor for this note." = "Las casillas de tareas requieren que esta nota tenga un editor activo.";
+"Add Row Below" = "Añadir fila abajo";
+"Delete Row" = "Eliminar fila";
+"Insert Column" = "Insertar columna";
+"Delete Column" = "Eliminar columna";
+"Move Row Up" = "Subir fila";
+"Move Row Down" = "Bajar fila";
+"Move Column Left" = "Mover columna a la izquierda";
+"Move Column Right" = "Mover columna a la derecha";
+"Align Column" = "Alinear columna";
+"No Alignment" = "Sin alineación";
+"Align Left" = "Alinear a la izquierda";
+"Align Center" = "Centrar";
+"Align Right" = "Alinear a la derecha";

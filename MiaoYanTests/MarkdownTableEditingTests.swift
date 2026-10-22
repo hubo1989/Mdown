@@ -400,3 +400,100 @@ extension MarkdownTableEditingTests {
         XCTAssertTrue(view.source.hasPrefix("  - item"), "list 缩进不受表格分支影响")
     }
 }
+
+// MARK: - T16 行列命令(view 层;caret 驱动,右键菜单入口)
+
+extension MarkdownTableEditingTests {
+
+    @MainActor
+    private func makeTableView() -> RichMarkdownTextView {
+        RichMarkdownTextView(source: "| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n")
+    }
+
+    @MainActor
+    func testInsertAndDeleteRowCommandsAtCaret() {
+        let view = makeTableView()
+        // caret 在 body 首行 "c" 内
+        let ns = view.source as NSString
+        view.setSelectedRange(NSRange(location: ns.range(of: "c").location + 1, length: 0))
+        XCTAssertTrue(view.insertTableRowBelowAtCaret())
+        XCTAssertEqual(
+            view.source, "| a | b |\n| --- | --- |\n| c | d |\n|  |  |\n| e | f |\n")
+        XCTAssertTrue(view.performUndo(), "插入行单步撤销")
+
+        XCTAssertTrue(view.deleteTableRowAtCaret())
+        XCTAssertEqual(view.source, "| a | b |\n| --- | --- |\n| e | f |\n")
+        XCTAssertTrue(view.performUndo(), "删行单步撤销")
+    }
+
+    @MainActor
+    func testInsertAndDeleteColumnCommandsAtCaret() {
+        let view = makeTableView()
+        let ns = view.source as NSString
+        view.setSelectedRange(NSRange(location: ns.range(of: "d").location + 1, length: 0))
+        XCTAssertTrue(view.insertTableColumnAtCaret())
+        XCTAssertEqual(
+            view.source, "| a |  | b |\n| --- | --- | --- |\n| c |  | d |\n| e |  | f |\n",
+            "新空列插在 caret 列前(原列右移)")
+        XCTAssertTrue(view.performUndo())
+
+        view.setSelectedRange(NSRange(location: ns.range(of: "f").location + 1, length: 0))
+        XCTAssertTrue(view.deleteTableColumnAtCaret())
+        XCTAssertEqual(view.source, "| a |\n| --- |\n| c |\n| e |\n")
+        XCTAssertTrue(view.performUndo())
+    }
+
+    @MainActor
+    func testMoveRowCommandsMoveBodyRowsOnly() {
+        let view = makeTableView()
+        let ns = view.source as NSString
+        // caret 在末行 "e" 内:上移一行
+        view.setSelectedRange(NSRange(location: ns.range(of: "e").location + 1, length: 0))
+        XCTAssertTrue(view.moveTableRowUpAtCaret())
+        XCTAssertEqual(
+            view.source, "| a | b |\n| --- | --- |\n| e | f |\n| c | d |\n")
+        XCTAssertTrue(view.performUndo())
+
+        // 头行上移必须拒绝(护头/分隔行)
+        view.setSelectedRange(NSRange(location: ns.range(of: "a").location + 1, length: 0))
+        XCTAssertFalse(view.moveTableRowUpAtCaret())
+        XCTAssertEqual(view.source, "| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n")
+    }
+
+    @MainActor
+    func testMoveColumnCommandSwapsDataAndAlignment() {
+        let view = RichMarkdownTextView(source: "| a | b |\n| :- | -: |\n| c | d |\n")
+        let ns = view.source as NSString
+        view.setSelectedRange(NSRange(location: ns.range(of: "a").location + 1, length: 0))
+        XCTAssertTrue(view.moveTableColumnRightAtCaret())
+        XCTAssertEqual(view.source, "| b | a |\n| -: | :- |\n| d | c |\n", "数据与对齐随列移动")
+        XCTAssertTrue(view.performUndo())
+    }
+
+    @MainActor
+    func testSetAlignmentCommandRewritesDelimiter() {
+        let view = makeTableView()
+        let ns = view.source as NSString
+        view.setSelectedRange(NSRange(location: ns.range(of: "b").location + 1, length: 0))
+        XCTAssertTrue(view.setTableAlignmentAtCaret(.center))
+        XCTAssertEqual(
+            view.source,
+            "| a | b |\n| --- | :---: |\n| c | d |\n| e | f |\n",
+            "仅分隔行对齐变化")
+        XCTAssertTrue(view.performUndo())
+    }
+
+    @MainActor
+    func testTableCommandsFailOutsideTable() {
+        let view = RichMarkdownTextView(source: "plain text\n")
+        view.setSelectedRange(NSRange(location: 3, length: 0))
+        XCTAssertFalse(view.insertTableRowBelowAtCaret())
+        XCTAssertFalse(view.deleteTableRowAtCaret())
+        XCTAssertFalse(view.insertTableColumnAtCaret())
+        XCTAssertFalse(view.deleteTableColumnAtCaret())
+        XCTAssertFalse(view.moveTableRowUpAtCaret())
+        XCTAssertFalse(view.moveTableColumnLeftAtCaret())
+        XCTAssertFalse(view.setTableAlignmentAtCaret(.left))
+        XCTAssertEqual(view.source, "plain text\n")
+    }
+}

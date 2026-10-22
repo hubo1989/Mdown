@@ -310,3 +310,16 @@
 "Save Copy…" = "另存副本…";
 "Discard Changes" = "放棄修改";
 "Task checkboxes need an active editor for this note." = "任務勾選需要此筆記處於可編輯狀態。";
+"Add Row Below" = "在下方插入列";
+"Delete Row" = "刪除列";
+"Insert Column" = "插入欄";
+"Delete Column" = "刪除欄";
+"Move Row Up" = "上移列";
+"Move Row Down" = "下移列";
+"Move Column Left" = "左移欄";
+"Move Column Right" = "右移欄";
+"Align Column" = "欄對齊";
+"No Alignment" = "不對齊";
+"Align Left" = "靠左對齊";
+"Align Center" = "置中對齊";
+"Align Right" = "靠右對齊";

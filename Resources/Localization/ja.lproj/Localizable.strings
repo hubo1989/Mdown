@@ -333,3 +333,16 @@
 "Save Copy…" = "コピーを保存…";
 "Discard Changes" = "変更を破棄";
 "Task checkboxes need an active editor for this note." = "タスクのチェックには、このノートが編集可能である必要があります。";
+"Add Row Below" = "下に行を挿入";
+"Delete Row" = "行を削除";
+"Insert Column" = "列を挿入";
+"Delete Column" = "列を削除";
+"Move Row Up" = "行を上へ移動";
+"Move Row Down" = "行を下へ移動";
+"Move Column Left" = "列を左へ移動";
+"Move Column Right" = "列を右へ移動";
+"Align Column" = "列の整列";
+"No Alignment" = "整列なし";
+"Align Left" = "左揃え";
+"Align Center" = "中央揃え";
+"Align Right" = "右揃え";
