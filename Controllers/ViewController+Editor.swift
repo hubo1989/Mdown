@@ -944,7 +944,10 @@ extension ViewController {
             saveTitleSafely()
 
             let content = host.textView.source
-            let cursor = host.textView.commandSourceSelection()?.location ?? 0
+            // T18:身份快照——迟到结果必须核对 owner/URL/代际/revision/原文
+            let snapshot = NativeMarkdownFormatter.Snapshot(
+                owner: UUID(), url: noteURL, generation: UInt64(max(0, note.editGeneration)),
+                revision: host.textView.revision, source: content)
 
             formatTask = Task(priority: .userInitiated) { [weak self] in
                 guard let self else { return }
@@ -952,7 +955,7 @@ extension ViewController {
                 if Task.isCancelled { return }
                 await MainActor.run {
                     self.applyRichFormattingResult(
-                        newContent, content: content, noteURL: noteURL,
+                        newContent, snapshot: snapshot,
                         requestID: requestID, host: host)
                 }
             }
@@ -974,8 +977,10 @@ extension ViewController {
 
             // Get latest content from editor to ensure consistency
             let content = editArea.textStorage?.string ?? note.content.string
-            let cursor = editArea.selectedRanges[0].rangeValue.location
             let top = editAreaScroll.contentView.bounds.origin.y
+            let snapshot = NativeMarkdownFormatter.Snapshot(
+                owner: UUID(), url: noteURL, generation: UInt64(max(0, note.editGeneration)),
+                revision: editArea.storageRevision, source: content)
 
             formatTask = Task(priority: .userInitiated) { [weak self] in
                 guard let self else { return }
@@ -983,7 +988,7 @@ extension ViewController {
                 if Task.isCancelled { return }
                 await MainActor.run {
                     self.applyFormattingResult(
-                        newContent, content: content, noteURL: noteURL,
+                        newContent, snapshot: snapshot,
                         requestID: requestID, top: top)
                 }
             }
@@ -991,14 +996,14 @@ extension ViewController {
     }
 
     private func applyFormattingResult(
-        _ formattedContent: String, content: String, noteURL: URL,
+        _ formattedContent: String, snapshot: NativeMarkdownFormatter.Snapshot,
         requestID: Int, top: CGFloat
     ) {
         guard formatRequestID == requestID else {
             return
         }
 
-        guard let note = notesTableView.getSelectedNote(), note.url == noteURL,
+        guard let note = notesTableView.getSelectedNote(), note.url == snapshot.url,
             editArea.storageNote === note
         else {
             isFormatting = false
@@ -1007,10 +1012,23 @@ extension ViewController {
             return
         }
 
-        // T18:native formatter 已按 mdown-preserve-v1 保留尾换行形态,
-        // 不再需要 Prettier 的 placeholder 还原与换行启发式。
+        // T18:迟到结果核对——格式化期间用户继续输入/undo/切笔记,一律拒绝
+        // 应用并提示重试(SPEC §8.2)。
+        guard
+            snapshot.matches(
+                owner: snapshot.owner, url: note.url, generation: UInt64(max(0, note.editGeneration)),
+                revision: editArea.storageRevision,
+                source: editArea.textStorage?.string ?? note.content.string)
+        else {
+            isFormatting = false
+            updateFormatButtonState(isFormatting: false)
+            formatTask = nil
+            toast(message: I18n.str("Formatting failed, please try again"), style: .failure)
+            return
+        }
+
         let newContent = formattedContent
-        guard newContent != content else {
+        guard newContent != snapshot.source else {
             isFormatting = false
             updateFormatButtonState(isFormatting: false)
             formatTask = nil
@@ -1018,9 +1036,15 @@ extension ViewController {
             return
         }
 
-        replaceEditorStorage(with: newContent, note: note)
+        // 经编辑路径整篇替换(与 cleanTypography 同款):结果可 undo/redo。
+        EditTextView.shouldForceRescan = true
+        editArea.breakUndoCoalescing()
+        editArea.insertText(
+            newContent,
+            replacementRange: NSRange(location: 0, length: (snapshot.source as NSString).length))
+        editArea.saveTextStorageContent(to: note)
+        note.save()
 
-        // caret:格式化期间未接受输入(整篇替换前 buffer 未动),clamp 即可。
         let cursor = editArea.selectedRange.location
         let adjustedCursorOffset = min(max(cursor, 0), (newContent as NSString).length)
         editArea.setSelectedRange(NSRange(location: adjustedCursorOffset, length: 0))
@@ -1043,7 +1067,7 @@ extension ViewController {
     /// T14/T18:native rich 面的排版结果应用——整篇替换事务（单条历史），
     /// caret clamp 到新 source 偏移，镜像与落盘走 host 既有通道。
     private func applyRichFormattingResult(
-        _ formattedContent: String, content: String, noteURL: URL,
+        _ formattedContent: String, snapshot: NativeMarkdownFormatter.Snapshot,
         requestID: Int, host: NativeRichEditorHostView
     ) {
         guard formatRequestID == requestID else { return }
@@ -1054,12 +1078,22 @@ extension ViewController {
             formatTask = nil
         }
 
-        guard let note = host.currentNote, note.url == noteURL, !host.isHidden else {
+        guard let note = host.currentNote, note.url == snapshot.url, !host.isHidden else {
+            return
+        }
+
+        // 迟到结果核对:输入/undo/重装载后旧结果不得应用。
+        guard
+            snapshot.matches(
+                owner: snapshot.owner, url: note.url, generation: UInt64(max(0, note.editGeneration)),
+                revision: host.textView.revision, source: host.textView.source)
+        else {
+            toast(message: I18n.str("Formatting failed, please try again"), style: .failure)
             return
         }
 
         let newContent = formattedContent
-        guard newContent != content else {
+        guard newContent != snapshot.source else {
             toast(message: I18n.str("Typography is already clean~"))
             return
         }
@@ -1074,29 +1108,6 @@ extension ViewController {
             }
             toast(message: I18n.str("Automatic typesetting succeeded~"), style: .success)
         }
-    }
-
-    private func replaceEditorStorage(with newContent: String, note: Note) {
-        guard let storage = editArea.textStorage else {
-            editArea.string = newContent
-            return
-        }
-        let originalLength = storage.length
-        storage.beginEditing()
-        storage.replaceCharacters(in: NSRange(0..<originalLength), with: newContent)
-        NotesTextProcessor.checkPerformanceLevel(attributedString: storage, note: note)
-        if NotesTextProcessor.shouldUseSimplifiedHighlighting {
-            NotesTextProcessor.highlightBasicMarkdown(attributedString: storage, note: note)
-        } else {
-            NotesTextProcessor.highlightMarkdown(attributedString: storage, note: note)
-            NotesTextProcessor.highlightFencedAndIndentCodeBlocks(attributedString: storage)
-        }
-        storage.updateParagraphStyle()
-        let fullRange = NSRange(location: 0, length: storage.length)
-        let linkProcessor = NotesTextProcessor(storage: storage, range: fullRange)
-        linkProcessor.highlightLinks()
-        storage.applyEditorLetterSpacing()
-        storage.endEditing()
     }
 
     /// CJK typography cleanup for the whole document: pangu spacing, punctuation

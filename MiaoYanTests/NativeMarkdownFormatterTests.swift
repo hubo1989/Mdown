@@ -109,6 +109,80 @@ final class NativeMarkdownFormatterTests: XCTestCase {
         }
     }
 
+    func testCRLFProtectedBlocksPreserveExactBytes() {
+        let source = "\u{feff}---\r\ntitle: x  \r\n---\r\n\r\n```swift\r\nlet x = 1   \r\n\r\n\r\n```\r\ntail \r\n"
+        let expected = "\u{feff}---\r\ntitle: x  \r\n---\r\n\r\n```swift\r\nlet x = 1   \r\n\r\n\r\n```\r\ntail\r\n"
+        XCTAssertEqual(Array(NativeMarkdownFormatter.format(source).utf8), Array(expected.utf8))
+    }
+
+    func testMixedLineEndingsAndNoFinalNewlineStayLocal() {
+        let source = "first \r\nsecond \nthird\rfourth "
+        XCTAssertEqual(NativeMarkdownFormatter.format(source), "first\r\nsecond\nthird\rfourth")
+        XCTAssertEqual(NativeMarkdownFormatter.format("plain"), "plain")
+    }
+
+    func testTwoTablesUseOneBaseForEveryReplacement() {
+        let source = "|a|b|\n|-|-|\n|c|d|\n\nbetween\n\n|e|f|\n|:-|-:|\n|g|h|\n"
+        let expected = "| a | b |\n| --- | --- |\n| c | d |\n\nbetween\n\n| e | f |\n| :--- | ---: |\n| g | h |\n"
+        let result = NativeMarkdownFormatter.format(source)
+        XCTAssertEqual(result, expected)
+        assertIdempotent(source)
+    }
+
+    func testCRLFTableFormattingKeepsLineEndings() {
+        let source = "|a|b|\r\n|---|---|\r\n|c|d|"
+        let expected = "| a | b |\r\n| --- | --- |\r\n| c | d |"
+        XCTAssertEqual(NativeMarkdownFormatter.format(source), expected)
+        assertIdempotent(source)
+    }
+
+    func testBlankLinesInsideListAreNotCollapsed() {
+        let source = "- first\n\n\n  continuation\n\n- second\n"
+        XCTAssertEqual(NativeMarkdownFormatter.format(source), source)
+    }
+
+    func testReferenceDefinitionAndMultilineInlineCodeRemainVerbatim() {
+        let source = "[ref]: <https://example.com/a> \"title\"  \n\ntext `code  \n\n\nmore` tail \n"
+        let expected = "[ref]: <https://example.com/a> \"title\"  \n\ntext `code  \n\n\nmore` tail\n"
+        XCTAssertEqual(NativeMarkdownFormatter.format(source), expected)
+    }
+
+    @MainActor
+    func testRichFormattingRejectsTypingThenUndoToSameBytes() {
+        let view = RichMarkdownTextView(source: "body \n")
+        let owner = UUID()
+        let capture = NativeMarkdownFormatter.Snapshot(
+            owner: owner, url: URL(fileURLWithPath: "/tmp/format.md"), generation: 1,
+            revision: view.revision, source: view.source)
+        XCTAssertTrue(view.applyWholeSourceReplacement("new body\n", name: "typing"))
+        XCTAssertTrue(view.performUndo())
+        XCTAssertEqual(view.source, capture.source)
+        XCTAssertFalse(
+            capture.matches(
+                owner: owner, url: capture.url, generation: 1,
+                revision: view.revision, source: view.source), "undo 返回同字节也不得接受旧 revision 的结果")
+    }
+
+    @MainActor
+    func testFormattingSnapshotRejectsRebindingAndRename() {
+        let capture = NativeMarkdownFormatter.Snapshot(
+            owner: UUID(), url: URL(fileURLWithPath: "/tmp/a.md"), generation: 1,
+            revision: 3, source: "body")
+        XCTAssertFalse(
+            capture.matches(
+                owner: UUID(), url: capture.url, generation: 1, revision: 3, source: "body"))
+        XCTAssertFalse(
+            capture.matches(
+                owner: capture.owner, url: capture.url, generation: 2, revision: 3, source: "body"))
+        XCTAssertFalse(
+            capture.matches(
+                owner: capture.owner, url: URL(fileURLWithPath: "/tmp/b.md"),
+                generation: 1, revision: 3, source: "body"))
+        XCTAssertTrue(
+            capture.matches(
+                owner: capture.owner, url: capture.url, generation: 1, revision: 3, source: "body"))
+    }
+
     // MARK: - 未知语法保持原文
 
     func testUnknownStructurePassesThrough() {

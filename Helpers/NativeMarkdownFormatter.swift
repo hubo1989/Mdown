@@ -1,150 +1,191 @@
 import Foundation
 
-// MARK: - T18 原生 Markdown 格式化(PLAN T18 / SPEC §8.2 / NE-15 / NE-25)
-//
-// `mdown-preserve-v1` 第一阶段:保护段字节不动(fence/缩进 code/math/
-// frontmatter/raw HTML);非 hard-break 行尾空白清理;空行折叠为单空行;
-// 表格边缘单空格、对齐线 ≥3 字符并保留 colon;prose 换行与既有 list
-// 写法保持(不重排);幂等。未知语法除可解释的空白规则外逐字保留。
-//
-// 保护段经 LosslessMarkdownParser 的块类型判定;表格归一复用
-// MarkdownTableModel 的解析(转义/code 内管道不拆)。
-
+/// `mdown-preserve-v1`:在同一原文坐标系中计划格式化 patch。
+/// 行尾、BOM 和受保护片段保留原字节；不重排 prose 或 list。
 enum NativeMarkdownFormatter {
+    /// format 发起时捕获的身份快照:同一 owner/URL/代际/revision/原文
+    /// 仍然成立才允许应用结果——迟到的格式化结果不得覆盖用户后续输入
+    /// 或已切换的笔记(SPEC §8.2"与当前不同则拒绝")。
+    struct Snapshot {
+        let owner: UUID
+        let url: URL
+        let generation: UInt64
+        let revision: UInt64
+        let source: String
 
-    /// 格式化全文;纯函数,不改权威正文(调用方经 source patch 应用)。
+        func matches(owner: UUID, url: URL, generation: UInt64, revision: UInt64, source: String) -> Bool {
+            self.owner == owner && self.url == url && self.generation == generation
+                && self.revision == revision && self.source == source
+        }
+    }
+
+    private struct Line {
+        let content: String
+        let contentRange: NSRange
+        let fullRange: NSRange
+        let ending: String
+    }
+
     static func format(_ source: String) -> String {
-        let ns = source as NSString
-        guard ns.length > 0 else { return source }
-        let document = LosslessMarkdownParser().parse(source)
+        let lines = sourceLines(source)
+        guard !lines.isEmpty else { return source }
+        // parser 只消费分析副本。实际 patch 始终指向带原始行尾的 source。
+        let analysis = lines.map(\.content).joined(separator: "\n")
+        let document = LosslessMarkdownParser().parse(analysis)
+        let protected = protectedLines(in: document, lines: lines)
+        var patches: [SourcePatch] = []
+        var tableLines = Set<Int>()
+        for block in document.blocks {
+            guard case .table = block.kind else { continue }
+            let model = MarkdownTableModel.parse(source: analysis, blockRange: block.rangeUTF16)
+            guard model.rows.count >= 2, model.rows[1].isDelimiter else { continue }
+            for (index, row) in model.rows.enumerated() {
+                let lineIndex = block.startLine - 1 + index
+                guard lines.indices.contains(lineIndex), !protected.contains(lineIndex) else { continue }
+                let cells = row.cells.map { cell -> String in
+                    let text = cell.text.trimmingCharacters(in: .whitespaces)
+                    guard row.isDelimiter else { return text }
+                    let dashes = String(repeating: "-", count: max(3, text.filter { $0 == "-" }.count))
+                    return (text.hasPrefix(":") ? ":" : "") + dashes + (text.hasSuffix(":") ? ":" : "")
+                }
+                tableLines.insert(lineIndex)
+                let replacement = MarkdownTableModel.rebuildLine(cells: cells)
+                appendPatch(for: lines[lineIndex], replacement: replacement, to: &patches)
+            }
+        }
 
-        // 1) 收集保护区间(行级):整块保护的种类
-        var protectedLines = Set<Int>()
+        var previousBlank = false
+        for (index, line) in lines.enumerated() {
+            guard !protected.contains(index), !tableLines.contains(index) else {
+                previousBlank = false
+                continue
+            }
+            let blank = line.content.trimmingCharacters(in: .whitespaces).isEmpty
+            if blank {
+                if previousBlank, mayCollapseBlank(at: index, lines: lines, document: document) {
+                    patches.append(
+                        SourcePatch(
+                            rangeUTF16: line.fullRange,
+                            expectedText: line.content + line.ending, replacement: ""))
+                } else {
+                    appendPatch(for: line, replacement: "", to: &patches)
+                }
+            } else {
+                let trailingStart =
+                    line.content.lastIndex(where: { $0 != " " && $0 != "\t" })
+                    .map { line.content.index(after: $0) } ?? line.content.startIndex
+                let suffix = line.content[trailingStart...]
+                // Markdown hard break 只认两个及以上空格，tab 不替代空格。
+                let hardBreak =
+                    suffix.count >= 2 && suffix.allSatisfy { $0 == " " }
+                    && index < lines.count - 1
+                if !hardBreak {
+                    appendPatch(for: line, replacement: String(line.content[..<trailingStart]), to: &patches)
+                }
+            }
+            previousBlank = blank
+        }
+        switch MarkdownPatchApplier.applyPatches(patches, to: source) {
+        case .success(let formatted): return formatted
+        case .failure: return source  // 任何不确定映射保留整篇原文。
+        }
+    }
+
+    private static func appendPatch(for line: Line, replacement: String, to patches: inout [SourcePatch]) {
+        guard line.content != replacement else { return }
+        patches.append(
+            SourcePatch(
+                rangeUTF16: line.contentRange, expectedText: line.content, replacement: replacement))
+    }
+
+    private static func sourceLines(_ source: String) -> [Line] {
+        let ns = source as NSString
+        var lines: [Line] = []
+        var location = 0
+        while location < ns.length {
+            var start = 0
+            var end = 0
+            var contentEnd = 0
+            ns.getLineStart(
+                &start, end: &end, contentsEnd: &contentEnd,
+                for: NSRange(location: location, length: 0))
+            let contentRange = NSRange(location: start, length: contentEnd - start)
+            lines.append(
+                Line(
+                    content: ns.substring(with: contentRange), contentRange: contentRange,
+                    fullRange: NSRange(location: start, length: end - start),
+                    ending: ns.substring(with: NSRange(location: contentEnd, length: end - contentEnd))))
+            location = end
+        }
+        return lines
+    }
+
+    private static func protectedLines(
+        in document: LosslessMarkdownParser.Document, lines: [Line]
+    ) -> Set<Int> {
+        var protected = Set<Int>()
         for block in document.blocks {
             switch block.kind {
             case .codeFence, .codeIndented, .htmlBlock, .mathBlock, .frontmatter:
-                // Block.startLine/endLine 是 1 基(parser `from + 1`),
-                // rawLines 索引是 0 基——统一到 0 基再比对。
-                for line in (block.startLine - 1)...(block.endLine - 1) {
-                    protectedLines.insert(line)
-                }
-            default:
-                break
+                protected.formUnion((block.startLine - 1)...(block.endLine - 1))
+            default: break
             }
         }
-
-        // 2) 行级处理:保护行原样;普通行清尾随空白(非 hard break)、
-        //    连续空行折叠
-        var lines = source.components(separatedBy: "\n")
-        // components 会因末尾 \n 产生空尾元素;用NSString 行遍历保持字节真实
-        lines.removeLast()  // 还原最后空元素,行内容按 NSString 重取
-        var rawLines: [String] = []
-        var loc = 0
-        let total = ns.length
-        while loc < total {
-            let r = ns.lineRange(for: NSRange(location: loc, length: 0))
-            var contentEnd = NSMaxRange(r)
-            if contentEnd > r.location, ns.character(at: contentEnd - 1) == 0x0A {
-                contentEnd -= 1
-                if contentEnd > r.location, ns.character(at: contentEnd - 1) == 0x0D {
-                    contentEnd -= 1
-                }
-            }
-            rawLines.append(ns.substring(with: NSRange(location: r.location, length: contentEnd - r.location)))
-            loc = NSMaxRange(r)
-        }
-
-        var outLines: [String] = []
-        var blankRun = 0
-        var lastWasText = false
-        let lastIndex = rawLines.count - 1
-        for (index, line) in rawLines.enumerated() {
-            if protectedLines.contains(index) {
-                outLines.append(line)
-                blankRun = 0
-                lastWasText = true
+        // 多行 code span 以及链接定义保守地保护所跨整行；不触碰其空白。
+        var inlineDelimiter = 0
+        var inlineStart = 0
+        for (index, line) in lines.enumerated() {
+            if protected.contains(index) { continue }
+            let trimmed = line.content.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("["), let close = trimmed.firstIndex(of: "]"),
+                trimmed[trimmed.index(after: close)...].hasPrefix(":")
+            {
+                protected.insert(index)
                 continue
             }
-            var processed = line
-            // hard break(≥2 尾随空格)保留——但文档末行的尾随空白
-            // 不构成 break(其后无内容),照常清理
-            if !isHardBreak(processed) || index == lastIndex {
-                processed = processed.replacingOccurrences(
-                    of: "[ \\t]+$", with: "", options: .regularExpression)
-            }
-            if processed.trimmingCharacters(in: .whitespaces).isEmpty {
-                blankRun += 1
-                if blankRun >= 2 { continue }  // 折叠:连续空行只留一个
-                outLines.append(processed.isEmpty ? "" : processed)
-                lastWasText = false
-            } else {
-                blankRun = 0
-                outLines.append(processed)
-                lastWasText = true
-            }
-        }
-        _ = lastWasText
-
-        var joined = outLines.joined(separator: "\n")
-        // 保持原文末尾换行形态
-        if source.hasSuffix("\n") { joined += "\n" }
-
-        // 3) 表格归一:按块定位 table,行级替换(复用 TableModel)
-        return normalizeTables(joined, document: document, source: source)
-    }
-
-    private static func isHardBreak(_ line: String) -> Bool {
-        line.hasSuffix("  ") || line.hasSuffix(" \t")
-    }
-
-    /// 表格行归一:cell 边缘单空格;对齐线 ≥3 dash + colon 保留。
-    private static func normalizeTables(
-        _ processed: String, document: LosslessMarkdownParser.Document, source: String
-    ) -> String {
-        guard
-            document.blocks.contains(where: {
-                if case .table = $0.kind { return true }; return false
-            })
-        else {
-            return processed
-        }
-        // 在已处理文本上重新解析(processed 与 source 的表格内容一致,
-        // 只是空白/空行可能变化;表格块按行号定位需要重解析)
-        let doc2 = LosslessMarkdownParser().parse(processed)
-        let ns2 = processed as NSString
-        var result = processed
-        for block in doc2.blocks {
-            guard case .table = block.kind else { continue }
-            let model = MarkdownTableModel.parse(source: processed, blockRange: block.rangeUTF16)
-            guard !model.rows.isEmpty else { continue }
-            var replacements: [(NSRange, String)] = []
-            for row in model.rows {
-                if row.isDelimiter {
-                    let markers = model.alignments.enumerated().map { index, align -> String in
-                        let dashes = String(repeating: "-", count: 3)
-                        let existing =
-                            row.cells.indices.contains(index)
-                            ? row.cells[index].text : ""
-                        let width = max(3, existing.filter { $0 == "-" }.count)
-                        let d = String(repeating: "-", count: width)
-                        _ = dashes
-                        switch align {
-                        case .none: return d
-                        case .left: return ":" + d
-                        case .center: return ":" + d + ":"
-                        case .right: return d + ":"
-                        }
-                    }
-                    replacements.append((row.rangeUTF16, MarkdownTableModel.rebuildLine(cells: markers)))
-                } else {
-                    replacements.append(
-                        (row.rangeUTF16, MarkdownTableModel.rebuildLine(cells: row.cells.map(\.text))))
+            let units = Array(line.content.utf16)
+            var cursor = 0
+            while cursor < units.count {
+                if units[cursor] == 92, inlineDelimiter == 0 { cursor += 2; continue }
+                guard units[cursor] == 96 else { cursor += 1; continue }
+                let start = cursor
+                while cursor < units.count, units[cursor] == 96 { cursor += 1 }
+                let count = cursor - start
+                if inlineDelimiter == 0 {
+                    inlineDelimiter = count
+                    inlineStart = index
+                } else if count == inlineDelimiter {
+                    if index > inlineStart { protected.formUnion(inlineStart..<index) }
+                    inlineDelimiter = 0
                 }
             }
-            for (range, text) in replacements.sorted(by: { $0.0.location > $1.0.location }) {
-                result = (result as NSString).replacingCharacters(in: range, with: text)
+            if inlineDelimiter > 0 { protected.insert(index) }
+        }
+        return protected
+    }
+
+    private static func mayCollapseBlank(
+        at index: Int, lines: [Line], document: LosslessMarkdownParser.Document
+    ) -> Bool {
+        // list/quote 空行影响松紧列表及 continuation 归属，保守保留。
+        if document.blocks.contains(where: {
+            switch $0.kind {
+            case .listItem, .quote:
+                return index >= $0.startLine - 1 && index <= $0.endLine
+            default: return false
+            }
+        }) {
+            return false
+        }
+        let previous = lines[..<index].last { !$0.content.trimmingCharacters(in: .whitespaces).isEmpty }
+        let next = lines.dropFirst(index + 1).first { !$0.content.trimmingCharacters(in: .whitespaces).isEmpty }
+        for neighbor in [previous, next].compactMap({ $0 }) {
+            let text = neighbor.content
+            if text.hasPrefix(" ") || text.hasPrefix("\t") { return false }
+            if text.hasPrefix("- ") || text.hasPrefix("* ") || text.hasPrefix("+ ") || text.hasPrefix(">") {
+                return false
             }
         }
-        return result
+        return true
     }
 }
