@@ -89,8 +89,16 @@ bundle `com.mdown.t14.smoke`,临时库 `/tmp/mdown-t14-smoke/Library`;
   (继续输入)均 staleRender 拒绝零写入。
 - 测试:PreviewEditIntentTests 21/21(6 个新用例在旧实现下必失败);
   相关套件 41/41;全量 595/8(既有 3 环境用例)。
-- 仍未取得:真实 UI 点击 checkbox 的落盘截图(CUA 会话内挂起);
-  JS attribute 修复无法单测——维护者一次实测即可闭环。
+- **正向链路已实机闭环(2026-10-22 14:46)**:独立 smoke 副本
+  (com.mdown.t22.smoke)纯预览中点击未勾选的 alpha 复选框 → 磁盘
+  `- [ ] alpha task` 翻转为 `- [x] alpha task`,diagnostics 时间窗内
+  零拒绝记录。取证过程另证一件事:旧构建副本(T22 时打包)点击被
+  `staleContent` 拒——恰好复现 `element.checked` property 翻转的旧
+  bug,与新构建的成功形成对照证据。完整笔记内容的正向翻转另加
+  单测回归(`testFullNoteContentFlipsFirstTask`,22/22)。
+- CUA 会话内多次挂起(getApp>120s)后自愈;键盘合成输入
+  (osascript keystroke)无辅助功能权限未送达——typing 类运行证据
+  仍以输入协议测试 + 本次 UI 写盘链为准。
 - rich 查找条的全匹配高亮沿用 EditTextView 同色(0.35 alpha),截图缩放下
   可见性偏弱,视觉打磨留 T19。
 - 本会话实机出现一次 `Note.writeError`(code 513 EPERM,原子换名路径),

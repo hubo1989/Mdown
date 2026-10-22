@@ -230,6 +230,30 @@ final class PreviewEditIntentTests: XCTestCase {
         // 单测环境不接 delegate，此处只验证 buffer 语义。
     }
 
+
+    @MainActor
+    func testFullNoteContentFlipsFirstTask() {
+        // smoke 实测复现:含标题/正文的完整笔记,DOM index 0 的未勾选
+        // task 被拒 staleContent——期望在单测复现后修。
+        let source = "# T14 click smoke\n\nplain word here\n\n- [ ] alpha task\n- [x] beta task\n"
+        let note = makeNote(body: source)
+        let host = makeRichHost(body: source, note: note)
+        host.textView.setSelectedRange(NSRange(location: 5, length: 0))
+
+        let context = PreviewTaskIntentApplier.Context(
+            surface: .rich(host),
+            displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest(source),
+            currentRenderGeneration: 1,
+            interactivePreviewAllowed: true,
+            isMainFrame: true)
+        let payload = PreviewTaskIntentPayload(index: 0, expectedChecked: false, renderGeneration: 1)
+        let rejection = PreviewTaskIntentApplier.apply(payload, in: context)
+        XCTAssertNil(rejection, "完整笔记首个未勾选 task 必须可翻转: \(String(describing: rejection))")
+        XCTAssertEqual(host.textView.source, source.replacingOccurrences(of: "- [ ]", with: "- [x]"))
+    }
+
     // MARK: - 防线：全部拒绝且零写入
 
     @MainActor
