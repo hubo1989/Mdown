@@ -228,6 +228,7 @@
 		A11B0C0DEF01020304050607 /* MarkdownInlineEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B60 /* MarkdownListEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B62 /* MarkdownInputRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */; };
+		C19000000000000000000001 /* NativeEditorViewStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C19000000000000000000002 /* NativeEditorViewStateTests.swift */; };
 		C18000000000000000000001 /* NativeMarkdownFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18000000000000000000002 /* NativeMarkdownFormatter.swift */; };
 		C18000000000000000000003 /* NativeMarkdownFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */; };
 		C17000000000000000000001 /* MarkdownBlockRenderAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C17000000000000000000002 /* MarkdownBlockRenderAdapter.swift */; };
@@ -503,6 +504,7 @@
 		A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInlineEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownListEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInputRulesTests.swift; sourceTree = "<group>"; };
+		C19000000000000000000002 /* NativeEditorViewStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorViewStateTests.swift; sourceTree = "<group>"; };
 		C18000000000000000000002 /* NativeMarkdownFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeMarkdownFormatter.swift; sourceTree = "<group>"; };
 		C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeMarkdownFormatterTests.swift; sourceTree = "<group>"; };
 		C17000000000000000000002 /* MarkdownBlockRenderAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockRenderAdapter.swift; sourceTree = "<group>"; };
@@ -650,6 +652,7 @@
 				C13000000000000000000004 /* MarkdownRawBlockEditingTests.swift */,
 				C14000000000000000000004 /* MarkdownCommandRoutingTests.swift */,
 				C15000000000000000000002 /* NativeCodeHighlighterTests.swift */,
+				C19000000000000000000002 /* NativeEditorViewStateTests.swift */,
 				C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */,
 				C17000000000000000000004 /* MarkdownRenderedBlockStateTests.swift */,
 				C16000000000000000000004 /* MarkdownTableEditingTests.swift */,
@@ -1250,6 +1253,7 @@
 				C13000000000000000000003 /* MarkdownRawBlockEditingTests.swift in Sources */,
 				C14000000000000000000003 /* MarkdownCommandRoutingTests.swift in Sources */,
 				C15000000000000000000001 /* NativeCodeHighlighterTests.swift in Sources */,
+				C19000000000000000000001 /* NativeEditorViewStateTests.swift in Sources */,
 				C18000000000000000000003 /* NativeMarkdownFormatterTests.swift in Sources */,
 				C17000000000000000000003 /* MarkdownRenderedBlockStateTests.swift in Sources */,
 				C16000000000000000000003 /* MarkdownTableEditingTests.swift in Sources */,

@@ -94,6 +94,9 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         isAutomaticQuoteSubstitutionEnabled = false
         isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false
+        // T19(SPEC §8.3):code/math/URL 不得被 spell 改写;rich 面
+        // 整体关 continuous spell(N1 保守,按 range 精确分流留 N2)。
+        isContinuousSpellCheckingEnabled = false
         registerForDraggedTypes(readablePasteboardTypes)
         rebuildProjection()
     }
@@ -161,6 +164,43 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         composingGuard = false
     }
 
+    // MARK: - T19 typewriter / focus(NE-32:只改 view state)
+
+    /// typewriter 模式:caret 所在行滚动到视口垂直中心。只动滚动,
+    /// 不推进 revision、不入历史、不动 dirty(AC-17)。
+    public var isTypewriterMode = false
+
+    /// 滚动目标计算(纯函数,可测):caret 行中心对准视口中心,
+    /// clamp 到 [0, contentHeight - viewportHeight];内容不足一屏回 0。
+    nonisolated public static func typewriterScrollOffset(
+        caretLineCenterY: CGFloat, viewportHeight: CGFloat, contentHeight: CGFloat
+    ) -> CGFloat {
+        guard viewportHeight > 0, contentHeight > viewportHeight else { return 0 }
+        let raw = caretLineCenterY - viewportHeight / 2
+        return min(max(raw, 0), contentHeight - viewportHeight)
+    }
+
+    /// caret 行滚动居中(typewriter);非该模式时 no-op。
+    func scrollCaretToCenterIfNeeded() {
+        guard isTypewriterMode, let scrollView = enclosingScrollView else { return }
+        let caret = selectedRange()
+        guard caret.location <= (string as NSString).length else { return }
+        guard let layoutManager, let textContainer else { return }
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: caret.location)
+        guard glyphIndex < layoutManager.numberOfGlyphs else { return }
+        let lineRect = layoutManager.lineFragmentUsedRect(
+            forGlyphAt: glyphIndex, effectiveRange: nil)
+        let clip = scrollView.contentView.bounds
+        let docRect = layoutManager.usedRect(for: textContainer)
+        let target = Self.typewriterScrollOffset(
+            caretLineCenterY: lineRect.midY,
+            viewportHeight: clip.height,
+            contentHeight: docRect.height)
+        if abs(scrollView.contentView.bounds.origin.y - target) > 0.5 {
+            scrollView.contentView.scroll(to: NSPoint(x: clip.minX, y: target))
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        }
+    }
     /// T10：host 注入的正文/代码字体（NE-32 字体/缩放经设置与 ⌘± 联动）。
     /// 变化后需调用 `refreshFontAttributes()` 重刷属性。
     public var bodyFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
@@ -1730,6 +1770,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             displayOffset(forSourceOffset: selection.focusUTF16)
             ?? min(selection.focusUTF16, displayLen)
         setSelectedRange(NSRange(location: min(focus, displayLen), length: 0))
+        scrollCaretToCenterIfNeeded()
     }
 
     // MARK: - composition 观测（G0 探针）
