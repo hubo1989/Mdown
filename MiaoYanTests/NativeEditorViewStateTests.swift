@@ -41,6 +41,64 @@ final class NativeEditorViewStateTests: XCTestCase {
 
     // MARK: - 视图状态(NE-32:只改 view state,不动 revision/dirty/history)
 
+    // MARK: - T19 focus 降噪 / zoom 滚动锚
+
+    @MainActor
+    func testFocusDimmingDimsBlocksAwayFromCaret() {
+        let view = RichMarkdownTextView(source: "first block\n\nsecond block\n")
+        view.contentTextColor = NSColor.black
+        view.isFocusDimmingEnabled = true
+        view.setSelectedRange(NSRange(location: 2, length: 0))  // first block
+        view.updateFocusDimming()
+
+        let ns = view.string as NSString
+        let first =
+            view.textStorage?.attribute(
+                .foregroundColor, at: ns.range(of: "first").location, effectiveRange: nil) as? NSColor
+        let second =
+            view.textStorage?.attribute(
+                .foregroundColor, at: ns.range(of: "second").location, effectiveRange: nil) as? NSColor
+        XCTAssertEqual(first, .black, "caret 块保持全彩")
+        XCTAssertNotEqual(second, .black, "非 caret 块降噪")
+        XCTAssertEqual(second?.alphaComponent ?? 1, 0.4, accuracy: 0.01)
+    }
+
+    @MainActor
+    func testFocusDimmingDisabledKeepsAllBlocksFullColor() {
+        let view = RichMarkdownTextView(source: "first block\n\nsecond block\n")
+        view.contentTextColor = NSColor.black
+        view.setSelectedRange(NSRange(location: 2, length: 0))
+        view.updateFocusDimming()
+        let ns = view.string as NSString
+        let second =
+            view.textStorage?.attribute(
+                .foregroundColor, at: ns.range(of: "second").location, effectiveRange: nil) as? NSColor
+        XCTAssertEqual(second, .black, "关闭降噪时全部块保持正文色")
+    }
+
+    @MainActor
+    func testFocusDimmingIsViewStateOnly() {
+        let view = RichMarkdownTextView(source: "a\n\nb\n")
+        let revisionBefore = view.revision
+        view.isFocusDimmingEnabled = true
+        view.setSelectedRange(NSRange(location: 0, length: 0))
+        view.updateFocusDimming()
+        XCTAssertEqual(view.revision, revisionBefore, "降噪不动 revision")
+        XCTAssertFalse(view.history.debugDepth > 0, "降噪不入历史")
+    }
+
+    func testAnchoredScrollOffsetKeepsCaretStationary() {
+        // zoom/mode 切换后:caret 在视口中的偏移保持,scroll 重算并 clamp
+        XCTAssertEqual(
+            RichMarkdownTextView.anchoredScrollOffset(
+                caretContentY: 500, caretOffsetFromViewportTop: 120),
+            380)
+        XCTAssertEqual(
+            RichMarkdownTextView.anchoredScrollOffset(
+                caretContentY: 30, caretOffsetFromViewportTop: 120),
+            0, "顶部 clamp")
+    }
+
     @MainActor
     func testTypewriterModeToggleDoesNotTouchRevisionOrHistory() {
         let view = RichMarkdownTextView(source: "hello world\n")

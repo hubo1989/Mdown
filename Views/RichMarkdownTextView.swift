@@ -180,6 +180,39 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         return min(max(raw, 0), contentHeight - viewportHeight)
     }
 
+    /// T19 focus 降噪(NE-32):caret 块之外的块前景降为 40% alpha。
+    /// 只动显示属性;不动 revision/历史/dirty。
+    public var isFocusDimmingEnabled = false
+    private var focusDimmingApplied = false
+
+    /// zoom/mode 切换后保持 caret 在视口中的偏移:scroll = caret 新内容
+    /// Y − 旧偏移,clamp ≥0(纯几何,可测)。
+    nonisolated public static func anchoredScrollOffset(
+        caretContentY: CGFloat, caretOffsetFromViewportTop: CGFloat
+    ) -> CGFloat {
+        max(0, caretContentY - caretOffsetFromViewportTop)
+    }
+
+    /// 按当前 caret 重涂降噪(开关关闭时幂等恢复全彩)。
+    /// selection 变化由 textViewDidChangeSelection 钩子触发。
+    func updateFocusDimming() {
+        guard !hasMarkedText(), let storage = textStorage else { return }
+        guard isFocusDimmingEnabled else {
+            if focusDimmingApplied {
+                focusDimmingApplied = false
+                applyDisplayAttributes()
+            }
+            return
+        }
+        focusDimmingApplied = true
+        let dim = contentTextColor.withAlphaComponent(0.4)
+        let full = NSRange(location: 0, length: storage.length)
+        if full.length > 0 {
+            storage.addAttribute(.foregroundColor, value: dim, range: full)
+        }
+        applyDisplayAttributes()
+    }
+
     /// caret 行滚动居中(typewriter);非该模式时 no-op。
     func scrollCaretToCenterIfNeeded() {
         guard isTypewriterMode, let scrollView = enclosingScrollView else { return }
@@ -212,20 +245,28 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     private func applyDisplayAttributes() {
         guard let storage = textStorage else { return }
         let mono = codeFont
+        // T19:caret 所在块(降噪启用时);nil = 不降噪,全部块全彩。
+        let caretBlock: LosslessMarkdownParser.Block? = {
+            guard isFocusDimmingEnabled else { return nil }
+            let caret = sourceCaret()
+            return document.blocks.first {
+                caret >= $0.rangeUTF16.location && caret <= NSMaxRange($0.rangeUTF16)
+            }
+        }()
         for item in rendered {
             let block = item.block; let projection = item.projection; let start = item.displayStart
-            if case .codeFence(let info) = block.kind {
+            let isActive = caretBlock == nil || block == caretBlock
+            let fg = isActive ? contentTextColor : contentTextColor.withAlphaComponent(0.4)
+            if case .codeFence = block.kind {
                 let blockLen = projection.display.utf16.count
                 let blockRange = NSRange(location: start, length: blockLen)
                 storage.addAttribute(.font, value: mono, range: blockRange)
-                storage.addAttribute(.foregroundColor, value: contentTextColor, range: blockRange)
-                // T15:token 上色(SPEC §8.1)——fence 块投影 1:1(plainFallback),
-                // token range 相对块文本即可直接平移。同步计算(单块 ≤3000,
-                // tokenizer 线性、微秒级),无跨帧 stale;marked 期间本函数
-                // 不会被调用(rebuildProjection 早退),属性不漂移;只动
-                // 属性不动 source/history/revision。超限或未知语言 → 基础样式。
+                storage.addAttribute(.foregroundColor, value: fg, range: blockRange)
+                // T15:token 上色(fence 投影 1:1);超限/未知语言 → 基础样式。
+                // T19:降噪块不涂 token(平色),避免活跃色残留。
                 let maxLen = NotesTextProcessor.shouldUseSimplifiedHighlighting ? 500 : 3000
-                if blockLen <= maxLen, !NotesTextProcessor.shouldSkipCodeHighlighting,
+                if isActive, blockLen <= maxLen, !NotesTextProcessor.shouldSkipCodeHighlighting,
+                    case .codeFence(let info) = block.kind,
                     let tokens = NativeCodeHighlighter.highlight(
                         code: projection.display, language: info.isEmpty ? nil : info)
                 {
@@ -243,8 +284,15 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 }
                 continue
             }
+            // 普通块:显式前景(降噪/全彩一致化;行内 code span 只换字体)
+            let blockRange = NSRange(location: start, length: projection.display.utf16.count)
+            if blockRange.length > 0 {
+                storage.addAttribute(.foregroundColor, value: fg, range: blockRange)
+            }
             for segment in projection.segments where segment.kind == .codeSpan {
-                let range = NSRange(location: start + segment.displayRangeUTF16.location, length: segment.displayRangeUTF16.length)
+                let range = NSRange(
+                    location: start + segment.displayRangeUTF16.location,
+                    length: segment.displayRangeUTF16.length)
                 if range.length > 0 {
                     storage.addAttribute(.font, value: mono, range: range)
                 }
@@ -252,14 +300,46 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         }
     }
 
-    /// T10：字体变化后重刷全文属性（display 已在 storage 中，只重铺字体）。
     public func refreshFontAttributes() {
         guard !hasMarkedText() else { return }
         guard let storage = textStorage else { return }
+        // T19:zoom/mode 切换保持 caret 视觉锚(NE-32)。
+        let anchor = caretScrollAnchor()
         let full = NSRange(location: 0, length: storage.length)
         storage.addAttribute(.font, value: bodyFont, range: full)
         storage.addAttribute(.foregroundColor, value: contentTextColor, range: full)
         applyDisplayAttributes()
+        restoreCaretScrollAnchor(anchor)
+    }
+
+    /// caret 在视口中的位置快照(内容 Y + 距视口顶偏移)。
+    private func caretScrollAnchor() -> (y: CGFloat, offset: CGFloat)? {
+        guard let scrollView = enclosingScrollView, let layoutManager else { return nil }
+        let caret = selectedRange()
+        guard caret.location <= (string as NSString).length else { return nil }
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: caret.location)
+        guard glyphIndex < layoutManager.numberOfGlyphs else { return nil }
+        layoutManager.ensureLayout(for: textContainer ?? NSTextContainer())
+        let lineRect = layoutManager.lineFragmentUsedRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        return (lineRect.midY, lineRect.midY - scrollView.contentView.bounds.origin.y)
+    }
+
+    /// 字体变化后把 caret 顶回原视口偏移(内容不足时 clamp 到 0)。
+    private func restoreCaretScrollAnchor(_ anchor: (y: CGFloat, offset: CGFloat)?) {
+        guard let anchor, let scrollView = enclosingScrollView,
+            let layoutManager
+        else { return }
+        let caret = selectedRange()
+        guard caret.location <= (string as NSString).length else { return }
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: caret.location)
+        guard glyphIndex < layoutManager.numberOfGlyphs else { return }
+        if let container = textContainer { layoutManager.ensureLayout(for: container) }
+        let lineRect = layoutManager.lineFragmentUsedRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        let target = Self.anchoredScrollOffset(
+            caretContentY: lineRect.midY, caretOffsetFromViewportTop: anchor.offset)
+        scrollView.contentView.scroll(
+            to: NSPoint(x: scrollView.contentView.bounds.minX, y: target))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
     }
 
     // MARK: - display → source 同步（textDidChange 驱动）
@@ -1810,6 +1890,11 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             return validateUserInterfaceItem(menuItem)
         }
         return super.validateMenuItem(menuItem)
+    }
+
+    /// T19:caret 移动(点击/方向键)后重涂降噪——本视图是自身 delegate。
+    public func textViewDidChangeSelection(_ notification: Notification) {
+        updateFocusDimming()
     }
 
     /// T06：undo/redo 经 history 返回新 source 与 selection，view 推进

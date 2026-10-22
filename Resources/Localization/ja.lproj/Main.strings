@@ -697,3 +697,19 @@
 
 /* Class = "NSMenuItem"; title = "Reload Note"; ObjectID = "Rld-Nt-7Xm"; */
 "Rld-Nt-7Xm.title" = "再読み込み";
+
+/* Class = "NSMenuItem"; ObjectID = "CdB-Blk-Mnu"; */
+"CdB-Blk-Mnu.title" = "コードブロック";
+
+/* Class = "NSMenuItem"; ObjectID = "CpP-01-iTm"; */
+"CpP-01-iTm.title" = "パスをコピー";
+
+/* Class = "NSMenuItem"; ObjectID = "InC-Cd-Mnu"; */
+"InC-Cd-Mnu.title" = "インラインコード";
+
+/* Class = "NSMenuItem"; ObjectID = "OiT-01-iTm"; */
+"OiT-01-iTm.title" = "ターミナルで開く";
+
+/* Class = "NSMenuItem"; ObjectID = "OiT-03-mnu"; */
+"OiT-03-mnu.title" = "ターミナルで開く";
+
