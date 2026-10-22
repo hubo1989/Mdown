@@ -309,3 +309,4 @@
 "Retry" = "重試";
 "Save Copy…" = "另存副本…";
 "Discard Changes" = "放棄修改";
+"Task checkboxes need an active editor for this note." = "任務勾選需要此筆記處於可編輯狀態。";

@@ -332,3 +332,4 @@
 "Retry" = "再試行";
 "Save Copy…" = "コピーを保存…";
 "Discard Changes" = "変更を破棄";
+"Task checkboxes need an active editor for this note." = "タスクのチェックには、このノートが編集可能である必要があります。";

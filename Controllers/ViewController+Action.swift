@@ -717,8 +717,52 @@ extension ViewController {
         }
     }
 
+    /// T14（NE-23）：native rich 活动面——查找/替换以会话 source 匹配，
+    /// 不把查找喂给隐藏的 source 编辑器 buffer。返回 true = 已处理。
+    private func handleRichTextFinder(_ sender: NSMenuItem, vc: ViewController) -> Bool {
+        guard vc.sessionLayoutMode == .wysiwyg,
+            vc.shouldUseEditorTextContent,
+            let host = vc.activeWysiwygBackend as? NativeRichEditorHostView,
+            !host.isHidden
+        else { return false }
+
+        if sender.tag == NSFindPanelAction.next.rawValue {
+            if !host.isSearchBarVisible {
+                host.showSearchBar(prefilledText: host.currentSearchQuery)
+            }
+            host.findNext()
+            return true
+        }
+        if sender.tag == NSFindPanelAction.previous.rawValue {
+            if !host.isSearchBarVisible {
+                host.showSearchBar(prefilledText: host.currentSearchQuery)
+            }
+            host.findPrevious()
+            return true
+        }
+        if sender.tag == NSFindPanelAction.setFindString.rawValue {
+            host.useSelectionForFind()
+            return true
+        }
+        if let textFinderAction = NSTextFinder.Action(rawValue: sender.tag) {
+            switch textFinderAction {
+            case .showFindInterface:
+                host.showSearchBar(prefilledText: nil, mode: .find)
+            case .showReplaceInterface:
+                host.showSearchBar(prefilledText: nil, mode: .replace)
+            case .hideFindInterface:
+                host.hideSearchBar()
+            default:
+                break
+            }
+            return true
+        }
+        return true
+    }
+
     @IBAction func textFinder(_ sender: NSMenuItem) {
         guard let vc = ViewController.shared() else { return }
+        if handleRichTextFinder(sender, vc: vc) { return }
 
         if !vc.shouldUseEditorTextContent {
             if let webView = vc.editArea.markdownView {
@@ -1617,6 +1661,15 @@ extension ViewController {
                         webView.showSearchBar()
                         return true
                     }
+                }
+                // T14（NE-23）：native rich 活动面——⌘F 归 rich host 的查找条，
+                // 不再给隐藏的 source 编辑器建第二条。
+                if sessionLayoutMode == .wysiwyg,
+                    let host = activeWysiwygBackend as? NativeRichEditorHostView,
+                    !host.isHidden
+                {
+                    host.showSearchBar(prefilledText: host.currentSearchQuery)
+                    return true
                 }
                 // Otherwise use editor search
                 editArea.showSearchBar(prefilledText: nil)

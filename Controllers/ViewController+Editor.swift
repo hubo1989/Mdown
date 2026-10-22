@@ -977,6 +977,58 @@ extension ViewController {
             return
         }
 
+        guard let note = notesTableView.getSelectedNote() else { return }
+
+        // T14（NE-24）：native rich 活动面——读取会话权威 source，排版结果
+        // 以整篇替换事务应用（单条历史、可撤销），不走隐藏 editArea。
+        if sessionLayoutMode == .wysiwyg,
+            let host = activeWysiwygBackend as? NativeRichEditorHostView,
+            !host.isHidden, host.currentNote === note
+        {
+            isFormatting = true
+            updateFormatButtonState(isFormatting: true)
+            formatRequestID += 1
+            let requestID = formatRequestID
+            let noteURL = note.url
+            saveTitleSafely()
+
+            let content = host.textView.source
+            let cursor = host.textView.commandSourceSelection()?.location ?? 0
+
+            formatTask = Task(priority: .userInitiated) { [weak self] in
+                guard let self else { return }
+                do {
+                    let output = try await self.markdownFormatWorker.format(content: content, cursor: cursor)
+                    if Task.isCancelled {
+                        return
+                    }
+
+                    await MainActor.run {
+                        self.applyRichFormattingResult(
+                            output, content: content, noteURL: noteURL,
+                            requestID: requestID, host: host)
+                    }
+                } catch is CancellationError {
+                    await MainActor.run {
+                        guard self.formatRequestID == requestID else { return }
+                        self.isFormatting = false
+                        self.updateFormatButtonState(isFormatting: false)
+                        self.formatTask = nil
+                    }
+                } catch {
+                    await MainActor.run {
+                        guard self.formatRequestID == requestID else { return }
+                        AppDelegate.trackError(error, context: "ViewController+Editor.format")
+                        self.toast(message: I18n.str("Formatting failed, please try again"), style: .failure)
+                        self.isFormatting = false
+                        self.updateFormatButtonState(isFormatting: false)
+                        self.formatTask = nil
+                    }
+                }
+            }
+            return
+        }
+
         if let note = notesTableView.getSelectedNote() {
             // Same ownership rule as cleanTypography: the buffer being
             // formatted must belong to the selected note (#543). The apply
@@ -1068,6 +1120,51 @@ extension ViewController {
         isFormatting = false
         updateFormatButtonState(isFormatting: false)
         formatTask = nil
+    }
+
+    /// T14：native rich 面的排版结果应用——整篇替换事务（单条历史），
+    /// caret 按排版输出的 source 偏移恢复，镜像与落盘走 host 既有通道。
+    private func applyRichFormattingResult(
+        _ output: MarkdownFormatOutput, content: String, noteURL: URL,
+        requestID: Int, host: NativeRichEditorHostView
+    ) {
+        guard formatRequestID == requestID else { return }
+
+        defer {
+            isFormatting = false
+            updateFormatButtonState(isFormatting: false)
+            formatTask = nil
+        }
+
+        guard let note = host.currentNote, note.url == noteURL, !host.isHidden else {
+            return
+        }
+
+        let restoredContent = HtmlManager.restoreHTMLTags(in: output.formattedString, with: output.placeholders)
+        var newContent = restoredContent
+        let originalLines = content.components(separatedBy: .newlines)
+        if originalLines.count > 1 && !restoredContent.contains("\n") {
+            newContent = content
+        } else if content.last != "\n" && restoredContent.last == "\n" {
+            newContent = restoredContent.removeLastNewLine()
+        }
+        guard newContent != content else {
+            toast(message: I18n.str("Automatic typesetting succeeded~"), style: .success)
+            return
+        }
+
+        let adjustedCursorOffset = HtmlManager.adjustCursorAfterRestore(
+            originalOffset: output.cursorOffset, protected: output.protectedContent, restored: newContent)
+        let caretSource = min(
+            max(adjustedCursorOffset, 0), (newContent as NSString).length)
+
+        if host.textView.applyWholeSourceReplacement(newContent, name: "format", caretSourceOffset: caretSource) {
+            host.flushPendingSave()
+            if sessionSplitMode, let previewView = editArea.markdownView {
+                previewView.updateContent(note: note)
+            }
+            toast(message: I18n.str("Automatic typesetting succeeded~"), style: .success)
+        }
     }
 
     private func replaceEditorStorage(with newContent: String, note: Note) {

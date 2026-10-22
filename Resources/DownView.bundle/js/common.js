@@ -143,7 +143,16 @@ const MiaoYanCommon = {
 
     const id = element.dataset.checkbox;
     if (window.webkit?.messageHandlers.checkbox) {
-      window.webkit.messageHandlers.checkbox.postMessage(id);
+      // T14: 有限 intent 载荷 —— 第 n 个 checkbox、点击时渲染态、页面渲染代。
+      // 原生校验身份/代数/内容新鲜后才生成 toggle 命令,过期预览会被拒绝并刷新回滚。
+      const index = Number.isInteger(Number(id)) ? Number(id) : -1;
+      window.webkit.messageHandlers.checkbox.postMessage({
+        index: index,
+        checked: !!element.checked,
+        generation: (typeof window.miaoyanRenderGeneration === 'number')
+          ? window.miaoyanRenderGeneration
+          : null
+      });
     }
 
     const input = document.createElement('input');

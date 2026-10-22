@@ -228,6 +228,9 @@
 		A11B0C0DEF01020304050607 /* MarkdownInlineEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B60 /* MarkdownListEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B62 /* MarkdownInputRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */; };
+		C14000000000000000000001 /* MarkdownEditorCommandAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14000000000000000000002 /* MarkdownEditorCommandAdapter.swift */; };
+		C14000000000000000000003 /* MarkdownCommandRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14000000000000000000004 /* MarkdownCommandRoutingTests.swift */; };
+		C14000000000000000000005 /* PreviewEditIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14000000000000000000006 /* PreviewEditIntentTests.swift */; };
 		C13000000000000000000005 /* MarkdownClipboardAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C13000000000000000000006 /* MarkdownClipboardAdapter.swift */; };
 		C13000000000000000000007 /* MarkdownAttachmentWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C13000000000000000000008 /* MarkdownAttachmentWriter.swift */; };
 		C13000000000000000000001 /* MarkdownClipboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C13000000000000000000002 /* MarkdownClipboardTests.swift */; };
@@ -492,6 +495,9 @@
 		A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInlineEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownListEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInputRulesTests.swift; sourceTree = "<group>"; };
+		C14000000000000000000002 /* MarkdownEditorCommandAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorCommandAdapter.swift; sourceTree = "<group>"; };
+		C14000000000000000000004 /* MarkdownCommandRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownCommandRoutingTests.swift; sourceTree = "<group>"; };
+		C14000000000000000000006 /* PreviewEditIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewEditIntentTests.swift; sourceTree = "<group>"; };
 		C13000000000000000000006 /* MarkdownClipboardAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownClipboardAdapter.swift; sourceTree = "<group>"; };
 		C13000000000000000000008 /* MarkdownAttachmentWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownAttachmentWriter.swift; sourceTree = "<group>"; };
 		C13000000000000000000002 /* MarkdownClipboardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownClipboardTests.swift; sourceTree = "<group>"; };
@@ -626,6 +632,8 @@
 				A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */,
 				C13000000000000000000002 /* MarkdownClipboardTests.swift */,
 				C13000000000000000000004 /* MarkdownRawBlockEditingTests.swift */,
+				C14000000000000000000004 /* MarkdownCommandRoutingTests.swift */,
+				C14000000000000000000006 /* PreviewEditIntentTests.swift */,
 				B6B788393DA817D0A6AD2FE3 /* MarkdownEditingSessionTests.swift */,
 				1C7BA8C505C9D6F2A9562427 /* MarkdownCompositionTests.swift */,
 				B8E4A1F23C5D4E6F9B2A7C31 /* MarkdownEditorHistoryTests.swift */,
@@ -901,6 +909,7 @@
 				966B1F9356197D3446B1BDCD /* MarkdownProjectionBuilder.swift */,
 				A1B2C3D4E5F60718293A4B5F /* MarkdownInputRules.swift */,
 				C13000000000000000000006 /* MarkdownClipboardAdapter.swift */,
+				C14000000000000000000002 /* MarkdownEditorCommandAdapter.swift */,
 				C13000000000000000000008 /* MarkdownAttachmentWriter.swift */,
 );
 			path = Helpers;
@@ -1215,6 +1224,8 @@
 				A1B2C3D4E5F60718293A4B62 /* MarkdownInputRulesTests.swift in Sources */,
 				C13000000000000000000001 /* MarkdownClipboardTests.swift in Sources */,
 				C13000000000000000000003 /* MarkdownRawBlockEditingTests.swift in Sources */,
+				C14000000000000000000003 /* MarkdownCommandRoutingTests.swift in Sources */,
+				C14000000000000000000005 /* PreviewEditIntentTests.swift in Sources */,
 				5287E2EC852C6B3430FB5872 /* MarkdownEditingSessionTests.swift in Sources */,
 				51E95D8D4B21865372D42D48 /* MarkdownCompositionTests.swift in Sources */,
 				A3F7C2E19B4D4E8F8A1C6D50 /* MarkdownEditorHistoryTests.swift in Sources */,
@@ -1344,6 +1355,7 @@
 				A1B2C3D4E5F60718293A4B5C /* MarkdownBlockModel.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5E /* MarkdownInputRules.swift in Sources */,
 				C13000000000000000000005 /* MarkdownClipboardAdapter.swift in Sources */,
+				C14000000000000000000001 /* MarkdownEditorCommandAdapter.swift in Sources */,
 				C13000000000000000000007 /* MarkdownAttachmentWriter.swift in Sources */,
 				A5AF1EC1E3506C998ECE0C7A /* MarkdownEditingSession.swift in Sources */,
 				109B149EC1A3DDE3E3CD248B /* EditTextView+EditingSession.swift in Sources */,

@@ -68,7 +68,12 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
         ])
 
         textView.onSourceCommitted = { [weak self] source in
-            self?.handleSourceCommitted(source)
+            guard let self else { return }
+            self.handleSourceCommitted(source)
+            // T14：查找进行中时编辑后重跑（投影重建清掉临时高亮）。
+            if self.editorSearchBar != nil, !self.currentSearchQuery.isEmpty {
+                self.runSearch(self.currentSearchQuery, jumpToFirstMatch: false)
+            }
         }
 
         applyAppearance()
@@ -264,5 +269,170 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
 
     func applyContentLoadedForTesting(_ note: Note, token: UInt64) {
         applyContentLoaded(note, token: token)
+    }
+
+    // MARK: - T14 查找/替换（NE-23：匹配锚在会话 source，一次可撤销事务）
+
+    private var editorSearchBar: PreviewSearchBar?
+    private var editorSearchBarConstraints: [NSLayoutConstraint] = []
+    private(set) var currentSearchQuery = ""
+    private var searchSourceRanges: [NSRange] = []
+    private var searchCurrentIndex = 0
+
+    var isSearchBarVisible: Bool { editorSearchBar != nil }
+
+    func showSearchBar(prefilledText: String? = nil, mode: PreviewSearchBar.Mode = .find) {
+        if editorSearchBar == nil {
+            let bar = PreviewSearchBar(frame: .zero)
+            bar.translatesAutoresizingMaskIntoConstraints = false
+            bar.configureAppearance(baseColor: Theme.backgroundColor)
+            bar.onSearch = { [weak self] text in
+                self?.runSearch(text, jumpToFirstMatch: true)
+            }
+            bar.onNext = { [weak self] in self?.findNext() }
+            bar.onPrevious = { [weak self] in self?.findPrevious() }
+            bar.onReplace = { [weak self] replaceText in
+                self?.replaceNext(with: replaceText)
+            }
+            bar.onReplaceAll = { [weak self] replaceText in
+                self?.replaceAll(with: replaceText)
+            }
+            bar.onClose = { [weak self] in self?.hideSearchBar() }
+            addSubview(bar, positioned: .above, relativeTo: scrollView)
+            let heightConstraint = bar.heightAnchor.constraint(
+                greaterThanOrEqualToConstant: (mode == .replace) ? 76 : 40)
+            editorSearchBarConstraints = [
+                bar.topAnchor.constraint(equalTo: topAnchor, constant: 8),
+                bar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
+                bar.widthAnchor.constraint(greaterThanOrEqualToConstant: 320),
+                bar.widthAnchor.constraint(lessThanOrEqualToConstant: 480),
+                heightConstraint,
+            ]
+            NSLayoutConstraint.activate(editorSearchBarConstraints)
+            editorSearchBar = bar
+        } else {
+            editorSearchBarConstraints.last?.constant = (mode == .replace) ? 76 : 40
+        }
+        editorSearchBar?.setMode(mode)
+
+        let seed = prefilledText ?? selectionSearchSeed()
+        if let seed, !seed.isEmpty {
+            editorSearchBar?.setSearchText(seed)
+            runSearch(seed, jumpToFirstMatch: true)
+        } else {
+            editorSearchBar?.setSearchText("")
+            runSearch("", jumpToFirstMatch: true)
+        }
+        layoutSubtreeIfNeeded()
+        editorSearchBar?.focusSearchField()
+    }
+
+    func hideSearchBar(restoreFocus: Bool = true) {
+        let hadBar = editorSearchBar != nil || !searchSourceRanges.isEmpty
+        clearSearchHighlights()
+        searchSourceRanges.removeAll()
+        searchCurrentIndex = 0
+        currentSearchQuery = ""
+        editorSearchBar?.removeFromSuperview()
+        editorSearchBar = nil
+        NSLayoutConstraint.deactivate(editorSearchBarConstraints)
+        editorSearchBarConstraints.removeAll()
+        if hadBar, restoreFocus {
+            window?.makeFirstResponder(textView)
+        }
+    }
+
+    func findNext() {
+        guard !searchSourceRanges.isEmpty else { return }
+        searchCurrentIndex = (searchCurrentIndex + 1) % searchSourceRanges.count
+        focusSearchResult(at: searchCurrentIndex)
+        editorSearchBar?.updateMatchInfo(current: searchCurrentIndex + 1, total: searchSourceRanges.count)
+    }
+
+    func findPrevious() {
+        guard !searchSourceRanges.isEmpty else { return }
+        searchCurrentIndex =
+            (searchCurrentIndex - 1 + searchSourceRanges.count) % searchSourceRanges.count
+        focusSearchResult(at: searchCurrentIndex)
+        editorSearchBar?.updateMatchInfo(current: searchCurrentIndex + 1, total: searchSourceRanges.count)
+    }
+
+    func useSelectionForFind() {
+        guard let seed = selectionSearchSeed(), !seed.isEmpty else { return }
+        if !isSearchBarVisible {
+            showSearchBar(prefilledText: seed)
+            return
+        }
+        editorSearchBar?.setSearchText(seed)
+        runSearch(seed, jumpToFirstMatch: true)
+    }
+
+    func replaceNext(with replaceText: String) {
+        guard !searchSourceRanges.isEmpty, !currentSearchQuery.isEmpty else { return }
+        if textView.replaceNextMatch(query: currentSearchQuery, replacement: replaceText) > 0 {
+            runSearch(currentSearchQuery, jumpToFirstMatch: false)
+        }
+    }
+
+    func replaceAll(with replaceText: String) {
+        guard !currentSearchQuery.isEmpty else { return }
+        textView.replaceAllMatches(query: currentSearchQuery, replacement: replaceText)
+        runSearch(currentSearchQuery, jumpToFirstMatch: false)
+    }
+
+    private func runSearch(_ query: String, jumpToFirstMatch: Bool) {
+        currentSearchQuery = query
+        clearSearchHighlights()
+        guard !query.isEmpty else {
+            searchSourceRanges = []
+            searchCurrentIndex = 0
+            editorSearchBar?.updateMatchInfo(current: 0, total: 0)
+            return
+        }
+        searchSourceRanges = textView.sourceMatches(for: query)
+        applySearchHighlights()
+        guard !searchSourceRanges.isEmpty else {
+            searchCurrentIndex = 0
+            editorSearchBar?.updateMatchInfo(current: 0, total: 0)
+            return
+        }
+        if jumpToFirstMatch || !searchSourceRanges.indices.contains(searchCurrentIndex) {
+            searchCurrentIndex = 0
+        }
+        focusSearchResult(at: searchCurrentIndex)
+        editorSearchBar?.updateMatchInfo(
+            current: searchCurrentIndex + 1, total: searchSourceRanges.count)
+    }
+
+    private func focusSearchResult(at index: Int) {
+        guard searchSourceRanges.indices.contains(index) else { return }
+        textView.reveal(sourceRange: searchSourceRanges[index])
+    }
+
+    private func selectionSearchSeed() -> String? {
+        guard let range = textView.commandSourceSelection(), range.length > 0 else { return nil }
+        let ns = textView.source as NSString
+        return ns.substring(with: range)
+    }
+
+    private func applySearchHighlights() {
+        guard let layoutManager = textView.layoutManager else { return }
+        let highlightColor = Theme.selectionBackgroundColor.withAlphaComponent(0.35)
+        let full = NSRange(location: 0, length: (textView.string as NSString).length)
+        guard full.length > 0 else { return }
+        layoutManager.removeTemporaryAttribute(.backgroundColor, forCharacterRange: full)
+        for range in searchSourceRanges {
+            if let display = textView.displayRange(forSourceRange: range), display.length > 0 {
+                layoutManager.addTemporaryAttribute(
+                    .backgroundColor, value: highlightColor, forCharacterRange: display)
+            }
+        }
+    }
+
+    private func clearSearchHighlights() {
+        guard let layoutManager = textView.layoutManager else { return }
+        let full = NSRange(location: 0, length: (textView.string as NSString).length)
+        guard full.length > 0 else { return }
+        layoutManager.removeTemporaryAttribute(.backgroundColor, forCharacterRange: full)
     }
 }

@@ -330,3 +330,4 @@
 "Retry" = "Reintentar";
 "Save Copy…" = "Guardar copia…";
 "Discard Changes" = "Descartar cambios";
+"Task checkboxes need an active editor for this note." = "Las casillas de tareas requieren que esta nota tenga un editor activo.";

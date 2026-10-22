@@ -9,31 +9,83 @@ class HandlerTOCTip: NSObject, WKScriptMessageHandler {
         UserDefaultsManagement.hasShownTOCTip = true
     }
 }
+/// T14（NE-28 / AC-14）：preview checkbox 点击的唯一入口。只解析有限
+/// payload 并转发给原生校验；不再按全局 Note + DOM 序号直写。
 class HandlerCheckbox: NSObject, WKScriptMessageHandler {
     func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
-        guard let position = message.body as? String else { return }
-        guard let note = EditTextView.note else { return }
-        let content = note.content.unLoadCheckboxes().unLoadImages()
-        let string = content.string
-        let range = NSRange(0..<string.count)
-        var i = 0
-        NotesTextProcessor.allTodoInlineRegex.matches(string, range: range) { result in
-            guard let range = result?.range else { return }
-            if i == Int(position) {
-                let substring = content.mutableString.substring(with: range)
-                if substring.contains("- [x] ") {
-                    content.replaceCharacters(in: range, with: "- [ ] ")
-                } else {
-                    content.replaceCharacters(in: range, with: "- [x] ")
-                }
-                note.save(content: content)
-            }
-            i += 1
+        guard let previewView = message.webView as? MPreviewView else { return }
+        let isMainFrame = message.frameInfo.isMainFrame
+        guard let payload = PreviewTaskIntent.parsePayload(message.body) else { return }
+        Task { @MainActor in
+            PreviewTaskIntentRouter.apply(
+                payload, previewView: previewView, isMainFrame: isMainFrame)
         }
     }
+}
+
+/// 从会话状态构建 intent 上下文并应用；拒绝时提示并刷新 preview 以回滚
+/// JS 侧的乐观翻转。
+@MainActor
+enum PreviewTaskIntentRouter {
+
+    private static let readonlyHint = "Task checkboxes need an active editor for this note."
+
+    static func apply(
+        _ payload: PreviewTaskIntentPayload, previewView: MPreviewView, isMainFrame: Bool
+    ) {
+        guard let displayedNote = previewView.displayedNote else { return }
+        guard
+            let vc = previewView.window?.contentViewController as? ViewController
+                ?? AppContext.shared.viewController
+        else {
+            previewView.updateContent(note: displayedNote, preserveScroll: true)
+            return
+        }
+
+        // presentation / PPT 的 checkbox 只是展示；渲染代不匹配 = 过期预览。
+        let interactiveAllowed = !vc.sessionPresentationMode && !vc.sessionMagicPPTMode
+
+        var surface: PreviewTaskIntentApplier.Context.Surface?
+        if vc.sessionLayoutMode == .wysiwyg,
+            let host = vc.activeWysiwygBackend as? NativeRichEditorHostView
+        {
+            surface = .rich(host)
+        } else if vc.editArea.storageNote === displayedNote,
+            vc.editArea.editingSession?.storageIsStale == false
+        {
+            surface = .sourceEditor(vc.editArea, displayedNote)
+        }
+
+        let context = PreviewTaskIntentApplier.Context(
+            surface: surface,
+            displayedNote: displayedNote,
+            currentRenderGeneration: previewView.renderGeneration,
+            interactivePreviewAllowed: interactiveAllowed,
+            isMainFrame: isMainFrame
+        )
+
+        let rejection = PreviewTaskIntentApplier.apply(payload, in: context)
+        if let rejection {
+            AppDelegate.trackError(
+                PreviewTaskIntentError(rejection),
+                context: "PreviewTaskIntentRouter.rejected.\(rejection)")
+            if rejection != .modeForbidden {
+                vc.toast(message: I18n.str(readonlyHint), style: .info)
+            }
+        }
+        // 成功时同步 checkbox 视觉与真实内容；拒绝时刷新回滚 JS 乐观翻转。
+        previewView.updateContent(note: displayedNote, preserveScroll: true)
+    }
+}
+
+/// 拒绝原因的可诊断错误包装（进 diagnostics.log 的 context 链）。
+struct PreviewTaskIntentError: Error {
+    let rejection: PreviewTaskIntentRejection
+    var localizedDescription: String { "preview task intent rejected: \(rejection)" }
+    init(_ rejection: PreviewTaskIntentRejection) { self.rejection = rejection }
 }
 
 class HandlerCodeCopy: NSObject, WKScriptMessageHandler {

@@ -30,6 +30,10 @@ class MPreviewView: WKWebView, WKUIDelegate {
     nonisolated(unsafe) private var contentUpdateWorkItem: DispatchWorkItem?
     private var originalRedrawPolicy: NSView.LayerContentsRedrawPolicy?
     private var contentUpdateVersion: UInt = 0
+    /// T14（NE-28）：当前页面已落地的渲染代。每次 updateContent 的 phase1
+    /// DOM 更新成功后推进并 stamp 进 window.miaoyanRenderGeneration；
+    /// checkbox intent 消息必须回带同一代值，否则按过期渲染拒绝。
+    private(set) var renderGeneration: UInt64 = 0
     private(set) var hasLoadedTemplate = false
     /// True between `load()` calling `loadFileURL` and `webView(_:didFinish:)`
     /// firing. While true, the WKWebView is in the middle of swapping its DOM
@@ -505,6 +509,12 @@ class MPreviewView: WKWebView, WKUIDelegate {
         scrollObserverInjected = false
         Self.hasCompletedInitialLoad = true
         isLoadingTemplate = false
+        // 新页面尚未渲染正文：渲染代归零，旧 stamp 一律失效（NE-28）。
+        // 模板初始渲染的 checkbox 依赖这里的 0 号 stamp（native 同值），
+        // updateContent 落地后推进为递增值。
+        renderGeneration = 0
+        evaluateJavaScript(
+            "window.miaoyanRenderGeneration = 0;", completionHandler: nil)
         closure?()
         loadCompletion?()
         loadCompletion = nil
@@ -654,6 +664,16 @@ class MPreviewView: WKWebView, WKUIDelegate {
             """
                 if (window.MiaoYanCommon && typeof window.MiaoYanCommon.optimizeImages === 'function') {
                     window.MiaoYanCommon.optimizeImages();
+                }
+            """)
+
+        // T14（NE-28）：innerHTML 重建后 task checkbox 的 click 监听与
+        // enabled 态一并丢失——重跑交互绑定，否则 preview task intent
+        // 从 updateContent 起就点不动。
+        initScripts.append(
+            """
+                if (window.MiaoYanCommon && typeof window.MiaoYanCommon.setupInteractiveCheckboxes === 'function') {
+                    window.MiaoYanCommon.setupInteractiveCheckboxes();
                 }
             """)
 
@@ -922,12 +942,13 @@ class MPreviewView: WKWebView, WKUIDelegate {
                 self.lastRendererInitializationTime = now
             }
 
-            let phase1Script = self.buildUpdateScript(
-                html: rawEscaped,
-                initializeMath: shouldInitializeSpecialRenderers && needsMath,
-                initializeDiagrams: shouldInitializeSpecialRenderers && needsDiagrams,
-                preserveScroll: preserveScroll
-            )
+            let phase1Script =
+                self.buildUpdateScript(
+                    html: rawEscaped,
+                    initializeMath: shouldInitializeSpecialRenderers && needsMath,
+                    initializeDiagrams: shouldInitializeSpecialRenderers && needsDiagrams,
+                    preserveScroll: preserveScroll
+                ) + "\nwindow.miaoyanRenderGeneration = \(updateVersion);"
 
             do {
                 _ = try await self.evaluateJavaScript(phase1Script)
@@ -938,6 +959,8 @@ class MPreviewView: WKWebView, WKUIDelegate {
                 self.load(note: note, force: true)
                 return
             }
+            // 渲染代与页面 stamp 同步推进（NE-28：过期渲染的 intent 会被拒绝）。
+            self.renderGeneration = UInt64(updateVersion)
 
             self.setupScrollObserver()
 
