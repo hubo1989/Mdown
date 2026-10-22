@@ -203,6 +203,7 @@
 		0C11AD12A1A75EC3DF7CB5F9 /* LosslessMarkdownParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F3FB9388E5F2ECF7E15AFA1 /* LosslessMarkdownParserTests.swift */; };
 		113554312C3A51AD89992DF7 /* MarkdownProjectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F19114CAB383B58F4A46B8 /* MarkdownProjectionTests.swift */; };
 		7BDCCA9B2766D8CC45D1A017 /* NativeFixtureLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0FA6085AE3E4CF16F573B66 /* NativeFixtureLoader.swift */; };
+		C25000000000000000000001 /* RichMarkdownTextView+Commands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C25000000000000000000002 /* RichMarkdownTextView+Commands.swift */; };
 		C23000000000000000000001 /* RichMarkdownTextView+TableCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23000000000000000000002 /* RichMarkdownTextView+TableCommands.swift */; };
 		2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */; };
 		E403C6BEE6CF40C7443847A8 /* NativeRichEditorHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */; };
@@ -225,6 +226,8 @@
 		C18000000000000000000003 /* NativeMarkdownFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */; };
 		C17000000000000000000001 /* MarkdownBlockRenderAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C17000000000000000000002 /* MarkdownBlockRenderAdapter.swift */; };
 		C17000000000000000000003 /* MarkdownRenderedBlockStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C17000000000000000000004 /* MarkdownRenderedBlockStateTests.swift */; };
+		C24000000000000000000001 /* MarkdownBlockRenderHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24000000000000000000002 /* MarkdownBlockRenderHost.swift */; };
+		C24000000000000000000003 /* MarkdownBlockRenderHostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24000000000000000000004 /* MarkdownBlockRenderHostTests.swift */; };
 		C16000000000000000000001 /* MarkdownTableModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C16000000000000000000002 /* MarkdownTableModel.swift */; };
 		C16000000000000000000003 /* MarkdownTableEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C16000000000000000000004 /* MarkdownTableEditingTests.swift */; };
 		C15000000000000000000001 /* NativeCodeHighlighterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C15000000000000000000002 /* NativeCodeHighlighterTests.swift */; };
@@ -479,6 +482,7 @@
 		7F3FB9388E5F2ECF7E15AFA1 /* LosslessMarkdownParserTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LosslessMarkdownParserTests.swift; sourceTree = "<group>"; };
 		F9F19114CAB383B58F4A46B8 /* MarkdownProjectionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownProjectionTests.swift; sourceTree = "<group>"; };
 		B0FA6085AE3E4CF16F573B66 /* NativeFixtureLoader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeFixtureLoader.swift; sourceTree = "<group>"; };
+		C25000000000000000000002 /* RichMarkdownTextView+Commands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichMarkdownTextView+Commands.swift"; sourceTree = "<group>"; };
 		C23000000000000000000002 /* RichMarkdownTextView+TableCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichMarkdownTextView+TableCommands.swift"; sourceTree = "<group>"; };
 		C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RichMarkdownTextView.swift; sourceTree = "<group>"; };
 		2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeRichEditorHostView.swift; sourceTree = "<group>"; };
@@ -501,6 +505,8 @@
 		C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeMarkdownFormatterTests.swift; sourceTree = "<group>"; };
 		C17000000000000000000002 /* MarkdownBlockRenderAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockRenderAdapter.swift; sourceTree = "<group>"; };
 		C17000000000000000000004 /* MarkdownRenderedBlockStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderedBlockStateTests.swift; sourceTree = "<group>"; };
+		C24000000000000000000002 /* MarkdownBlockRenderHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockRenderHost.swift; sourceTree = "<group>"; };
+		C24000000000000000000004 /* MarkdownBlockRenderHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockRenderHostTests.swift; sourceTree = "<group>"; };
 		C16000000000000000000002 /* MarkdownTableModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTableModel.swift; sourceTree = "<group>"; };
 		C16000000000000000000004 /* MarkdownTableEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTableEditingTests.swift; sourceTree = "<group>"; };
 		C15000000000000000000002 /* NativeCodeHighlighterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCodeHighlighterTests.swift; sourceTree = "<group>"; };
@@ -639,6 +645,7 @@
 				C19000000000000000000002 /* NativeEditorViewStateTests.swift */,
 				C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */,
 				C17000000000000000000004 /* MarkdownRenderedBlockStateTests.swift */,
+				C24000000000000000000004 /* MarkdownBlockRenderHostTests.swift */,
 				C16000000000000000000004 /* MarkdownTableEditingTests.swift */,
 				C14000000000000000000006 /* PreviewEditIntentTests.swift */,
 				B6B788393DA817D0A6AD2FE3 /* MarkdownEditingSessionTests.swift */,
@@ -873,6 +880,7 @@
 				272D1B422E77E9AC00A95674 /* MPreviewView+DiagramExport.swift */,
 							C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */,
 							C23000000000000000000002 /* RichMarkdownTextView+TableCommands.swift */,
+				C25000000000000000000002 /* RichMarkdownTextView+Commands.swift */,
 							2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */,
 				6D8B1EB80A29CD7BB2A3AA17 /* EditTextView+EditingSession.swift */,
 				D5E3F9A28B4C5D6E0F1A2B33 /* EditTextView+History.swift */,
@@ -920,6 +928,7 @@
 				C14000000000000000000002 /* MarkdownEditorCommandAdapter.swift */,
 				C18000000000000000000002 /* NativeMarkdownFormatter.swift */,
 				C17000000000000000000002 /* MarkdownBlockRenderAdapter.swift */,
+				C24000000000000000000002 /* MarkdownBlockRenderHost.swift */,
 				C15000000000000000000004 /* NativeCodeHighlighter.swift */,
 				C13000000000000000000008 /* MarkdownAttachmentWriter.swift */,
 );
@@ -1235,6 +1244,7 @@
 				C19000000000000000000001 /* NativeEditorViewStateTests.swift in Sources */,
 				C18000000000000000000003 /* NativeMarkdownFormatterTests.swift in Sources */,
 				C17000000000000000000003 /* MarkdownRenderedBlockStateTests.swift in Sources */,
+				C24000000000000000000003 /* MarkdownBlockRenderHostTests.swift in Sources */,
 				C16000000000000000000003 /* MarkdownTableEditingTests.swift in Sources */,
 				C14000000000000000000005 /* PreviewEditIntentTests.swift in Sources */,
 				5287E2EC852C6B3430FB5872 /* MarkdownEditingSessionTests.swift in Sources */,
@@ -1361,6 +1371,7 @@
 				CB0CBCC5098271AD6C45CB42 /* MarkdownProjectionBuilder.swift in Sources */,
 				2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */,
 				C23000000000000000000001 /* RichMarkdownTextView+TableCommands.swift in Sources */,
+				C25000000000000000000001 /* RichMarkdownTextView+Commands.swift in Sources */,
 				E403C6BEE6CF40C7443847A8 /* NativeRichEditorHostView.swift in Sources */,
 				60A11954F965D4D5C735985B /* MarkdownEditorHistory.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5C /* MarkdownBlockModel.swift in Sources */,
@@ -1370,6 +1381,7 @@
 				C15000000000000000000003 /* NativeCodeHighlighter.swift in Sources */,
 				C18000000000000000000001 /* NativeMarkdownFormatter.swift in Sources */,
 				C17000000000000000000001 /* MarkdownBlockRenderAdapter.swift in Sources */,
+				C24000000000000000000001 /* MarkdownBlockRenderHost.swift in Sources */,
 				C16000000000000000000001 /* MarkdownTableModel.swift in Sources */,
 				C13000000000000000000007 /* MarkdownAttachmentWriter.swift in Sources */,
 				A5AF1EC1E3506C998ECE0C7A /* MarkdownEditingSession.swift in Sources */,

@@ -426,7 +426,6 @@ extension MarkdownTableEditingTests {
         XCTAssertTrue(view.performUndo(), "删行单步撤销")
     }
 
-
     @MainActor
     func testTypingPipeInsideCellEscapesAndKeepsColumns() {
         let view = makeTableView()

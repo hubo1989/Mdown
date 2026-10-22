@@ -1,0 +1,302 @@
+import AppKit
+
+// MARK: - T14 命令通道(RichMarkdownTextView 扩展;source patch 入口)
+//
+// 命令 adapter / find / preview intent 的原语。全部经 applyStructurePatches
+// 的单事务应用(单条历史、可撤销);失败闭口,不动隐藏面。
+
+extension RichMarkdownTextView {
+
+    // MARK: - T14 命令通道（command adapter / find / preview intent 的 source patch 入口）
+
+    /// display caret / 区间 → source 区间（供命令规划）。跨块或映射歧义
+    /// 返回 nil——命令宁可拒绝也不猜坐标（NE-24：不同坐标不互用）。
+    func commandSourceSelection() -> NSRange? {
+        let sel = selectedRange()
+        if sel.length > 0 {
+            return sourceRange(forDisplayRange: sel)
+        }
+        let caret = sourceCaret()
+        let ns = source as NSString
+        guard caret <= ns.length else { return nil }
+        return NSRange(location: caret, length: 0)
+    }
+
+    /// 选中内容 → 单块 source 文本；跨块/映射歧义 nil。
+    func commandSelectedText() -> String? {
+        guard let range = commandSourceSelection() else { return nil }
+        let ns = source as NSString
+        guard NSMaxRange(range) <= ns.length else { return nil }
+        return ns.substring(with: range)
+    }
+
+    /// underline 命令：`<u>` 包裹/解除。raw inline HTML 在投影里整段原样
+    /// 显示（plainFallback），wrap 后 marker 字面可见，与 source 模式一致。
+    @discardableResult
+    public func insertUnderlineCommand() -> Bool {
+        guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
+        rebuildProjection()
+        guard let sourceRange = commandSourceSelection(),
+            NSMaxRange(sourceRange) <= (source as NSString).length
+        else { return false }
+        let ns = source as NSString
+        let open = "<u>", close = "</u>"
+        // unwrap：选中区间两侧紧贴标签，或区间本身含完整标签对
+        if sourceRange.length >= (open as NSString).length + (close as NSString).length,
+            ns.substring(with: sourceRange).hasPrefix(open),
+            ns.substring(with: sourceRange).hasSuffix(close)
+        {
+            let inner = NSRange(
+                location: sourceRange.location + (open as NSString).length,
+                length: sourceRange.length - (open as NSString).length - (close as NSString).length)
+            let patches = [
+                SourcePatch(rangeUTF16: NSRange(location: sourceRange.location, length: (open as NSString).length), expectedText: open, replacement: ""),
+                SourcePatch(rangeUTF16: NSRange(location: NSMaxRange(inner), length: (close as NSString).length), expectedText: close, replacement: ""),
+            ]
+            return applyStructurePatches(
+                patches, name: "underline-unwrap", restoreSourceCaret: inner.location, origin: .format)
+        }
+        if sourceRange.location >= (open as NSString).length,
+            NSMaxRange(sourceRange) + (close as NSString).length <= ns.length,
+            ns.substring(with: NSRange(location: sourceRange.location - (open as NSString).length, length: (open as NSString).length)) == open,
+            ns.substring(with: NSRange(location: NSMaxRange(sourceRange), length: (close as NSString).length)) == close
+        {
+            let patches = [
+                SourcePatch(rangeUTF16: NSRange(location: sourceRange.location - (open as NSString).length, length: (open as NSString).length), expectedText: open, replacement: ""),
+                SourcePatch(rangeUTF16: NSRange(location: NSMaxRange(sourceRange), length: (close as NSString).length), expectedText: close, replacement: ""),
+            ]
+            return applyStructurePatches(
+                patches, name: "underline-unwrap", restoreSourceCaret: sourceRange.location - (open as NSString).length, origin: .format)
+        }
+        guard sourceRange.length > 0 else { return false }
+        let selected = ns.substring(with: sourceRange)
+        let patch = SourcePatch(
+            rangeUTF16: sourceRange, expectedText: selected,
+            replacement: open + selected + close)
+        return applyStructurePatches(
+            [patch], name: "underline-wrap",
+            restoreSourceCaret: NSMaxRange(sourceRange) + (open as NSString).length + (close as NSString).length,
+            origin: .format)
+    }
+
+    /// link 命令：选中内容包成 `[label]()`,caret 落 `(` 后（target 输入位）。
+    @discardableResult
+    public func insertLinkCommand() -> Bool {
+        guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
+        rebuildProjection()
+        guard let sourceRange = commandSourceSelection(),
+            NSMaxRange(sourceRange) <= (source as NSString).length
+        else { return false }
+        let ns = source as NSString
+        let label = ns.substring(with: sourceRange)
+        let patch = SourcePatch(
+            rangeUTF16: sourceRange, expectedText: label,
+            replacement: "[" + label + "]()")
+        // caret 落在 "(" 与 ")" 之间："](" 之后
+        let caretAfter = NSMaxRange(sourceRange) + 2
+        return applyStructurePatches([patch], name: "link", restoreSourceCaret: caretAfter, origin: .format)
+    }
+
+    /// todo 命令：光标行在 task item 上翻转勾选字符；普通行插入 `- [ ] `
+    /// 前缀（与 TextFormatter.toggleTodo 同语义，坐标锚在会话 source）。
+    @discardableResult
+    public func toggleTodoCommand() -> Bool {
+        guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
+        rebuildProjection()
+        let ns = source as NSString
+        let caret = sourceCaret()
+        guard caret <= ns.length else { return false }
+        let lineRange = ns.lineRange(for: NSRange(location: caret, length: 0))
+        let parsed = MarkdownBlockModel.parseLine(ns, lineRange: lineRange)
+        if parsed.task != nil, let patch = MarkdownBlockModel.planTaskToggle(line: parsed) {
+            return applyStructurePatches([patch], name: "todo-toggle", restoreSourceCaret: caret, origin: .structure)
+        }
+        let patch = SourcePatch(
+            rangeUTF16: NSRange(location: lineRange.location, length: 0),
+            expectedText: "", replacement: "- [ ] ")
+        return applyStructurePatches([patch], name: "todo-insert", restoreSourceCaret: caret + 6, origin: .structure)
+    }
+
+    /// code block 命令：选中内容包进围栏，空选中插入空围栏；caret 落
+    /// 开 fence 之后的行首。
+    @discardableResult
+    public func insertCodeBlockCommand() -> Bool {
+        guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
+        rebuildProjection()
+        let ns = source as NSString
+        let sel = selectedRange()
+        if sel.length > 0 {
+            guard let sourceRange = sourceRange(forDisplayRange: sel),
+                NSMaxRange(sourceRange) <= ns.length
+            else { return false }
+            let content = ns.substring(with: sourceRange)
+            let needsNewline = !content.hasSuffix("\n")
+            let replacement = "```\n" + content + (needsNewline ? "\n" : "") + "```\n"
+            let patch = SourcePatch(
+                rangeUTF16: sourceRange, expectedText: content, replacement: replacement)
+            return applyStructurePatches([patch], name: "code-block", restoreSourceCaret: sourceRange.location + 4, origin: .format)
+        }
+        let caret = sourceCaret()
+        guard caret <= ns.length else { return false }
+        let patch = SourcePatch(
+            rangeUTF16: NSRange(location: caret, length: 0),
+            expectedText: "", replacement: "```\n\n```\n")
+        return applyStructurePatches([patch], name: "code-block", restoreSourceCaret: caret + 4, origin: .format)
+    }
+
+    /// 快捷模板：在 caret 插入 `/<name>` 字面（NotesTextProcessor 重扫时
+    /// 展开为对应结构，N1 阶段与 source 模式同语义）。
+    @discardableResult
+    public func insertShortcutTemplate(_ name: String) -> Bool {
+        guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
+        rebuildProjection()
+        let caret = sourceCaret()
+        let ns = source as NSString
+        guard caret <= ns.length else { return false }
+        let text = "/" + name
+        let patch = SourcePatch(
+            rangeUTF16: NSRange(location: caret, length: 0),
+            expectedText: "", replacement: text)
+        return applyStructurePatches(
+            [patch], name: "shortcut-template", restoreSourceCaret: caret + (text as NSString).length,
+            origin: .structure)
+    }
+
+    /// find：匹配全部锚在权威 source（含 frontmatter/ref 等不可见范围，
+    /// NE-23）。大小写/变音不敏感，与 source 模式搜索一致。
+    public func sourceMatches(for query: String) -> [NSRange] {
+        guard !query.isEmpty else { return [] }
+        let ns = source as NSString
+        var ranges: [NSRange] = []
+        var searchRange = NSRange(location: 0, length: ns.length)
+        while searchRange.length > 0 {
+            let found = ns.range(
+                of: query, options: [.caseInsensitive, .diacriticInsensitive], range: searchRange)
+            if found.location == NSNotFound { break }
+            ranges.append(found)
+            let next = found.location + max(found.length, 1)
+            if next >= ns.length { break }
+            searchRange = NSRange(location: next, length: ns.length - next)
+        }
+        return ranges
+    }
+
+    /// source 区间 → display 区间（同块端点经投影映射；负值/未映射按
+    /// 无位置处理）。跨块区间返回 nil——跨块高亮不显示，替换不受影响。
+    public func displayRange(forSourceRange range: NSRange) -> NSRange? {
+        rebuildProjection()
+        for item in rendered {
+            guard range.location >= item.block.rangeUTF16.location,
+                NSMaxRange(range) <= NSMaxRange(item.block.rangeUTF16)
+            else { continue }
+            func mapped(_ offset: Int) -> Int? {
+                guard let value = item.projection.displayOffset(forSource: offset), value >= 0 else {
+                    return nil
+                }
+                return item.displayStart + value
+            }
+            switch (mapped(range.location), mapped(NSMaxRange(range))) {
+            case let (start?, end?):
+                return NSRange(location: min(start, end), length: abs(end - start))
+            case let (start?, nil):
+                return NSRange(location: start, length: 0)
+            case let (nil, end?):
+                return NSRange(location: max(end - 1, item.displayStart), length: 0)
+            case (nil, nil):
+                continue
+            }
+        }
+        return nil
+    }
+
+    /// 跳转并选中一个 source 匹配（display 映射失败时退化为纯选中）。
+    @discardableResult
+    public func reveal(sourceRange: NSRange) -> Bool {
+        let display =
+            displayRange(forSourceRange: sourceRange)
+            ?? NSRange(location: min(selectedRange().location, (string as NSString).length), length: 0)
+        setSelectedRange(display)
+        scrollRangeToVisible(display)
+        return true
+    }
+
+    /// replace-next：替换 caret 起第一个匹配（无则回绕到首个），单 patch
+    /// 单条历史。
+    @discardableResult
+    public func replaceNextMatch(query: String, replacement: String) -> Int {
+        guard isEditable, !hasMarkedText(), !query.isEmpty else { return 0 }
+        rebuildProjection()
+        let matches = sourceMatches(for: query)
+        guard !matches.isEmpty else { return 0 }
+        let caret = sourceCaret()
+        let target = matches.first(where: { $0.location >= caret }) ?? matches[0]
+        let ns = source as NSString
+        let patch = SourcePatch(
+            rangeUTF16: target, expectedText: ns.substring(with: target), replacement: replacement)
+        guard
+            applyStructurePatches(
+                [patch], name: "find-replace",
+                restoreSourceCaret: target.location + (replacement as NSString).length,
+                origin: .format)
+        else { return 0 }
+        return 1
+    }
+
+    /// replace-all：全部匹配一次原子事务（一条历史、一次 revision 推进，
+    /// NE-23"一次可撤销事务"）。大小写不敏感匹配按实际命中字节构造
+    /// expectedText，不改写任何非匹配范围。
+    @discardableResult
+    public func replaceAllMatches(query: String, replacement: String) -> Int {
+        guard isEditable, !hasMarkedText(), !query.isEmpty else { return 0 }
+        rebuildProjection()
+        let matches = sourceMatches(for: query)
+        guard !matches.isEmpty else { return 0 }
+        let ns = source as NSString
+        let patches = matches.map {
+            SourcePatch(rangeUTF16: $0, expectedText: ns.substring(with: $0), replacement: replacement)
+        }
+        let caretBefore = sourceCaret()
+        guard
+            applyStructurePatches(
+                patches, name: "find-replace-all",
+                restoreSourceCaret: caretBefore, origin: .format)
+        else { return 0 }
+        return matches.count
+    }
+
+    /// 整篇替换（format 通道）：单条历史、单步撤销；caret 按传入 source
+    /// 偏移恢复（未传保持当前 caret 的 source 位置，越界 clamp）。
+    @discardableResult
+    public func applyWholeSourceReplacement(
+        _ newSource: String, name: String, caretSourceOffset: Int? = nil
+    ) -> Bool {
+        guard isEditable, !hasMarkedText(), newSource != source else { return false }
+        let ns = source as NSString
+        let patch = SourcePatch(
+            rangeUTF16: NSRange(location: 0, length: ns.length),
+            expectedText: source, replacement: newSource)
+        let caretBefore = min(caretSourceOffset ?? sourceCaret(), newSource.utf16.count)
+        return applyStructurePatches(
+            [patch], name: name, restoreSourceCaret: caretBefore, origin: .format)
+    }
+
+    /// preview checkbox intent：精确 span 翻转（期望字节失配拒绝 = stale
+    /// render 防护）。caret 原位保持——preview 交互不得移动编辑光标。
+    @discardableResult
+    public func applyTaskTogglePatch(
+        sourceRange: NSRange, expectedOld: String, replacement: String
+    ) -> Bool {
+        guard isEditable else { return false }
+        rebuildProjection()
+        let ns = source as NSString
+        guard NSMaxRange(sourceRange) <= ns.length,
+            ns.substring(with: sourceRange) == expectedOld
+        else { return false }
+        let patch = SourcePatch(
+            rangeUTF16: sourceRange, expectedText: expectedOld, replacement: replacement)
+        return applyStructurePatches(
+            [patch], name: "task-toggle-preview", restoreSourceCaret: sourceCaret(),
+            origin: .previewIntent)
+    }
+
+}
