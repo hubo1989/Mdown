@@ -1355,7 +1355,44 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             menu.addItem(item)
         }
         appendTableMenuItems(to: menu, for: event)
+        appendCodeFenceMenuItems(to: menu)
         return menu
+    }
+
+    /// T15:caret 在 codeFence 内时追加语言子菜单(界定符面板的菜单入口,
+    /// source 事务)。
+    func appendCodeFenceMenuItems(to menu: NSMenu) {
+        rebuildProjection()
+        guard codeFenceBlockAtCaret() != nil else { return }
+        menu.addItem(.separator())
+        let language = NSMenuItem(title: I18n.str("Change Language"), action: nil, keyEquivalent: "")
+        let languageMenu = NSMenu()
+        for lang in [
+            "swift", "python", "javascript", "typescript", "json", "html",
+            "css", "shell", "sql", "yaml", "c", "cpp", "objc",
+        ] {
+            let item = NSMenuItem(
+                title: lang, action: #selector(codeFenceLanguage(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = lang
+            languageMenu.addItem(item)
+        }
+        language.submenu = languageMenu
+        menu.addItem(language)
+        let exit = NSMenuItem(
+            title: I18n.str("Exit Code Block"), action: #selector(codeFenceExit(_:)),
+            keyEquivalent: "")
+        exit.target = self
+        menu.addItem(exit)
+    }
+
+    @objc func codeFenceLanguage(_ sender: NSMenuItem) {
+        guard let lang = sender.representedObject as? String else { return }
+        setCodeFenceLanguage(lang)
+    }
+
+    @objc func codeFenceExit(_ sender: Any?) {
+        exitCodeBlockAtCaret()
     }
 
     /// T16:右键落格时把 caret 移到点击处并追加行列命令项(Typora 语义)。

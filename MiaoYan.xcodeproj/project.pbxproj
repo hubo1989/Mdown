@@ -226,6 +226,8 @@
 		C18000000000000000000003 /* NativeMarkdownFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */; };
 		C17000000000000000000001 /* MarkdownBlockRenderAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C17000000000000000000002 /* MarkdownBlockRenderAdapter.swift */; };
 		C17000000000000000000003 /* MarkdownRenderedBlockStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C17000000000000000000004 /* MarkdownRenderedBlockStateTests.swift */; };
+		C26000000000000000000001 /* NativeBlockExportSupply.swift in Sources */ = {isa = PBXBuildFile; fileRef = C26000000000000000000002 /* NativeBlockExportSupply.swift */; };
+		C26000000000000000000003 /* NativeBlockExportSupplyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C26000000000000000000004 /* NativeBlockExportSupplyTests.swift */; };
 		C24000000000000000000001 /* MarkdownBlockRenderHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24000000000000000000002 /* MarkdownBlockRenderHost.swift */; };
 		C24000000000000000000003 /* MarkdownBlockRenderHostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24000000000000000000004 /* MarkdownBlockRenderHostTests.swift */; };
 		C16000000000000000000001 /* MarkdownTableModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C16000000000000000000002 /* MarkdownTableModel.swift */; };
@@ -505,6 +507,8 @@
 		C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeMarkdownFormatterTests.swift; sourceTree = "<group>"; };
 		C17000000000000000000002 /* MarkdownBlockRenderAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockRenderAdapter.swift; sourceTree = "<group>"; };
 		C17000000000000000000004 /* MarkdownRenderedBlockStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderedBlockStateTests.swift; sourceTree = "<group>"; };
+		C26000000000000000000002 /* NativeBlockExportSupply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBlockExportSupply.swift; sourceTree = "<group>"; };
+		C26000000000000000000004 /* NativeBlockExportSupplyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBlockExportSupplyTests.swift; sourceTree = "<group>"; };
 		C24000000000000000000002 /* MarkdownBlockRenderHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockRenderHost.swift; sourceTree = "<group>"; };
 		C24000000000000000000004 /* MarkdownBlockRenderHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockRenderHostTests.swift; sourceTree = "<group>"; };
 		C16000000000000000000002 /* MarkdownTableModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTableModel.swift; sourceTree = "<group>"; };
@@ -645,6 +649,7 @@
 				C19000000000000000000002 /* NativeEditorViewStateTests.swift */,
 				C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */,
 				C17000000000000000000004 /* MarkdownRenderedBlockStateTests.swift */,
+				C26000000000000000000004 /* NativeBlockExportSupplyTests.swift */,
 				C24000000000000000000004 /* MarkdownBlockRenderHostTests.swift */,
 				C16000000000000000000004 /* MarkdownTableEditingTests.swift */,
 				C14000000000000000000006 /* PreviewEditIntentTests.swift */,
@@ -928,6 +933,7 @@
 				C14000000000000000000002 /* MarkdownEditorCommandAdapter.swift */,
 				C18000000000000000000002 /* NativeMarkdownFormatter.swift */,
 				C17000000000000000000002 /* MarkdownBlockRenderAdapter.swift */,
+				C26000000000000000000002 /* NativeBlockExportSupply.swift */,
 				C24000000000000000000002 /* MarkdownBlockRenderHost.swift */,
 				C15000000000000000000004 /* NativeCodeHighlighter.swift */,
 				C13000000000000000000008 /* MarkdownAttachmentWriter.swift */,
@@ -1244,6 +1250,7 @@
 				C19000000000000000000001 /* NativeEditorViewStateTests.swift in Sources */,
 				C18000000000000000000003 /* NativeMarkdownFormatterTests.swift in Sources */,
 				C17000000000000000000003 /* MarkdownRenderedBlockStateTests.swift in Sources */,
+				C26000000000000000000003 /* NativeBlockExportSupplyTests.swift in Sources */,
 				C24000000000000000000003 /* MarkdownBlockRenderHostTests.swift in Sources */,
 				C16000000000000000000003 /* MarkdownTableEditingTests.swift in Sources */,
 				C14000000000000000000005 /* PreviewEditIntentTests.swift in Sources */,
@@ -1381,6 +1388,7 @@
 				C15000000000000000000003 /* NativeCodeHighlighter.swift in Sources */,
 				C18000000000000000000001 /* NativeMarkdownFormatter.swift in Sources */,
 				C17000000000000000000001 /* MarkdownBlockRenderAdapter.swift in Sources */,
+				C26000000000000000000001 /* NativeBlockExportSupply.swift in Sources */,
 				C24000000000000000000001 /* MarkdownBlockRenderHost.swift in Sources */,
 				C16000000000000000000001 /* MarkdownTableModel.swift in Sources */,
 				C13000000000000000000007 /* MarkdownAttachmentWriter.swift in Sources */,
