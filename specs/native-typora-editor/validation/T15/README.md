@@ -48,10 +48,22 @@
 - 测试:`RichMarkdownEditingTests` 新增 2 用例(token 上色/超限与未知
   语言回基础),套件 20/20;tokenizer 22/22;全量 542(同 8 环境失败)。
 
+## 阶段 3(同日补交):块级命令
+
+- `RichMarkdownTextView.setCodeFenceLanguage`:只替换开围栏后的 info 串
+  (backtick/tilde 3+ 运行),内容与定界符字节不动,单条 source 事务
+  可撤销;fence 外 false。
+- `exitCodeBlockAtCaret` + ⌘Return 路由:fence 内退出块 = 块后插空段落
+  (EOF 变体补段),caret 落新行,一次 undo;块外交还默认键行为。
+- 测试:5 例(语言替换+撤销/块外拒绝/裸围栏插 info/退出块 caret+undo/
+  块外退出拒绝),套件 25/25。
+
 ## T15 剩余(不声称完成)
 
-1. 语言/界定符面板、⌘Enter 退出块等块级编辑命令。
-2. 行为/性能对照(Highlightr ↔ native 的 golden 比对)与压力测量
-   (含 rich 面大文档高亮的 p95 验证,决定是否需要异步管线)。
-3. T14 遗留:preview checkbox 正向写盘的实机证据(stale 防线与零写入
-   已实证;成功链路 15 用例覆盖,见 validation/T14)。
+1. 语言界定符的**面板 UI**(本阶段交付 source 事务命令面,面板入口留
+   T19/T23 设置界面)。
+2. Highlightr ↔ native 的 golden 对照——包已随 T22 移除,无对照基准;
+   以 T15 的 22 例 token 边界 corpus 为行为基线。压力测量见
+   validation/T21(单样本)。
+3. ~~T14 遗留~~ 已闭环:checkbox 正向写盘实机证据见 validation/T14
+   (2026-10-22,旧构建/新构建对照)。
