@@ -426,6 +426,43 @@ extension MarkdownTableEditingTests {
         XCTAssertTrue(view.performUndo(), "删行单步撤销")
     }
 
+
+    @MainActor
+    func testTypingPipeInsideCellEscapesAndKeepsColumns() {
+        let view = makeTableView()
+        let ns = view.source as NSString
+        // caret 在 body 首格 "c" 内
+        view.setSelectedRange(NSRange(location: ns.range(of: "c").location + 1, length: 0))
+        view.insertText("x|y")
+        XCTAssertTrue(view.source.contains("| cx\\|y |"), "管道转义写入: \(view.source)")
+        // 列数不塌:表仍为两列结构
+        XCTAssertTrue(view.source.contains("| a | b |"))
+        XCTAssertTrue(view.source.hasSuffix("| e | f |\n"))
+    }
+
+    @MainActor
+    func testCrossCellSelectionReplacementIsRejected() {
+        let view = makeTableView()
+        let ns = view.source as NSString
+        // 选中 "c | d"(跨 cell 边界)后键入 X:必须拒绝,source 不动
+        let start = ns.range(of: "c").location
+        let end = ns.range(of: "d").location + 1
+        view.setSelectedRange(NSRange(location: start, length: end - start))
+        view.insertText("X")
+        XCTAssertEqual(
+            view.source,
+            "| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n",
+            "跨 cell 替换不得吞管道拆表")
+        XCTAssertNotNil(view.lastSyncRejection, "拒绝应留下观察口记录")
+    }
+
+    @MainActor
+    func testPipeEscapeParity() {
+        XCTAssertEqual(RichMarkdownTextView.escapingUnescapedPipes("a|b"), "a\\|b")
+        XCTAssertEqual(RichMarkdownTextView.escapingUnescapedPipes("a\\|b"), "a\\|b", "已转义不双转义")
+        XCTAssertEqual(RichMarkdownTextView.escapingUnescapedPipes("a\\\\|b"), "a\\\\\\|b", "\\\\ 后管道仍需转义")
+    }
+
     @MainActor
     func testInsertAndDeleteColumnCommandsAtCaret() {
         let view = makeTableView()

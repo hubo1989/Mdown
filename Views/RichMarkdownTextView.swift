@@ -398,8 +398,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                             affinity: .downstream
                         ),
                         selectionAfter: MarkdownSelection(
-                            anchorUTF16: patch.rangeUTF16.location + replacement.utf16.count,
-                            focusUTF16: patch.rangeUTF16.location + replacement.utf16.count,
+                            anchorUTF16: patch.rangeUTF16.location + patch.replacement.utf16.count,
+                            focusUTF16: patch.rangeUTF16.location + patch.replacement.utf16.count,
                             affinity: .downstream
                         ),
                         origin: .typing,
@@ -419,7 +419,16 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             break
         }
 
-        if !applied, !oldText.isEmpty,
+        let crossCellTableEdit: Bool = {
+            guard !oldText.isEmpty else { return false }
+            return rendered.contains { item in
+                guard case .table = item.block.kind else { return false }
+                let editStart = prefix
+                return editStart >= item.displayStart
+                    && editStart <= item.displayStart + item.projection.display.utf16.count
+            }
+        }()
+        if !applied, !oldText.isEmpty, !crossCellTableEdit,
             let span = sourceRangeSpanningBlocks(
                 forDisplayRange: NSRange(location: prefix, length: oldText.utf16.count))
         {
@@ -506,7 +515,43 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         let end = local.length == 0 ? start : item.projection.sourceOffset(forDisplay: NSMaxRange(local))
         guard let end, start <= end, start >= item.block.rangeUTF16.location, end <= NSMaxRange(item.block.rangeUTF16) else { return nil }
         let range = NSRange(location: start, length: end - start)
-        return SourcePatch(rangeUTF16: range, expectedText: (source as NSString).substring(with: range), replacement: replacement)
+        var effectiveReplacement = replacement
+        // T16:table 块按 cell 语义收口(投影 1:1,raw `|` 落 source 会拆表)。
+        // cell 内:未转义管道写入为 \|;跨 cell/管道界:拒绝(结构修改只走
+        // 模型命令),display 随 rebuild 回退。
+        if case .table = item.block.kind {
+            let model = MarkdownTableModel.parse(source: source, blockRange: item.block.rangeUTF16)
+            let inCell = model.rows.contains { row in
+                row.cells.contains { cell in
+                    start >= cell.rangeUTF16.location && end <= NSMaxRange(cell.rangeUTF16)
+                }
+            }
+            guard inCell else { return nil }
+            effectiveReplacement = Self.escapingUnescapedPipes(replacement)
+        }
+        return SourcePatch(rangeUTF16: range, expectedText: (source as NSString).substring(with: range), replacement: effectiveReplacement)
+    }
+
+    /// 只转义未被转义的管道(反斜杠奇偶判定:`\\|` 双反斜杠后管道仍需转义)。
+    static func escapingUnescapedPipes(_ text: String) -> String {
+        var out = ""
+        var backslashRun = 0
+        for ch in text {
+            if ch == "\\" {
+                backslashRun += 1
+                out.append(ch)
+                continue
+            }
+            if ch == "|" {
+                if backslashRun % 2 == 0 { out.append("\\") }
+                out.append("|")
+                backslashRun = 0
+                continue
+            }
+            backslashRun = 0
+            out.append(ch)
+        }
+        return out
     }
 
     /// T06：marked 期间的 source 同步（不登记历史）。映射逻辑与
