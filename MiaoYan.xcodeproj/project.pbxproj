@@ -217,6 +217,7 @@
 		A11B0C0DEF01020304050607 /* MarkdownInlineEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B60 /* MarkdownListEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B62 /* MarkdownInputRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */; };
+		C21000000000000000000001 /* NativeEditorStressBudgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21000000000000000000002 /* NativeEditorStressBudgetTests.swift */; };
 		C22000000000000000000001 /* NativeWysiwygContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22000000000000000000002 /* NativeWysiwygContractTests.swift */; };
 		C19000000000000000000001 /* NativeEditorViewStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C19000000000000000000002 /* NativeEditorViewStateTests.swift */; };
 		C18000000000000000000001 /* NativeMarkdownFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18000000000000000000002 /* NativeMarkdownFormatter.swift */; };
@@ -491,6 +492,7 @@
 		A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInlineEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownListEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInputRulesTests.swift; sourceTree = "<group>"; };
+		C21000000000000000000002 /* NativeEditorStressBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorStressBudgetTests.swift; sourceTree = "<group>"; };
 		C22000000000000000000002 /* NativeWysiwygContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWysiwygContractTests.swift; sourceTree = "<group>"; };
 		C19000000000000000000002 /* NativeEditorViewStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorViewStateTests.swift; sourceTree = "<group>"; };
 		C18000000000000000000002 /* NativeMarkdownFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeMarkdownFormatter.swift; sourceTree = "<group>"; };
@@ -630,6 +632,7 @@
 				C13000000000000000000004 /* MarkdownRawBlockEditingTests.swift */,
 				C14000000000000000000004 /* MarkdownCommandRoutingTests.swift */,
 				C15000000000000000000002 /* NativeCodeHighlighterTests.swift */,
+				C21000000000000000000002 /* NativeEditorStressBudgetTests.swift */,
 				C22000000000000000000002 /* NativeWysiwygContractTests.swift */,
 				C19000000000000000000002 /* NativeEditorViewStateTests.swift */,
 				C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */,
@@ -1224,6 +1227,7 @@
 				C13000000000000000000003 /* MarkdownRawBlockEditingTests.swift in Sources */,
 				C14000000000000000000003 /* MarkdownCommandRoutingTests.swift in Sources */,
 				C15000000000000000000001 /* NativeCodeHighlighterTests.swift in Sources */,
+				C21000000000000000000001 /* NativeEditorStressBudgetTests.swift in Sources */,
 				C22000000000000000000001 /* NativeWysiwygContractTests.swift in Sources */,
 				C19000000000000000000001 /* NativeEditorViewStateTests.swift in Sources */,
 				C18000000000000000000003 /* NativeMarkdownFormatterTests.swift in Sources */,
