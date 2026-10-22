@@ -203,6 +203,7 @@
 		0C11AD12A1A75EC3DF7CB5F9 /* LosslessMarkdownParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F3FB9388E5F2ECF7E15AFA1 /* LosslessMarkdownParserTests.swift */; };
 		113554312C3A51AD89992DF7 /* MarkdownProjectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F19114CAB383B58F4A46B8 /* MarkdownProjectionTests.swift */; };
 		7BDCCA9B2766D8CC45D1A017 /* NativeFixtureLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0FA6085AE3E4CF16F573B66 /* NativeFixtureLoader.swift */; };
+		C23000000000000000000001 /* RichMarkdownTextView+TableCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23000000000000000000002 /* RichMarkdownTextView+TableCommands.swift */; };
 		2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */; };
 		E403C6BEE6CF40C7443847A8 /* NativeRichEditorHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */; };
 		60A11954F965D4D5C735985B /* MarkdownEditorHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */; };
@@ -478,6 +479,7 @@
 		7F3FB9388E5F2ECF7E15AFA1 /* LosslessMarkdownParserTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LosslessMarkdownParserTests.swift; sourceTree = "<group>"; };
 		F9F19114CAB383B58F4A46B8 /* MarkdownProjectionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownProjectionTests.swift; sourceTree = "<group>"; };
 		B0FA6085AE3E4CF16F573B66 /* NativeFixtureLoader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeFixtureLoader.swift; sourceTree = "<group>"; };
+		C23000000000000000000002 /* RichMarkdownTextView+TableCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichMarkdownTextView+TableCommands.swift"; sourceTree = "<group>"; };
 		C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RichMarkdownTextView.swift; sourceTree = "<group>"; };
 		2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeRichEditorHostView.swift; sourceTree = "<group>"; };
 		EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditorHistory.swift; sourceTree = "<group>"; };
@@ -870,6 +872,7 @@
 				BEE6142E8B5D4BB380FC2B38 /* MPreviewView+Search.swift */,
 				272D1B422E77E9AC00A95674 /* MPreviewView+DiagramExport.swift */,
 							C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */,
+							C23000000000000000000002 /* RichMarkdownTextView+TableCommands.swift */,
 							2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */,
 				6D8B1EB80A29CD7BB2A3AA17 /* EditTextView+EditingSession.swift */,
 				D5E3F9A28B4C5D6E0F1A2B33 /* EditTextView+History.swift */,
@@ -1357,6 +1360,7 @@
 				A83EF4DBF7A3ACDC75484F87 /* LosslessMarkdownParser.swift in Sources */,
 				CB0CBCC5098271AD6C45CB42 /* MarkdownProjectionBuilder.swift in Sources */,
 				2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */,
+				C23000000000000000000001 /* RichMarkdownTextView+TableCommands.swift in Sources */,
 				E403C6BEE6CF40C7443847A8 /* NativeRichEditorHostView.swift in Sources */,
 				60A11954F965D4D5C735985B /* MarkdownEditorHistory.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5C /* MarkdownBlockModel.swift in Sources */,

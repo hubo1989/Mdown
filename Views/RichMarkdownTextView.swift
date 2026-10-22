@@ -576,7 +576,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     }
 
     /// display caret → source 偏移（经所在块投影映射；块外保守返回原值）。
-    private func sourceCaret() -> Int {
+    func sourceCaret() -> Int {
         let displayCaret = selectedRange().location
         for item in rendered {
             let block = item.block; let projection = item.projection; let displayStart = item.displayStart
@@ -613,7 +613,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     /// 应用结构 patch 并登记历史。返回 false 表示 patch 被拒（坐标/期望
     /// 文本失配）——调用方据此返回未处理，交给 AppKit 默认行为，不吞键。
     @discardableResult
-    private func applyStructurePatches(
+    func applyStructurePatches(
         _ patches: [SourcePatch], name: String, restoreSourceCaret: Int? = nil,
         origin: EditOrigin = .structure
     ) -> Bool {
@@ -686,7 +686,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     // MARK: - T16 表格命令(table 块内 Tab/Enter;G0 单投影决定)
 
     /// caret 所在的 table 块模型;非 table 块返回 nil。
-    private func tableModelAtCaret() -> MarkdownTableModel? {
+    func tableModelAtCaret() -> MarkdownTableModel? {
         let caret = sourceCaret()
         for item in rendered {
             guard case .table = item.block.kind,
@@ -699,7 +699,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     }
 
     /// caret 的 (行, 列);不在任何 cell 区间(如管道/分隔行)返回 nil。
-    private func tablePosition(
+    func tablePosition(
         _ model: MarkdownTableModel, caret: Int
     ) -> (row: Int, column: Int)? {
         for (r, row) in model.rows.enumerated() where !row.isDelimiter {
@@ -798,93 +798,6 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         // 勾选字符等长替换：display 不变，selection 原地保持
         applyStructurePatches([patch], name: "task-toggle", restoreSourceCaret: sourceCaret())
         return true
-    }
-
-    // MARK: - T16 行列命令(模型计划 → source 事务;右键菜单入口)
-
-    /// 命令目标 = caret 所在 cell(右键在格内时 menu(for:) 先把 caret
-    /// 设到点击处,命令统一走 caret,无第二坐标源)。
-    private func tableCommandTarget() -> (model: MarkdownTableModel, row: Int, column: Int)? {
-        guard let model = tableModelAtCaret(),
-            let pos = tablePosition(model, caret: sourceCaret())
-        else { return nil }
-        return (model, pos.row, pos.column)
-    }
-
-    private func applyTablePlan(
-        _ plan: MarkdownTablePlan, _ name: String, keepCaretAt caret: Int? = nil
-    ) -> Bool {
-        applyStructurePatches(
-            plan.patches, name: name,
-            restoreSourceCaret: caret ?? sourceCaret(), origin: .structure)
-    }
-
-    @discardableResult
-    public func insertTableRowBelowAtCaret() -> Bool {
-        guard let t = tableCommandTarget(),
-            let plan = t.model.insertRow(after: t.row, columnCount: t.model.columnCount)
-        else { return false }
-        return applyTablePlan(plan, "table-insert-row")
-    }
-
-    @discardableResult
-    public func deleteTableRowAtCaret() -> Bool {
-        guard let t = tableCommandTarget(), let plan = t.model.deleteRow(t.row) else { return false }
-        return applyTablePlan(plan, "table-delete-row")
-    }
-
-    @discardableResult
-    public func insertTableColumnAtCaret() -> Bool {
-        guard let t = tableCommandTarget(), let plan = t.model.insertColumn(before: t.column) else {
-            return false
-        }
-        return applyTablePlan(plan, "table-insert-column")
-    }
-
-    @discardableResult
-    public func deleteTableColumnAtCaret() -> Bool {
-        guard let t = tableCommandTarget(), let plan = t.model.deleteColumn(t.column) else {
-            return false
-        }
-        return applyTablePlan(plan, "table-delete-column")
-    }
-
-    @discardableResult
-    public func moveTableRowUpAtCaret() -> Bool {
-        guard let t = tableCommandTarget(), let plan = t.model.moveRow(from: t.row, to: t.row - 1)
-        else { return false }
-        return applyTablePlan(plan, "table-move-row-up")
-    }
-
-    @discardableResult
-    public func moveTableRowDownAtCaret() -> Bool {
-        guard let t = tableCommandTarget(), let plan = t.model.moveRow(from: t.row, to: t.row + 1)
-        else { return false }
-        return applyTablePlan(plan, "table-move-row-down")
-    }
-
-    @discardableResult
-    public func moveTableColumnLeftAtCaret() -> Bool {
-        guard let t = tableCommandTarget(),
-            let plan = t.model.moveColumn(from: t.column, to: t.column - 1)
-        else { return false }
-        return applyTablePlan(plan, "table-move-column-left")
-    }
-
-    @discardableResult
-    public func moveTableColumnRightAtCaret() -> Bool {
-        guard let t = tableCommandTarget(),
-            let plan = t.model.moveColumn(from: t.column, to: t.column + 1)
-        else { return false }
-        return applyTablePlan(plan, "table-move-column-right")
-    }
-
-    @discardableResult
-    func setTableAlignmentAtCaret(_ alignment: MarkdownTableAlignment) -> Bool {
-        guard let t = tableCommandTarget(),
-            let plan = t.model.setAlignment(t.column, alignment)
-        else { return false }
-        return applyTablePlan(plan, "table-set-alignment")
     }
 
     // MARK: - T15 块级命令(语言更换 / ⌘Enter 退出块;source 事务)
@@ -1640,62 +1553,6 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     }
 
     /// T16:右键落格时把 caret 移到点击处并追加行列命令项(Typora 语义)。
-    private func appendTableMenuItems(to menu: NSMenu, for event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
-        let index = characterIndex(for: point)
-        guard index != NSNotFound, index <= (string as NSString).length else { return }
-        // 点击处 display → source:先定位块,取 source 偏移
-        setSelectedRange(NSRange(location: index, length: 0))
-        guard tableModelAtCaret() != nil, tableCommandTarget() != nil else { return }
-
-        menu.addItem(.separator())
-        let actions: [(String, Selector)] = [
-            ("Add Row Below", #selector(tableInsertRowBelow(_:))),
-            ("Delete Row", #selector(tableDeleteRow(_:))),
-            ("Insert Column", #selector(tableInsertColumn(_:))),
-            ("Delete Column", #selector(tableDeleteColumn(_:))),
-            ("Move Row Up", #selector(tableMoveRowUp(_:))),
-            ("Move Row Down", #selector(tableMoveRowDown(_:))),
-            ("Move Column Left", #selector(tableMoveColumnLeft(_:))),
-            ("Move Column Right", #selector(tableMoveColumnRight(_:))),
-        ]
-        for (title, action) in actions {
-            let item = NSMenuItem(title: I18n.str(title), action: action, keyEquivalent: "")
-            item.target = self
-            menu.addItem(item)
-        }
-        let align = NSMenuItem(title: I18n.str("Align Column"), action: nil, keyEquivalent: "")
-        let alignMenu = NSMenu()
-        let alignments: [(String, MarkdownTableAlignment)] = [
-            (I18n.str("No Alignment"), .none), (I18n.str("Align Left"), .left),
-            (I18n.str("Align Center"), .center), (I18n.str("Align Right"), .right),
-        ]
-        for (title, kind) in alignments {
-            let item = NSMenuItem(
-                title: title, action: #selector(tableAlign(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = kind.rawValue
-            alignMenu.addItem(item)
-        }
-        align.submenu = alignMenu
-        menu.addItem(align)
-    }
-
-    @objc private func tableInsertRowBelow(_ sender: Any?) { insertTableRowBelowAtCaret() }
-    @objc private func tableDeleteRow(_ sender: Any?) { deleteTableRowAtCaret() }
-    @objc private func tableInsertColumn(_ sender: Any?) { insertTableColumnAtCaret() }
-    @objc private func tableDeleteColumn(_ sender: Any?) { deleteTableColumnAtCaret() }
-    @objc private func tableMoveRowUp(_ sender: Any?) { moveTableRowUpAtCaret() }
-    @objc private func tableMoveRowDown(_ sender: Any?) { moveTableRowDownAtCaret() }
-    @objc private func tableMoveColumnLeft(_ sender: Any?) { moveTableColumnLeftAtCaret() }
-    @objc private func tableMoveColumnRight(_ sender: Any?) { moveTableColumnRightAtCaret() }
-    @objc private func tableAlign(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String,
-            let kind = MarkdownTableAlignment(rawValue: raw)
-        else { return }
-        setTableAlignmentAtCaret(kind)
-    }
-
     func configureAttachmentOwner(url: URL, isValid: @escaping () -> Bool) {
         invalidateAttachmentRequests()
         attachmentOwnerURL = url
