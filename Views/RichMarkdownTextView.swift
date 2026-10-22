@@ -800,6 +800,84 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         return true
     }
 
+    // MARK: - T15 块级命令(语言更换 / ⌘Enter 退出块;source 事务)
+
+    /// ⌘Return 在代码块内 = 退出块(T15);块外交还默认行为。
+    public override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.contains(.command), event.keyCode == 36 /* Return */ {
+            rebuildProjection()
+            if codeFenceBlockAtCaret() != nil {
+                return exitCodeBlockAtCaret()
+            }
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    /// caret 所在的 codeFence 块;不在 fence 内返回 nil。
+    private func codeFenceBlockAtCaret() -> LosslessMarkdownParser.Block? {
+        let caret = sourceCaret()
+        for block in document.blocks {
+            guard case .codeFence = block.kind,
+                caret >= block.rangeUTF16.location,
+                caret <= NSMaxRange(block.rangeUTF16)
+            else { continue }
+            return block
+        }
+        return nil
+    }
+
+    /// 语言更换(界定符面板命令的 source 事务入口):只替换开围栏后的
+    /// info 串,内容与围栏定界符不动。fence 外返回 false。
+    @discardableResult
+    public func setCodeFenceLanguage(_ language: String) -> Bool {
+        guard isEditable, !hasMarkedText() else { return false }
+        rebuildProjection()
+        guard let block = codeFenceBlockAtCaret() else { return false }
+        let ns = source as NSString
+        let blockStart = block.rangeUTF16.location
+        // 开围栏行:定界符 run(```或~~~)+ 可选空格 + info 串
+        let lineEnd: Int = {
+            var i = blockStart
+            while i < NSMaxRange(block.rangeUTF16), ns.character(at: i) != 0x0A, ns.character(at: i) != 0x0D {
+                i += 1
+            }
+            return i
+        }()
+        let fenceChar = ns.character(at: blockStart)
+        guard fenceChar == 0x60 || fenceChar == 0x7E else { return false }  // ` 或 ~
+        var run = 0
+        while blockStart + run < lineEnd, ns.character(at: blockStart + run) == fenceChar { run += 1 }
+        guard run >= 3 else { return false }
+        var infoStart = blockStart + run
+        while infoStart < lineEnd, ns.character(at: infoStart) == 0x20 { infoStart += 1 }
+        let infoRange = NSRange(location: infoStart, length: lineEnd - infoStart)
+        let patch = SourcePatch(
+            rangeUTF16: infoRange,
+            expectedText: ns.substring(with: infoRange),
+            replacement: language)
+        return applyStructurePatches([patch], name: "code-fence-language", origin: .structure)
+    }
+
+    /// ⌘Enter 退出代码块:在块末插空段落并把 caret 放进去(封闭与未封闭
+    /// 围栏同语义)。fence 外返回 false。
+    @discardableResult
+    public func exitCodeBlockAtCaret() -> Bool {
+        guard isEditable, !hasMarkedText() else { return false }
+        rebuildProjection()
+        guard let block = codeFenceBlockAtCaret() else { return false }
+        let ns = source as NSString
+        let atEOF = NSMaxRange(block.rangeUTF16) >= ns.length
+        let insertAt = NSMaxRange(block.rangeUTF16)
+        let patch = SourcePatch(
+            rangeUTF16: NSRange(location: insertAt, length: 0),
+            expectedText: "",
+            replacement: atEOF ? "\n\n" : "\n")
+        // caret 落在新空行(insertAt + 1;EOF 变体落在最后空行)
+        let caret = atEOF ? insertAt + 2 : insertAt + 1
+        return applyStructurePatches(
+            [patch], name: "exit-code-block", restoreSourceCaret: caret, origin: .structure)
+    }
+
     // MARK: - T14 命令通道（command adapter / find / preview intent 的 source patch 入口）
 
     /// display caret / 区间 → source 区间（供命令规划）。跨块或映射歧义

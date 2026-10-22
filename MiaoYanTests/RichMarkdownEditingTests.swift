@@ -309,3 +309,61 @@ func testLargeOrUnknownFenceStaysBaseStyle() {
             .foregroundColor, at: n2.range(of: "MOVE").location, effectiveRange: nil) as? NSColor
     XCTAssertEqual(c2, .black, "未知语言保持 plain code 样式")
 }
+
+// MARK: - T15 块级命令(语言更换/⌘Enter 退出块)
+
+extension RichMarkdownEditingTests {
+
+    @MainActor
+    func testSetCodeFenceLanguageReplacesInfoStringAsSourceTransaction() {
+        let view = RichMarkdownTextView(source: "```swift\nlet x = 1\n```\n")
+        view.setSelectedRange(NSRange(location: 6, length: 0))  // fence 内容
+        let revisionBefore = view.revision
+        XCTAssertTrue(view.setCodeFenceLanguage("js"))
+        XCTAssertEqual(view.source, "```js\nlet x = 1\n```\n", "info 串更换,内容与围栏不动")
+        XCTAssertEqual(view.revision, revisionBefore + 1, "语言更换是一次 source 事务")
+        XCTAssertTrue(view.performUndo(), "可单步撤销")
+        XCTAssertEqual(view.source, "```swift\nlet x = 1\n```\n")
+    }
+
+    @MainActor
+    func testSetCodeFenceLanguageFailsOutsideFence() {
+        let view = RichMarkdownTextView(source: "plain text\n")
+        view.setSelectedRange(NSRange(location: 3, length: 0))
+        XCTAssertFalse(view.setCodeFenceLanguage("js"), "fence 外不得改语言")
+        XCTAssertEqual(view.source, "plain text\n")
+    }
+
+    @MainActor
+    func testSetCodeFenceLanguageOnBareFenceInsertsInfo() {
+        let view = RichMarkdownTextView(source: "```\ncode\n```\n")
+        view.setSelectedRange(NSRange(location: 4, length: 0))
+        XCTAssertTrue(view.setCodeFenceLanguage("python"))
+        XCTAssertEqual(view.source, "```python\ncode\n```\n")
+    }
+
+    @MainActor
+    func testExitCodeBlockInsertsParagraphAfterFence() {
+        let view = RichMarkdownTextView(source: "```swift\nlet x = 1\n```\ntail\n")
+        view.setSelectedRange(NSRange(location: 6, length: 0))
+        let revisionBefore = view.revision
+        XCTAssertTrue(view.exitCodeBlockAtCaret())
+        XCTAssertEqual(
+            view.source, "```swift\nlet x = 1\n```\n\ntail\n",
+            "退出块 = 围栏后插空段落")
+        XCTAssertEqual(view.revision, revisionBefore + 1)
+        // caret 落在新段落:open fence + 内容 + close fence + 换行 + 1
+        let expected = ("```swift\nlet x = 1\n```\n" as NSString).length + 1
+        XCTAssertEqual(view.selectedRange().location, expected, "caret 应落在新空行")
+        XCTAssertTrue(view.performUndo(), "单步撤销")
+        XCTAssertEqual(view.source, "```swift\nlet x = 1\n```\ntail\n")
+    }
+
+    @MainActor
+    func testExitCodeBlockFailsOutsideFence() {
+        let view = RichMarkdownTextView(source: "plain\n")
+        view.setSelectedRange(NSRange(location: 2, length: 0))
+        XCTAssertFalse(view.exitCodeBlockAtCaret())
+        XCTAssertEqual(view.source, "plain\n")
+    }
+}
