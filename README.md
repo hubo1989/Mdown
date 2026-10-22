@@ -108,8 +108,7 @@ Install the official skill with `npx skills add tw93/MiaoYan/skills/miaoyan -g`.
 
 - [glushchenko/fsnotes](https://github.com/glushchenko/fsnotes) - Initial project structure reference
 - [stackotter/swift-cmark-gfm](https://github.com/stackotter/swift-cmark-gfm) - Swift Markdown parser
-- [simonbs/Prettier](https://github.com/simonbs/Prettier) - Markdown formatting utilities
-- [raspu/Highlightr](https://github.com/raspu/Highlightr) - Syntax highlighting
+
 - [hakimel/reveal.js](https://github.com/hakimel/reveal.js) - PPT presentation framework
 ## License
 
