@@ -945,8 +945,10 @@ extension ViewController {
 
             let content = host.textView.source
             // T18:身份快照——迟到结果必须核对 owner/URL/代际/revision/原文
+            let token = UUID()
+            formatOwnerToken = token
             let snapshot = NativeMarkdownFormatter.Snapshot(
-                owner: UUID(), url: noteURL, generation: UInt64(max(0, note.editGeneration)),
+                owner: token, url: noteURL, generation: UInt64(max(0, note.editGeneration)),
                 revision: host.textView.revision, source: content)
 
             formatTask = Task(priority: .userInitiated) { [weak self] in
@@ -978,8 +980,10 @@ extension ViewController {
             // Get latest content from editor to ensure consistency
             let content = editArea.textStorage?.string ?? note.content.string
             let top = editAreaScroll.contentView.bounds.origin.y
+            let token = UUID()
+            formatOwnerToken = token
             let snapshot = NativeMarkdownFormatter.Snapshot(
-                owner: UUID(), url: noteURL, generation: UInt64(max(0, note.editGeneration)),
+                owner: token, url: noteURL, generation: UInt64(max(0, note.editGeneration)),
                 revision: editArea.storageRevision, source: content)
 
             formatTask = Task(priority: .userInitiated) { [weak self] in
@@ -1016,7 +1020,8 @@ extension ViewController {
         // 应用并提示重试(SPEC §8.2)。
         guard
             snapshot.matches(
-                owner: snapshot.owner, url: note.url, generation: UInt64(max(0, note.editGeneration)),
+                currentOwner: formatOwnerToken, url: note.url,
+                generation: UInt64(max(0, note.editGeneration)),
                 revision: editArea.storageRevision,
                 source: editArea.textStorage?.string ?? note.content.string)
         else {
@@ -1085,7 +1090,8 @@ extension ViewController {
         // 迟到结果核对:输入/undo/重装载后旧结果不得应用。
         guard
             snapshot.matches(
-                owner: snapshot.owner, url: note.url, generation: UInt64(max(0, note.editGeneration)),
+                currentOwner: formatOwnerToken, url: note.url,
+                generation: UInt64(max(0, note.editGeneration)),
                 revision: host.textView.revision, source: host.textView.source)
         else {
             toast(message: I18n.str("Formatting failed, please try again"), style: .failure)

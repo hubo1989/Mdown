@@ -13,8 +13,14 @@ enum NativeMarkdownFormatter {
         let revision: UInt64
         let source: String
 
-        func matches(owner: UUID, url: URL, generation: UInt64, revision: UInt64, source: String) -> Bool {
-            self.owner == owner && self.url == url && self.generation == generation
+        /// `currentOwner` 是发起方在应用时提供的**最新**令牌:任何新的
+        /// format 发起都会替换它,旧快照的 owner 与之失配即拒绝——
+        /// 快照内部令牌只用于一致性,不能与自身比较。
+        func matches(
+            currentOwner: UUID, url: URL, generation: UInt64,
+            revision: UInt64, source: String
+        ) -> Bool {
+            self.owner == currentOwner && self.url == url && self.generation == generation
                 && self.revision == revision && self.source == source
         }
     }

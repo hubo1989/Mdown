@@ -40,6 +40,8 @@ class ViewController:
     var isFormatting: Bool = false
     var formatTask: Task<Void, Never>?
     var formatRequestID: Int = 0
+    /// T18:最近一次 format 发起的令牌;旧快照应用前必须与它一致。
+    var formatOwnerToken = UUID()
     // T18:NativeMarkdownFormatter 接管排版;Prettier worker 随 T22 退依赖。
     var needRestorePreview: Bool = false
     var shouldRestorePreviewAfterExport: Bool = false

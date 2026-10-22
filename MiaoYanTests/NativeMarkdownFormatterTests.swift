@@ -159,8 +159,8 @@ final class NativeMarkdownFormatterTests: XCTestCase {
         XCTAssertEqual(view.source, capture.source)
         XCTAssertFalse(
             capture.matches(
-                owner: owner, url: capture.url, generation: 1,
-                revision: view.revision, source: view.source), "undo 返回同字节也不得接受旧 revision 的结果")
+                currentOwner: UUID(), url: capture.url, generation: 1,
+                revision: view.revision, source: view.source), "新 format 发起令旧快照失配,即使 undo 回到相同字节")
     }
 
     @MainActor
@@ -170,17 +170,17 @@ final class NativeMarkdownFormatterTests: XCTestCase {
             revision: 3, source: "body")
         XCTAssertFalse(
             capture.matches(
-                owner: UUID(), url: capture.url, generation: 1, revision: 3, source: "body"))
+                currentOwner: UUID(), url: capture.url, generation: 1, revision: 3, source: "body"))
         XCTAssertFalse(
             capture.matches(
-                owner: capture.owner, url: capture.url, generation: 2, revision: 3, source: "body"))
+                currentOwner: capture.owner, url: capture.url, generation: 2, revision: 3, source: "body"))
         XCTAssertFalse(
             capture.matches(
-                owner: capture.owner, url: URL(fileURLWithPath: "/tmp/b.md"),
+                currentOwner: capture.owner, url: URL(fileURLWithPath: "/tmp/b.md"),
                 generation: 1, revision: 3, source: "body"))
         XCTAssertTrue(
             capture.matches(
-                owner: capture.owner, url: capture.url, generation: 1, revision: 3, source: "body"))
+                currentOwner: capture.owner, url: capture.url, generation: 1, revision: 3, source: "body"))
     }
 
     // MARK: - 未知语法保持原文

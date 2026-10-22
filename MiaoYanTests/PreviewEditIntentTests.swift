@@ -230,7 +230,6 @@ final class PreviewEditIntentTests: XCTestCase {
         // 单测环境不接 delegate，此处只验证 buffer 语义。
     }
 
-
     @MainActor
     func testFullNoteContentFlipsFirstTask() {
         // smoke 实测复现:含标题/正文的完整笔记,DOM index 0 的未勾选
