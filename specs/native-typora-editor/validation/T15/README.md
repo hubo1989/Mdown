@@ -60,8 +60,9 @@
 
 ## T15 剩余(不声称完成)
 
-1. 语言界定符的**面板 UI**(本阶段交付 source 事务命令面,面板入口留
-   T19/T23 设置界面)。
+1. ~~语言界定符面板入口~~ 已补:fence 右键 Change Language 子菜单
+   (13 语言 → setCodeFenceLanguage source 事务)+ Exit Code Block 项,
+   四语本地化;设置面板样式入口仍可在 T19/T23 加。
 2. Highlightr ↔ native 的 golden 对照——包已随 T22 移除,无对照基准;
    以 T15 的 22 例 token 边界 corpus 为行为基线。压力测量见
    validation/T21(单样本)。
