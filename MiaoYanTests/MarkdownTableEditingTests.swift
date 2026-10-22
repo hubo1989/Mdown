@@ -75,13 +75,25 @@ final class MarkdownTableEditingTests: XCTestCase {
 
     // MARK: - 行操作
 
-    func testInsertRowAddsEmptyRowAfterTarget() throws {
+    func testInsertRowAfterHeaderLandsAfterDelimiter() throws {
+        // GFM 硬约束:分隔行必须紧跟头行——头行后插行自动落到分隔行后。
+        // (旧期望把新行插进头行与分隔行之间,破坏表格,已按此修正。)
         let model = parse(sample)
         let plan = try XCTUnwrap(model.insertRow(after: 0, columnCount: 2))
         XCTAssertEqual(plan.patches.count, 1, "整行一次 insert,天然原子")
         let applied = apply(sample, plan.patches)
         let lines = applied.components(separatedBy: "\n")
-        XCTAssertEqual(lines[1], "|  |  |", "头行后插入空行: \(applied)")
+        XCTAssertEqual(lines[1], "| --- | :---: |", "分隔行仍紧跟头行: \(applied)")
+        XCTAssertEqual(lines[2], "|  |  |", "新行落在分隔行后: \(applied)")
+    }
+
+    func testInsertRowAfterBodyRowLandsImmediately() throws {
+        let model = parse(sample)
+        let plan = try XCTUnwrap(model.insertRow(after: 2, columnCount: 2))
+        let applied = apply(sample, plan.patches)
+        XCTAssertEqual(
+            applied.components(separatedBy: "\n")[3], "|  |  |",
+            "身体行后插行不动其位置: \(applied)")
     }
 
     func testAppendRowForEnterInLastCell() throws {
@@ -139,6 +151,199 @@ final class MarkdownTableEditingTests: XCTestCase {
             XCTFail("patch 应用失败: \(reason)")
             return source
         }
+    }
+}
+
+// MARK: - 模型回归(字节保真 / 转义 / 结构约束 / 行列移动)
+
+extension MarkdownTableEditingTests {
+
+    // MARK: CRLF / 混合行尾 / 无末尾换行
+
+    func testCRLFRowsCarryExactLineEndings() throws {
+        let source = "| a | b |\r\n| --- | --- |\r\n| c | d |"  // 无末尾换行
+        let model = parse(source)
+        XCTAssertEqual(model.rows[0].lineEnding, "\r\n")
+        XCTAssertEqual(model.rows[1].lineEnding, "\r\n")
+        XCTAssertEqual(model.rows[2].lineEnding, "", "末行无换行必须逐字记为 empty")
+        XCTAssertEqual(model.rows[0].lineText, "| a | b |", "lineText 不得含 CR")
+        XCTAssertEqual(model.rows[2].lineText, "| c | d |")
+
+        let plan = try XCTUnwrap(model.setCell(row: 2, column: 0, text: "X"))
+        XCTAssertEqual(apply(source, plan.patches), "| a | b |\r\n| --- | --- |\r\n| X | d |")
+    }
+
+    func testDeleteRowUsesCachedVerbatimEnding() throws {
+        // 三身体行 CRLF 表,删中间行:expectedText 用缓存 lineText+lineEnding
+        let source = "| a |\r\n| --- |\r\n| b |\r\n| c |\r\n| d |"
+        let model = parse(source)
+        let plan = try XCTUnwrap(model.deleteRow(3))  // "| c |\r\n"
+        let applied = apply(source, plan.patches)
+        XCTAssertEqual(applied, "| a |\r\n| --- |\r\n| b |\r\n| d |")
+    }
+
+    func testDeleteRowWithoutFinalNewlineRemovesExactSlice() throws {
+        let source = "| a | b |\n| --- | --- |\n| c | d |"
+        let model = parse(source)
+        let plan = try XCTUnwrap(model.deleteRow(2))
+        XCTAssertEqual(apply(source, plan.patches), "| a | b |\n| --- | --- |")
+    }
+
+    func testInsertRowFollowsTargetLineEnding() throws {
+        let source = "| a |\r\n| --- |\r\n| c |\r\n"
+        let model = parse(source)
+        let plan = try XCTUnwrap(model.insertRow(after: 2, columnCount: 1))
+        XCTAssertEqual(
+            apply(source, plan.patches), "| a |\r\n| --- |\r\n| c |\r\n|  |\r\n",
+            "新行分隔与终止沿用 CRLF 行尾,原行字节不动")
+    }
+
+    func testInsertRowAfterNonFinalLineWithoutEndingAddsSeparator() throws {
+        // 末行无换行:新行仍须独立成行,且块尾无换行形态保真
+        let source = "| a |\n| --- |\n| c |"
+        let model = parse(source)
+        let plan = try XCTUnwrap(model.insertRow(after: 2, columnCount: 1))
+        XCTAssertEqual(apply(source, plan.patches), "| a |\n| --- |\n| c |\n|  |")
+    }
+
+    func testMixedLineEndingsKeepUnchangedRowsVerbatim() throws {
+        let source = "| a |\r\n| --- |\n| c |"
+        let model = parse(source)
+        let plan = try XCTUnwrap(model.setCell(row: 2, column: 0, text: "X"))
+        let applied = apply(source, plan.patches)
+        // 只动目标 cell;两个未改行连同各自行尾逐字节保留
+        XCTAssertEqual(applied, "| a |\r\n| --- |\n| X |")
+    }
+
+    // MARK: 转义不双转义 / code span / 管道奇偶
+
+    func testSetCellDoesNotDoubleEscape() throws {
+        let source = #"| x \| y | b |"# + "\n| --- | --- |\n| c | d |\n"
+        let model = parse(source)
+        // cell.text 已是 source 形态,原样写回不双转义
+        let plan = try XCTUnwrap(model.setCell(row: 2, column: 0, text: #"x \| y"#))
+        XCTAssertEqual(
+            apply(source, plan.patches),
+            "| x \\| y | b |\n| --- | --- |\n| x \\| y | d |\n")
+
+        // 裸管道照常转义
+        let plan2 = try XCTUnwrap(model.setCell(row: 2, column: 0, text: "a|b"))
+        XCTAssertEqual(
+            apply(source, plan2.patches),
+            "| x \\| y | b |\n| --- | --- |\n| a\\|b | d |\n")
+    }
+
+    func testBackslashRunParityDecidesEscapedPipe() {
+        // 偶数反斜杠 + 管道 = 未转义管道,拆格;奇数 = 转义,不拆。
+        let even = #"| a \\| b |"# + "\n| --- | --- |\n"  // 字面反斜杠 + 未转义 |
+        let modelEven = parse(even)
+        XCTAssertEqual(modelEven.rows[0].cells.map(\.text), [#"a \\"#, "b"])
+
+        let odd = #"| a \\\| b |"# + "\n| --- | --- |\n"  // 字面反斜杠 + 转义 |
+        let modelOdd = parse(odd)
+        XCTAssertEqual(modelOdd.rows[0].cells.count, 1)
+        XCTAssertEqual(modelOdd.rows[0].cells[0].text, #"a \\\| b"#)
+    }
+
+    func testMultiBacktickSpanKeepsPipesAndInnerBackticks() {
+        let source = #"| ``a`b`` | `c|d` |"# + "\n| --- | --- |\n"
+        let model = parse(source)
+        XCTAssertEqual(model.rows[0].cells.map(\.text), ["``a`b``", "`c|d`"])
+
+        // 管道落在双反引号 span 内不拆
+        let spanPipe = #"| ``a|b`` | x |"# + "\n| --- | --- |\n"
+        XCTAssertEqual(parse(spanPipe).rows[0].cells.map(\.text), ["``a|b``", "x"])
+    }
+
+    // MARK: 无效输入 / 结构约束
+
+    func testInvalidBlockRangeReturnsEmptyModel() {
+        let source = "| a |\n| --- |\n"
+        let ns = source as NSString
+        XCTAssertTrue(parseNs(source, NSRange(location: 0, length: ns.length + 10)).rows.isEmpty)
+        XCTAssertTrue(parseNs(source, NSRange(location: ns.length + 1, length: 2)).rows.isEmpty)
+        XCTAssertTrue(parseNs(source, NSRange(location: 0, length: -1)).rows.isEmpty)
+        // 有效范围照常解析(对照)
+        XCTAssertEqual(parseNs(source, NSRange(location: 0, length: ns.length)).rows.count, 2)
+    }
+
+    func testDeleteColumnRefusesSingleColumnTable() throws {
+        let source = "| a |\n| --- |\n| c |\n"
+        let model = parse(source)
+        XCTAssertNil(model.deleteColumn(0), "单列表格删尽唯一列即破坏结构")
+        let plan = try XCTUnwrap(model.insertColumn(before: 1))
+        XCTAssertEqual(apply(source, plan.patches), "| a |  |\n| --- | --- |\n| c |  |\n")
+    }
+
+    func testHeaderAndDelimiterRowsAreProtectedFromDelete() {
+        let model = parse(sample)
+        XCTAssertNil(model.deleteRow(0), "头行不可删")
+        XCTAssertNil(model.deleteRow(1), "分隔行不可删")
+        XCTAssertNotNil(model.deleteRow(2), "身体行可删")
+        // 退化输入(首行即分隔行):无头行,身体行仍可删
+        let degenerate = parse("| --- |\n| c |")
+        XCTAssertNotNil(degenerate.deleteRow(1))
+    }
+
+    // MARK: 行列移动
+
+    func testMoveRowReordersBodyKeepingHeaderAndDelimiter() throws {
+        let source = "| a |\n| --- |\n| b |\n| c |\n| d |\n"
+        let model = parse(source)
+        // from/to 为行下标;from 行落到 to 行原先的身体槽位,to 与其余
+        // 身体行相对次序不变(被挤开)。
+        let plan = try XCTUnwrap(model.moveRow(from: 2, to: 3))
+        XCTAssertEqual(apply(source, plan.patches), "| a |\n| --- |\n| c |\n| b |\n| d |\n")
+
+        XCTAssertNil(model.moveRow(from: 2, to: 2), "同位置 no-op")
+        XCTAssertNil(model.moveRow(from: 0, to: 3), "头行不可移动")
+        XCTAssertNil(model.moveRow(from: 1, to: 3), "分隔行不可移动")
+        XCTAssertNotNil(model.moveRow(from: 3, to: 2), "反向移动")
+    }
+
+    func testMoveRowPreservesNoFinalNewlineShape() throws {
+        let source = "| a |\n| --- |\n| b |\n| c |"  // 无末尾换行
+        let model = parse(source)
+        let plan = try XCTUnwrap(model.moveRow(from: 2, to: 3))
+        XCTAssertEqual(apply(source, plan.patches), "| a |\n| --- |\n| c |\n| b |")
+    }
+
+    func testMoveRowOnCRLFTablePreservesCRLF() throws {
+        let source = "| a |\r\n| --- |\r\n| b |\r\n| c |\r\n"
+        let model = parse(source)
+        let plan = try XCTUnwrap(model.moveRow(from: 2, to: 3))
+        XCTAssertEqual(apply(source, plan.patches), "| a |\r\n| --- |\r\n| c |\r\n| b |\r\n")
+    }
+
+    func testMoveColumnMovesCellsAndAlignmentMarkers() throws {
+        let source = "| a | b |\n| --- | :---: |\n| c | d |\n"
+        let model = parse(source)
+        let plan = try XCTUnwrap(model.moveColumn(from: 0, to: 1))
+        XCTAssertEqual(
+            apply(source, plan.patches),
+            "| b | a |\n| :---: | --- |\n| d | c |\n",
+            "cell 与分隔行 marker 随列移动,对齐语义保留")
+
+        XCTAssertNil(model.moveColumn(from: 0, to: 0))
+        XCTAssertNil(model.moveColumn(from: 0, to: 9))
+    }
+
+    // MARK: stable IDs(快照内)
+
+    func testRowAndColumnIDsStableWithinSnapshot() {
+        let model = parse(sample)
+        XCTAssertEqual(Set(model.rows.map(\.id)).count, model.rows.count, "行 ID 唯一")
+        XCTAssertEqual(model.columnIDs.count, model.columnCount)
+        XCTAssertEqual(Set(model.columnIDs).count, model.columnIDs.count, "列 ID 唯一")
+        for (index, row) in model.rows.enumerated() {
+            XCTAssertEqual(model.rowIndex(of: row.id), index, "ID → 下标可逆")
+        }
+    }
+
+    // MARK: helper
+
+    private func parseNs(_ source: String, _ range: NSRange) -> MarkdownTableModel {
+        MarkdownTableModel.parse(source: source, blockRange: range)
     }
 }
 
