@@ -174,8 +174,33 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         let mono = codeFont
         for item in rendered {
             let block = item.block; let projection = item.projection; let start = item.displayStart
-            if case .codeFence = block.kind {
-                storage.addAttribute(.font, value: mono, range: NSRange(location: start, length: projection.display.utf16.count))
+            if case .codeFence(let info) = block.kind {
+                let blockLen = projection.display.utf16.count
+                let blockRange = NSRange(location: start, length: blockLen)
+                storage.addAttribute(.font, value: mono, range: blockRange)
+                storage.addAttribute(.foregroundColor, value: contentTextColor, range: blockRange)
+                // T15:token 上色(SPEC §8.1)——fence 块投影 1:1(plainFallback),
+                // token range 相对块文本即可直接平移。同步计算(单块 ≤3000,
+                // tokenizer 线性、微秒级),无跨帧 stale;marked 期间本函数
+                // 不会被调用(rebuildProjection 早退),属性不漂移;只动
+                // 属性不动 source/history/revision。超限或未知语言 → 基础样式。
+                let maxLen = NotesTextProcessor.shouldUseSimplifiedHighlighting ? 500 : 3000
+                if blockLen <= maxLen, !NotesTextProcessor.shouldSkipCodeHighlighting,
+                    let tokens = NativeCodeHighlighter.highlight(
+                        code: projection.display, language: info.isEmpty ? nil : info)
+                {
+                    let palette = CodeBlockHighlighter.tokenPalette(
+                        isDark: AppEnvironment.current.userData.isDark)
+                    for tk in tokens {
+                        guard let color = palette[tk.kind],
+                            tk.range.location + tk.range.length <= blockLen
+                        else { continue }
+                        storage.addAttribute(
+                            .foregroundColor, value: color,
+                            range: NSRange(
+                                location: start + tk.range.location, length: tk.range.length))
+                    }
+                }
                 continue
             }
             for segment in projection.segments where segment.kind == .codeSpan {

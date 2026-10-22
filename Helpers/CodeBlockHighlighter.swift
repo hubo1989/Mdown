@@ -94,7 +94,7 @@ enum CodeBlockHighlighter {
     }
 
     /// token 类别 → 主题色(明暗两套;与既有 code 基色同风格的手挑值)。
-    private static func tokenPalette(isDark: Bool) -> [NativeCodeTokenKind: NSColor] {
+    static func tokenPalette(isDark: Bool) -> [NativeCodeTokenKind: NSColor] {
         isDark
             ? [
                 .keyword: NSColor(calibratedRed: 0.78, green: 0.55, blue: 0.96, alpha: 1),

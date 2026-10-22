@@ -34,12 +34,24 @@
 (~470 行),编译失败暴露后以 `git show HEAD:` 恢复基线并重做精确替换,
 最终文件与 HEAD 的差异仅为上述刻意改动;期间无提交。
 
+## 阶段 2(同日补交):rich 面 fence 高亮
+
+- `RichMarkdownTextView.applyDisplayAttributes` 的 codeFence 分支接入
+  `NativeCodeHighlighter`:fence 块投影 1:1(plainFallback),token range
+  直接平移到 display;明暗 palette 复用 `CodeBlockHighlighter.tokenPalette`
+  (开放为 internal)。超限块(500/3000)与未知语言回基础样式;marked
+  期间 rebuildProjection 早退,属性不漂移;只动属性不动 source/history/
+  revision。
+- 后台异步暂不做:单块同步 tokenize 为微秒级(22 用例含 64k 行 <1s),
+  无跨帧 stale 风险;若 T21 压测暴露主线程尖峰再引入按 revision 拒
+  stale 的异步管线(记录为待验证假设,不是已证事实)。
+- 测试:`RichMarkdownEditingTests` 新增 2 用例(token 上色/超限与未知
+  语言回基础),套件 20/20;tokenizer 22/22;全量 542(同 8 环境失败)。
+
 ## T15 剩余(不声称完成)
 
-1. **rich 面 fenced code 高亮**:`RichMarkdownTextView` 投影内 code fence
-   的 token 上色 + 后台异步 + 按 source revision/内容/theme 拒 stale +
-   marked-text 区不更新属性(SPEC §8.1 完整要求)。本轮未动。
-2. 语言/界定符面板、⌘Enter 退出块等块级编辑命令。
-3. 行为/性能对照(Highlightr ↔ native 的 golden 比对)与压力测量。
-4. T14 遗留:preview checkbox 正向写盘的实机证据(stale 防线与零写入
+1. 语言/界定符面板、⌘Enter 退出块等块级编辑命令。
+2. 行为/性能对照(Highlightr ↔ native 的 golden 比对)与压力测量
+   (含 rich 面大文档高亮的 p95 验证,决定是否需要异步管线)。
+3. T14 遗留:preview checkbox 正向写盘的实机证据(stale 防线与零写入
    已实证;成功链路 15 用例覆盖,见 validation/T14)。

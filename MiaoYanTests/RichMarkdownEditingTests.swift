@@ -266,3 +266,46 @@ extension RichMarkdownEditingTests {
         print("G0DBG sourceCaret=\(caret) listItemFound=\(found) source=\(view.source.debugDescription)")
     }
 }
+
+// MARK: - T15 rich 面 fence token 上色(SPEC §8.1)
+
+@MainActor
+func testCodeFenceTokensAreColoredInRichProjection() {
+    let view = RichMarkdownTextView(source: "```swift\nlet x = \"s\"\n```\n")
+    view.contentTextColor = NSColor.black
+    let ns = view.string as NSString
+    let letRange = ns.range(of: "let")
+    XCTAssertGreaterThan(letRange.location, 0, "'let' 应在 fence 块内")
+    let color =
+        view.textStorage?.attribute(
+            .foregroundColor, at: letRange.location, effectiveRange: nil) as? NSColor
+    XCTAssertNotNil(color)
+    XCTAssertNotEqual(color, .black, "keyword 需有 token 色,不是正文基色")
+    let strRange = ns.range(of: "\"s\"")
+    let strColor =
+        view.textStorage?.attribute(
+            .foregroundColor, at: strRange.location, effectiveRange: nil) as? NSColor
+    XCTAssertNotNil(strColor)
+    XCTAssertNotEqual(strColor, .black, "string 需有 token 色")
+}
+
+@MainActor
+func testLargeOrUnknownFenceStaysBaseStyle() {
+    let big = String(repeating: "a", count: 3001)
+    let view = RichMarkdownTextView(source: "```swift\n\(big)\n```\n")
+    view.contentTextColor = NSColor.black
+    let ns = view.string as NSString
+    // 超限块:无 token 色,前景保持基色
+    let color =
+        view.textStorage?.attribute(
+            .foregroundColor, at: ns.range(of: big).location, effectiveRange: nil) as? NSColor
+    XCTAssertEqual(color, .black, "超限 fence 应回基础样式")
+
+    let unknown = RichMarkdownTextView(source: "```cobol\nMOVE 1 TO X\n```\n")
+    unknown.contentTextColor = NSColor.black
+    let n2 = unknown.string as NSString
+    let c2 =
+        unknown.textStorage?.attribute(
+            .foregroundColor, at: n2.range(of: "MOVE").location, effectiveRange: nil) as? NSColor
+    XCTAssertEqual(c2, .black, "未知语言保持 plain code 样式")
+}
