@@ -367,3 +367,90 @@ extension RichMarkdownEditingTests {
         XCTAssertEqual(view.source, "plain\n")
     }
 }
+
+// MARK: - T19 视觉排版(标题分级/行内样式/链接色/代码底色)
+
+extension RichMarkdownEditingTests {
+
+    @MainActor
+    func testHeadingRendersLargerFont() {
+        let view = RichMarkdownTextView(source: "# Title\n\nplain\n")
+        let ns = view.string as NSString
+        let title = ns.range(of: "Title")
+        let font =
+            view.textStorage?.attribute(
+                .font, at: title.location, effectiveRange: nil) as? NSFont
+        let bodyFont =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "plain").location, effectiveRange: nil) as? NSFont
+        XCTAssertGreaterThan(
+            font?.pointSize ?? 0, (bodyFont?.pointSize ?? 0) * 1.3,
+            "H1 字号应明显大于正文")
+    }
+
+    @MainActor
+    func testStrongAndEmphasisRenderTraits() {
+        let view = RichMarkdownTextView(source: "a **bold** b *ital* c ~~del~~ d\n")
+        let ns = view.string as NSString
+        let boldFont =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "bold").location, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(
+            boldFont?.fontDescriptor.symbolicTraits.contains(.bold) == true, "粗体内容应有 bold trait")
+        let italFont =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "ital").location, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(
+            italFont?.fontDescriptor.symbolicTraits.contains(.italic) == true, "斜体内容应有 italic trait")
+        let delStyle =
+            view.textStorage?.attribute(
+                .strikethroughStyle, at: ns.range(of: "del").location, effectiveRange: nil) as? Int
+        XCTAssertEqual(delStyle, NSUnderlineStyle.single.rawValue, "删除线内容应有划线")
+    }
+
+    @MainActor
+    func testLinkLabelRendersAccentColor() {
+        let view = RichMarkdownTextView(source: "see [docs](https://example.com) here\n")
+        let ns = view.string as NSString
+        let label =
+            view.textStorage?.attribute(
+                .foregroundColor, at: ns.range(of: "docs").location, effectiveRange: nil) as? NSColor
+        XCTAssertEqual(label, Theme.accentColor, "链接 label 应用强调色")
+        let here =
+            view.textStorage?.attribute(
+                .foregroundColor, at: ns.range(of: "here").location, effectiveRange: nil) as? NSColor
+        XCTAssertEqual(here, view.contentTextColor, "普通文字不受影响")
+    }
+
+    @MainActor
+    func testCodeFenceAndSpanGetBackground() {
+        let view = RichMarkdownTextView(source: "x `c` y\n\n```\ncode\n```\n")
+        let ns = view.string as NSString
+        let spanBg = view.textStorage?.attribute(
+            .backgroundColor, at: ns.range(of: "c").location, effectiveRange: nil)
+        XCTAssertNotNil(spanBg, "code span 应有底色")
+        let fenceBg = view.textStorage?.attribute(
+            .backgroundColor, at: ns.range(of: "code").location, effectiveRange: nil)
+        XCTAssertNotNil(fenceBg, "fence 内容应有底色")
+    }
+
+    @MainActor
+    func testFocusDimmingKeepsInlineStylesFlat() {
+        let view = RichMarkdownTextView(source: "a **bold** b\n\nc2\n")
+        view.contentTextColor = NSColor.black
+        view.isFocusDimmingEnabled = true
+        view.setSelectedRange(NSRange(location: 11, length: 0))  // c2 块内
+        view.updateFocusDimming()
+        let ns = view.string as NSString
+        let boldFont =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "bold").location, effectiveRange: nil) as? NSFont
+        // 非活跃块:字号 trait 可以在,但前景必须平色(不残留强调色/装饰)
+        let color =
+            view.textStorage?.attribute(
+                .foregroundColor, at: ns.range(of: "bold").location, effectiveRange: nil) as? NSColor
+        XCTAssertNotEqual(color, .black, "非活跃块降噪")
+        XCTAssertEqual(color?.alphaComponent ?? 1, 0.4, accuracy: 0.01)
+        _ = boldFont
+    }
+}

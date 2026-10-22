@@ -25,7 +25,7 @@ final class MarkdownProjectionTests: XCTestCase {
 
         let ns = "**AB** 纯文本\n" as NSString
         // 找 B 的文本段：内容段 "AB"
-        let content = p.segments.first { $0.kind == .text && $0.displayText == "AB" }
+        let content = p.segments.first { $0.kind == .strongBody && $0.displayText == "AB" }
         let ab = content.map(\.sourceRangeUTF16)
         XCTAssertEqual(ab, NSRange(location: 2, length: 2), "AB 的 source 必须在 ** 之间且不含 delimiter")
         // marker 段的切片就是 **（逐字节）
@@ -62,7 +62,7 @@ final class MarkdownProjectionTests: XCTestCase {
         XCTAssertEqual(p.display, "见 链接文字 尾\n")
         let dest = p.segments.first { $0.kind == .linkDestination }
         XCTAssertEqual(dest?.displayText, "", "destination 显示为空")
-        let label = p.segments.first { $0.kind == .text && $0.displayText == "链接文字" }
+        let label = p.segments.first { $0.kind == .linkLabel && $0.displayText == "链接文字" }
         XCTAssertEqual(label?.sourceRangeUTF16, NSRange(location: 3, length: 4), "label 的 source 恰为括号内文字")
     }
 

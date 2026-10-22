@@ -241,6 +241,24 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     /// T10：host 注入的正文前景色（深浅色主题）。
     public var contentTextColor = NSColor.black
 
+    /// T19 视觉排版:标题分级、行内样式(粗/斜/删/链接)、代码底色。
+    /// 仅动显示属性;活跃块(或未开降噪)才上彩色装饰,非活跃块平色。
+    private var headingFont: NSFont {
+        scaledHeadingFont(level: 1)
+    }
+
+    private func scaledHeadingFont(level: Int) -> NSFont {
+        let size = bodyFont.pointSize * [1.7, 1.45, 1.25, 1.1, 1.0, 1.0][min(max(level - 1, 0), 5)]
+        return NSFontManager.shared.convert(
+            bodyFont, toSize: size) ?? bodyFont.withSize(size)
+    }
+
+    private func displayRange(of item: RenderedBlock, _ segment: MarkdownProjectionBuilder.Segment) -> NSRange {
+        NSRange(
+            location: item.displayStart + segment.displayRangeUTF16.location,
+            length: segment.displayRangeUTF16.length)
+    }
+
     /// G0 原型的最小样式：保护块等宽字体、code span 等宽（视觉验证用）。
     private func applyDisplayAttributes() {
         guard let storage = textStorage else { return }
@@ -262,6 +280,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 let blockRange = NSRange(location: start, length: blockLen)
                 storage.addAttribute(.font, value: mono, range: blockRange)
                 storage.addAttribute(.foregroundColor, value: fg, range: blockRange)
+                storage.addAttribute(.backgroundColor, value: codeBackgroundColor, range: blockRange)
                 // T15:token 上色(fence 投影 1:1);超限/未知语言 → 基础样式。
                 // T19:降噪块不涂 token(平色),避免活跃色残留。
                 let maxLen = NotesTextProcessor.shouldUseSimplifiedHighlighting ? 500 : 3000
@@ -289,15 +308,74 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             if blockRange.length > 0 {
                 storage.addAttribute(.foregroundColor, value: fg, range: blockRange)
             }
-            for segment in projection.segments where segment.kind == .codeSpan {
-                let range = NSRange(
-                    location: start + segment.displayRangeUTF16.location,
-                    length: segment.displayRangeUTF16.length)
-                if range.length > 0 {
-                    storage.addAttribute(.font, value: mono, range: range)
+            // T19 视觉:块级排版
+            switch block.kind {
+            case .heading(let level):
+                let heading = scaledHeadingFont(level: level)
+                let boldHeading = NSFontManager.shared.convert(heading, toHaveTrait: .boldFontMask) ?? heading
+                if blockRange.length > 0 {
+                    storage.addAttribute(.font, value: boldHeading, range: blockRange)
                 }
+            case .quote:
+                let quoteColor = contentTextColor.withAlphaComponent(0.72)
+                if isActive, blockRange.length > 0 {
+                    storage.addAttribute(.foregroundColor, value: quoteColor, range: blockRange)
+                }
+            case .frontmatter, .htmlBlock, .mathBlock, .thematicBreak, .blank:
+                let dim = contentTextColor.withAlphaComponent(0.45)
+                if isActive, blockRange.length > 0 {
+                    storage.addAttribute(.foregroundColor, value: dim, range: blockRange)
+                }
+            default:
+                break
+            }
+            // T19 视觉:行内排版(code fence 已在上方 continue)
+            for segment in projection.segments {
+                let range = displayRange(of: item, segment)
+                guard range.length > 0, NSMaxRange(range) <= storage.length else { continue }
+                applyInlineTypography(segment, range: range, isActive: isActive, mono: mono, storage: storage)
             }
         }
+    }
+
+    /// T19 视觉:单个行内段的排版属性(codeSpan/粗/斜/删/链接)。
+    private func applyInlineTypography(
+        _ segment: MarkdownProjectionBuilder.Segment,
+        range: NSRange,
+        isActive: Bool,
+        mono: NSFont,
+        storage: NSTextStorage
+    ) {
+        switch segment.kind {
+        case .codeSpan:
+            storage.addAttribute(.font, value: mono, range: range)
+            storage.addAttribute(.backgroundColor, value: codeBackgroundColor, range: range)
+        case .strongBody:
+            let bold = NSFontManager.shared.convert(bodyFont, toHaveTrait: .boldFontMask) ?? bodyFont
+            storage.addAttribute(.font, value: bold, range: range)
+        case .emphasisBody:
+            let italic = NSFontManager.shared.convert(bodyFont, toHaveTrait: .italicFontMask) ?? bodyFont
+            storage.addAttribute(.font, value: italic, range: range)
+        case .strikethroughBody:
+            storage.addAttribute(
+                .strikethroughStyle,
+                value: NSUnderlineStyle.single.rawValue, range: range)
+        case .linkLabel:
+            if isActive {
+                storage.addAttribute(.foregroundColor, value: Theme.accentColor, range: range)
+                storage.addAttribute(
+                    .underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range)
+            }
+        default:
+            break
+        }
+    }
+
+    /// 代码底色(浅/深主题):fence 与 code span 共用的淡背景。
+    private var codeBackgroundColor: NSColor {
+        AppEnvironment.current.userData.isDark
+            ? NSColor.white.withAlphaComponent(0.07)
+            : NSColor.black.withAlphaComponent(0.05)
     }
 
     public func refreshFontAttributes() {

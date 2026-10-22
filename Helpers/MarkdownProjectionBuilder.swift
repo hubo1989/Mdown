@@ -21,6 +21,11 @@ struct MarkdownProjectionBuilder {
         case attachmentPlaceholder  // 图片：alt 作为占位显示
         case metadata  // frontmatter：整块原样
         case plainFallback  // 保护块/未识别：原样显示，编辑回退 source
+        // T19 视觉：行内样式体(marker 隐藏,内容带渲染语义)
+        case strongBody  // **x** 内容：粗体
+        case emphasisBody  // *x* 内容：斜体
+        case strikethroughBody  // ~~x~~ 内容：删除线
+        case linkLabel  // [label](url) 的 label：链接色
     }
 
     struct Segment: Equatable {
@@ -296,9 +301,19 @@ struct MarkdownProjectionBuilder {
                                 displayText: "", isOpening: true
                             ))
                         let contentLen = close - (cursor + openLen)
+                        // T19 视觉:按 marker 分型(~=删除线;>=2 星/下划线=
+                        // 粗体;单个=斜体)——渲染层据此上 NSFont trait。
+                        let bodyKind: SegmentKind
+                        if marker.hasPrefix("~") {
+                            bodyKind = .strikethroughBody
+                        } else if openLen >= 2 {
+                            bodyKind = .strongBody
+                        } else {
+                            bodyKind = .emphasisBody
+                        }
                         segments.append(
                             Segment(
-                                kind: .text,
+                                kind: bodyKind,
                                 sourceRangeUTF16: NSRange(location: base + cursor + openLen, length: contentLen),
                                 displayRangeUTF16: NSRange(location: -1, length: contentLen),
                                 displayText: ns.substring(with: NSRange(location: cursor + openLen, length: contentLen))
@@ -541,7 +556,7 @@ struct MarkdownProjectionBuilder {
             ))
         segments.append(
             Segment(
-                kind: isImage ? .attachmentPlaceholder : .text,
+                kind: isImage ? .attachmentPlaceholder : .linkLabel,
                 sourceRangeUTF16: NSRange(location: base + labelStart, length: labelRange.length),
                 displayRangeUTF16: NSRange(location: -1, length: labelRange.length),
                 displayText: isImage && labelRange.length == 0 ? "[图]" : ns.substring(with: labelRange)
