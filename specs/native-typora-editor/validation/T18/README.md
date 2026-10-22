@@ -32,11 +32,24 @@
 Blocks` 断言块内保留/块后清理两向)。诊断插桩已全部移除
 (assert 复查 0 残留)。
 
+## 阶段 2(同日补交):formatText 调用方退役 Prettier worker
+
+- `ViewController+Editor.formatText` 两条路径(source buffer 与 native
+  rich)改为 `NativeMarkdownFormatter.format` 纯函数同步跑(Task 内,
+  取消即丢),结果经既有 apply 函数落为整篇替换事务;rich 面单步
+  undo(T14 applyWholeSourceReplacement)、source 面整 buffer 替换。
+  apply 函数去掉 Prettier 的 placeholder 还原/换行启发式/native
+  formatter 已按 mdown-preserve-v1 保留尾换行形态),caret 从活动视图
+  现取 clamp;内容无变化时提示 "Typography is already clean~"。
+- `MarkdownFormatWorker` actor、`MarkdownFormatOutput`、Prettier/
+  PrettierMarkdown import 全部删除;`markdownFormatWorker` 属性移除。
+  源码 grep 仅剩注释提及;**包本身保留,T22 统一退依赖**(与
+  Highlightr 同策略)。
+- 验证:全量 576(同 8 环境失败),SwiftLint strict 0,触及文件
+  swift-format 干净。修复了减参后的 NSRange 误下标(编译暴露)。
+
 ## T18 剩余(不声称完成)
 
-1. 接 `ViewController.formatText` 的 markdownFormatWorker 替换
-   (现有 Prettier worker 退役留 T22),以 source patch/整篇替换事务
-   应用、单步撤销、失败/取消不写正文、revision 失配拒绝。
-2. 与旧 Prettier baseline 的 golden 对照与有意差异登记。
-3. link target/reference 值、inline raw HTML 的保护段边界扩充。
-4. 实机 format 命令矩阵(IME 中取消、切笔记竞争)。
+1. 与旧 Prettier baseline 的 golden 对照与有意差异登记。
+2. link target/reference 值、inline raw HTML 的保护段边界扩充。
+3. 实机 format 命令矩阵(IME 中取消、切笔记竞争)。

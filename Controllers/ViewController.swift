@@ -40,7 +40,7 @@ class ViewController:
     var isFormatting: Bool = false
     var formatTask: Task<Void, Never>?
     var formatRequestID: Int = 0
-    let markdownFormatWorker = MarkdownFormatWorker()
+    // T18:NativeMarkdownFormatter 接管排版;Prettier worker 随 T22 退依赖。
     var needRestorePreview: Bool = false
     var shouldRestorePreviewAfterExport: Bool = false
     var shouldDisablePPTAfterExport: Bool = false

@@ -1,57 +1,9 @@
 import Cocoa
 import Foundation
-import Prettier
-import PrettierMarkdown
 
-struct MarkdownFormatOutput: Sendable {
-    let protectedContent: String
-    let placeholders: [String: String]
-    let formattedString: String
-    let cursorOffset: Int
-}
-
-actor MarkdownFormatWorker {
-    private var formatter: PrettierFormatter?
-
-    private func getFormatter() -> PrettierFormatter {
-        if let formatter {
-            return formatter
-        }
-
-        let formatter = PrettierFormatter(plugins: [MarkdownPlugin()], parser: MarkdownParser())
-        formatter.htmlWhitespaceSensitivity = HTMLWhitespaceSensitivityStrategy.ignore
-        formatter.proseWrap = ProseWrapStrategy.preserve
-        formatter.prepare()
-        self.formatter = formatter
-        return formatter
-    }
-
-    func format(content: String, cursor: Int) throws -> MarkdownFormatOutput {
-        if Task.isCancelled {
-            throw CancellationError()
-        }
-
-        let (protectedContent, placeholders) = HtmlManager.protectHTMLTags(in: content)
-        let adjustedCursor = HtmlManager.adjustCursorForProtectedContent(cursor: cursor, original: content, protected: protectedContent)
-        let result = getFormatter().format(protectedContent, withCursorAtLocation: adjustedCursor)
-
-        if Task.isCancelled {
-            throw CancellationError()
-        }
-
-        switch result {
-        case .success(let formatResult):
-            return MarkdownFormatOutput(
-                protectedContent: protectedContent,
-                placeholders: placeholders,
-                formattedString: formatResult.formattedString,
-                cursorOffset: formatResult.cursorOffset
-            )
-        case .failure(let error):
-            throw error
-        }
-    }
-}
+// MARK: - T18:NativeMarkdownFormatter 已接管 formatText(Prettier worker
+// 随 T22 退依赖)。排版是纯函数,在 Task 内同步跑后经 apply 函数落为
+// 整篇替换事务;取消/失配仍走既有 requestID 守卫。
 
 // MARK: - Editor Management
 extension ViewController {
@@ -997,33 +949,12 @@ extension ViewController {
 
             formatTask = Task(priority: .userInitiated) { [weak self] in
                 guard let self else { return }
-                do {
-                    let output = try await self.markdownFormatWorker.format(content: content, cursor: cursor)
-                    if Task.isCancelled {
-                        return
-                    }
-
-                    await MainActor.run {
-                        self.applyRichFormattingResult(
-                            output, content: content, noteURL: noteURL,
-                            requestID: requestID, host: host)
-                    }
-                } catch is CancellationError {
-                    await MainActor.run {
-                        guard self.formatRequestID == requestID else { return }
-                        self.isFormatting = false
-                        self.updateFormatButtonState(isFormatting: false)
-                        self.formatTask = nil
-                    }
-                } catch {
-                    await MainActor.run {
-                        guard self.formatRequestID == requestID else { return }
-                        AppDelegate.trackError(error, context: "ViewController+Editor.format")
-                        self.toast(message: I18n.str("Formatting failed, please try again"), style: .failure)
-                        self.isFormatting = false
-                        self.updateFormatButtonState(isFormatting: false)
-                        self.formatTask = nil
-                    }
+                let newContent = NativeMarkdownFormatter.format(content)
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    self.applyRichFormattingResult(
+                        newContent, content: content, noteURL: noteURL,
+                        requestID: requestID, host: host)
                 }
             }
             return
@@ -1049,37 +980,21 @@ extension ViewController {
 
             formatTask = Task(priority: .userInitiated) { [weak self] in
                 guard let self else { return }
-                do {
-                    let output = try await self.markdownFormatWorker.format(content: content, cursor: cursor)
-                    if Task.isCancelled {
-                        return
-                    }
-
-                    await MainActor.run {
-                        self.applyFormattingResult(output, content: content, noteURL: noteURL, requestID: requestID, top: top)
-                    }
-                } catch is CancellationError {
-                    await MainActor.run {
-                        guard self.formatRequestID == requestID else { return }
-                        self.isFormatting = false
-                        self.updateFormatButtonState(isFormatting: false)
-                        self.formatTask = nil
-                    }
-                } catch {
-                    await MainActor.run {
-                        guard self.formatRequestID == requestID else { return }
-                        AppDelegate.trackError(error, context: "ViewController+Editor.format")
-                        self.toast(message: I18n.str("Formatting failed, please try again"), style: .failure)
-                        self.isFormatting = false
-                        self.updateFormatButtonState(isFormatting: false)
-                        self.formatTask = nil
-                    }
+                let newContent = NativeMarkdownFormatter.format(content)
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    self.applyFormattingResult(
+                        newContent, content: content, noteURL: noteURL,
+                        requestID: requestID, top: top)
                 }
             }
         }
     }
 
-    private func applyFormattingResult(_ output: MarkdownFormatOutput, content: String, noteURL: URL, requestID: Int, top: CGFloat) {
+    private func applyFormattingResult(
+        _ formattedContent: String, content: String, noteURL: URL,
+        requestID: Int, top: CGFloat
+    ) {
         guard formatRequestID == requestID else {
             return
         }
@@ -1093,18 +1008,22 @@ extension ViewController {
             return
         }
 
-        let restoredContent = HtmlManager.restoreHTMLTags(in: output.formattedString, with: output.placeholders)
-        var newContent = restoredContent
-        let originalLines = content.components(separatedBy: .newlines)
-        if originalLines.count > 1 && !restoredContent.contains("\n") {
-            newContent = content
-        } else if content.last != "\n" && restoredContent.last == "\n" {
-            newContent = restoredContent.removeLastNewLine()
+        // T18:native formatter 已按 mdown-preserve-v1 保留尾换行形态,
+        // 不再需要 Prettier 的 placeholder 还原与换行启发式。
+        let newContent = formattedContent
+        guard newContent != content else {
+            isFormatting = false
+            updateFormatButtonState(isFormatting: false)
+            formatTask = nil
+            toast(message: I18n.str("Typography is already clean~"))
+            return
         }
 
         replaceEditorStorage(with: newContent, note: note)
 
-        let adjustedCursorOffset = HtmlManager.adjustCursorAfterRestore(originalOffset: output.cursorOffset, protected: output.protectedContent, restored: newContent)
+        // caret:格式化期间未接受输入(整篇替换前 buffer 未动),clamp 即可。
+        let cursor = editArea.selectedRange.location
+        let adjustedCursorOffset = min(max(cursor, 0), (newContent as NSString).length)
         editArea.setSelectedRange(NSRange(location: adjustedCursorOffset, length: 0))
         formatContent = newContent
         note.save(attributed: editArea.attributedString())
@@ -1122,10 +1041,10 @@ extension ViewController {
         formatTask = nil
     }
 
-    /// T14：native rich 面的排版结果应用——整篇替换事务（单条历史），
-    /// caret 按排版输出的 source 偏移恢复，镜像与落盘走 host 既有通道。
+    /// T14/T18:native rich 面的排版结果应用——整篇替换事务（单条历史），
+    /// caret clamp 到新 source 偏移，镜像与落盘走 host 既有通道。
     private func applyRichFormattingResult(
-        _ output: MarkdownFormatOutput, content: String, noteURL: URL,
+        _ formattedContent: String, content: String, noteURL: URL,
         requestID: Int, host: NativeRichEditorHostView
     ) {
         guard formatRequestID == requestID else { return }
@@ -1140,23 +1059,14 @@ extension ViewController {
             return
         }
 
-        let restoredContent = HtmlManager.restoreHTMLTags(in: output.formattedString, with: output.placeholders)
-        var newContent = restoredContent
-        let originalLines = content.components(separatedBy: .newlines)
-        if originalLines.count > 1 && !restoredContent.contains("\n") {
-            newContent = content
-        } else if content.last != "\n" && restoredContent.last == "\n" {
-            newContent = restoredContent.removeLastNewLine()
-        }
+        let newContent = formattedContent
         guard newContent != content else {
-            toast(message: I18n.str("Automatic typesetting succeeded~"), style: .success)
+            toast(message: I18n.str("Typography is already clean~"))
             return
         }
 
-        let adjustedCursorOffset = HtmlManager.adjustCursorAfterRestore(
-            originalOffset: output.cursorOffset, protected: output.protectedContent, restored: newContent)
-        let caretSource = min(
-            max(adjustedCursorOffset, 0), (newContent as NSString).length)
+        let cursor = host.textView.commandSourceSelection()?.location ?? 0
+        let caretSource = min(max(cursor, 0), (newContent as NSString).length)
 
         if host.textView.applyWholeSourceReplacement(newContent, name: "format", caretSourceOffset: caretSource) {
             host.flushPendingSave()
