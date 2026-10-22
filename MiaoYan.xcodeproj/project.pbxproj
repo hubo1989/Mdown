@@ -26,10 +26,6 @@
 		272B1F8F5FB78A7F647D931A /* Helpers/UIDelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CEDD077A416C0F4BA0EC980 /* Helpers/UIDelay.swift */; };
 		272CAC2628758C6A0026EF50 /* ContentViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 272CAC2528758C6A0026EF50 /* ContentViewController.swift */; };
 		272D1B432E77E9AC00A95673 /* MPreviewView+Export.swift in Sources */ = {isa = PBXBuildFile; fileRef = 272D1B422E77E9AC00A95673 /* MPreviewView+Export.swift */; };
-		2732D2FF2E70450B00F00158 /* Prettier in Frameworks */ = {isa = PBXBuildFile; productRef = 2732D2FE2E70450B00F00158 /* Prettier */; };
-		2732D3012E7047D400F00158 /* PrettierMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = 2732D3002E7047D400F00158 /* PrettierMarkdown */; };
-		2732D3032E70482E00F00158 /* PrettierMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = 2732D3022E70482E00F00158 /* PrettierMarkdown */; };
-		2732D3052E70487B00F00158 /* PrettierMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = 2732D3042E70487B00F00158 /* PrettierMarkdown */; };
 		274D62CF2E434B6D003C075F /* ImageLinkParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274D62CE2E434B6D003C075F /* ImageLinkParser.swift */; };
 		274D62D12E434B9C003C075F /* ImagePreviewWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274D62D02E434B9C003C075F /* ImagePreviewWindow.swift */; };
 		275592971F3AE9B5006B8988 /* MainWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 275592961F3AE9B5006B8988 /* MainWindowController.swift */; };
@@ -59,17 +55,12 @@
 		27977FF42E7126C40016D57D /* CMarkGFM in Frameworks */ = {isa = PBXBuildFile; productRef = 27977FF32E7126C40016D57D /* CMarkGFM */; };
 		2799407C218484C900727B20 /* TitleBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2799407B218484C900727B20 /* TitleBarView.swift */; };
 		27A0773A2E714AB1008A5483 /* CMarkGFM in Frameworks */ = {isa = PBXBuildFile; productRef = 27A077392E714AB1008A5483 /* CMarkGFM */; };
-		27A077402E714ACC008A5483 /* Prettier in Frameworks */ = {isa = PBXBuildFile; productRef = 27A0773F2E714ACC008A5483 /* Prettier */; };
-		27A077422E714ACC008A5483 /* PrettierMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = 27A077412E714ACC008A5483 /* PrettierMarkdown */; };
-		27A077482E714AFE008A5483 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 27A077472E714AFE008A5483 /* Highlightr */; };
 		27A0774E2E714C43008A5483 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 27A0774D2E714C43008A5483 /* Sparkle */; };
 		27A077542E7152C9008A5483 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 27A077532E7152C9008A5483 /* KeyboardShortcuts */; };
 		27A1B2C32E681510006BC2AC /* PdfExportController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A1B2C42E681510006BC2AC /* PdfExportController.swift */; };
 		27B1B2C32E681510006BC2AC /* RenderedBlockExportController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B1B2C42E681510006BC2AC /* RenderedBlockExportController.swift */; };
-		5D1384CA67DF4D73B6F4C215 /* VditorEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C320B8821A040019EFE8F76 /* VditorEditView.swift */; };
 		27B4A5AA2E6924CC00C89EFF /* ViewController+Action.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B4A5A82E6924CC00C89EFF /* ViewController+Action.swift */; };
 		27B4A5AB2E6924CC00C89EFF /* ViewController+Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B4A5A92E6924CC00C89EFF /* ViewController+Data.swift */; };
-		27B5AC682E45F25F00C83B3A /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 27B5AC672E45F25F00C83B3A /* Highlightr */; };
 		27B5AC6E2E45F27A00C83B3A /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 27B5AC6D2E45F27A00C83B3A /* Sparkle */; };
 		27C34C0E28928D0B007369E5 /* Emoji.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C34C0D28928D0B007369E5 /* Emoji.swift */; };
 		27D000A22EAB000000D13871 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 27D000A12EAB000000D13871 /* Localizable.xcstrings */; };
@@ -104,7 +95,6 @@
 		1E058AF705DC115AEF56FB09 /* MiaoYanTests/NativeEditorModeMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B3FDE8A11167EE610FF5A7E /* MiaoYanTests/NativeEditorModeMigrationTests.swift */; };
 		A7E1C0DE7A7B000000000001 /* MiaoYanTests/EditorCommitPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1C0DE7A7B000000000002 /* MiaoYanTests/EditorCommitPersistenceTests.swift */; };
 		59C13E726F8F344E9051CD37 /* MiaoYanTests/EditingTransitionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD01F40C328BCEAA8C086FBD /* MiaoYanTests/EditingTransitionTests.swift */; };
-		CB235688DD8D6C55CC5A668E /* MiaoYanTests/VditorIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB910EF08812144A576B87C /* MiaoYanTests/VditorIntegrationTests.swift */; };
 		A11B4048259C36431AF78CA6 /* MiaoYanTests/EditorStorageOwnershipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B22C5159360D47542BF89DB7 /* MiaoYanTests/EditorStorageOwnershipTests.swift */; };
 		F4B5C6D7E8F90123456789AB /* MiaoYanTests/SidebarProjectViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6C7D8E9F0123456789ABC /* MiaoYanTests/SidebarProjectViewTests.swift */; };
 		242C434908DBCF06A33ADC23 /* MiaoYanTests/TypographyCleanerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70CD1D46A31EA0A827EF0C05 /* MiaoYanTests/TypographyCleanerTests.swift */; };
@@ -203,7 +193,6 @@
 		437E9F161875DA30DD24F911 /* behavior-cases.json in Resources */ = {isa = PBXBuildFile; fileRef = 7957B4F9F6D97632D3C9CBF3 /* behavior-cases.json */; };
 		7197CC40F42D1B8962FCED40 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 173678C12CCD112FF186F440 /* manifest.json */; };
 		327B1E70E8E08AD18D984D00 /* NativeEditorFixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3BF87F28104C23773413ADC /* NativeEditorFixtureTests.swift */; };
-		1E0D8A6C93972A91741DF94F /* VditorBridgeContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F28851C78E41F04304B62D6 /* VditorBridgeContractTests.swift */; };
 		F02903CB3F4EAFBC84483DAC /* MarkdownEditTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 779BD6B8640449564912F3C8 /* MarkdownEditTransaction.swift */; };
 		57F3FA9164C291EDF3BA671B /* MarkdownSourceMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 285B3797D4737A0CF9939BF5 /* MarkdownSourceMap.swift */; };
 		C5425F107E26D455A4DB664A /* MarkdownEditTransactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2CA25F8D97408FCF502F7D /* MarkdownEditTransactionTests.swift */; };
@@ -228,6 +217,7 @@
 		A11B0C0DEF01020304050607 /* MarkdownInlineEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B60 /* MarkdownListEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */; };
 		A1B2C3D4E5F60718293A4B62 /* MarkdownInputRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */; };
+		C22000000000000000000001 /* NativeWysiwygContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22000000000000000000002 /* NativeWysiwygContractTests.swift */; };
 		C19000000000000000000001 /* NativeEditorViewStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C19000000000000000000002 /* NativeEditorViewStateTests.swift */; };
 		C18000000000000000000001 /* NativeMarkdownFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18000000000000000000002 /* NativeMarkdownFormatter.swift */; };
 		C18000000000000000000003 /* NativeMarkdownFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */; };
@@ -335,7 +325,6 @@
 		2799407B218484C900727B20 /* TitleBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleBarView.swift; sourceTree = "<group>"; };
 		27A1B2C42E681510006BC2AC /* PdfExportController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfExportController.swift; sourceTree = "<group>"; };
 		27B1B2C42E681510006BC2AC /* RenderedBlockExportController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderedBlockExportController.swift; sourceTree = "<group>"; };
-		9C320B8821A040019EFE8F76 /* VditorEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VditorEditView.swift; sourceTree = "<group>"; };
 		27B4A5A82E6924CC00C89EFF /* ViewController+Action.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+Action.swift"; sourceTree = "<group>"; };
 		27B4A5A92E6924CC00C89EFF /* ViewController+Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewController+Data.swift"; sourceTree = "<group>"; };
 		27C34C0D28928D0B007369E5 /* Emoji.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Emoji.swift; sourceTree = "<group>"; };
@@ -386,7 +375,6 @@
 		2B3FDE8A11167EE610FF5A7E /* MiaoYanTests/NativeEditorModeMigrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/NativeEditorModeMigrationTests.swift; sourceTree = SOURCE_ROOT; };
 		A7E1C0DE7A7B000000000002 /* MiaoYanTests/EditorCommitPersistenceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/EditorCommitPersistenceTests.swift; sourceTree = SOURCE_ROOT; };
 		FD01F40C328BCEAA8C086FBD /* MiaoYanTests/EditingTransitionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/EditingTransitionTests.swift; sourceTree = SOURCE_ROOT; };
-		2BB910EF08812144A576B87C /* MiaoYanTests/VditorIntegrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/VditorIntegrationTests.swift; sourceTree = SOURCE_ROOT; };
 		B22C5159360D47542BF89DB7 /* MiaoYanTests/EditorStorageOwnershipTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/EditorStorageOwnershipTests.swift; sourceTree = SOURCE_ROOT; };
 		A5B6C7D8E9F0123456789ABC /* MiaoYanTests/SidebarProjectViewTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/SidebarProjectViewTests.swift; sourceTree = SOURCE_ROOT; };
 		70CD1D46A31EA0A827EF0C05 /* MiaoYanTests/TypographyCleanerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/TypographyCleanerTests.swift; sourceTree = SOURCE_ROOT; };
@@ -479,7 +467,6 @@
 		7957B4F9F6D97632D3C9CBF3 /* behavior-cases.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = behavior-cases.json; sourceTree = "<group>"; };
 		173678C12CCD112FF186F440 /* manifest.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
 		B3BF87F28104C23773413ADC /* NativeEditorFixtureTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeEditorFixtureTests.swift; sourceTree = "<group>"; };
-		2F28851C78E41F04304B62D6 /* VditorBridgeContractTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VditorBridgeContractTests.swift; sourceTree = "<group>"; };
 		779BD6B8640449564912F3C8 /* MarkdownEditTransaction.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditTransaction.swift; sourceTree = "<group>"; };
 		285B3797D4737A0CF9939BF5 /* MarkdownSourceMap.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownSourceMap.swift; sourceTree = "<group>"; };
 		CF2CA25F8D97408FCF502F7D /* MarkdownEditTransactionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditTransactionTests.swift; sourceTree = "<group>"; };
@@ -504,6 +491,7 @@
 		A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInlineEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownListEditingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInputRulesTests.swift; sourceTree = "<group>"; };
+		C22000000000000000000002 /* NativeWysiwygContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWysiwygContractTests.swift; sourceTree = "<group>"; };
 		C19000000000000000000002 /* NativeEditorViewStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEditorViewStateTests.swift; sourceTree = "<group>"; };
 		C18000000000000000000002 /* NativeMarkdownFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeMarkdownFormatter.swift; sourceTree = "<group>"; };
 		C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeMarkdownFormatterTests.swift; sourceTree = "<group>"; };
@@ -539,18 +527,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				27A0773A2E714AB1008A5483 /* CMarkGFM in Frameworks */,
-				27A077482E714AFE008A5483 /* Highlightr in Frameworks */,
 				27977FF42E7126C40016D57D /* CMarkGFM in Frameworks */,
-				2732D2FF2E70450B00F00158 /* Prettier in Frameworks */,
 				27A077542E7152C9008A5483 /* KeyboardShortcuts in Frameworks */,
-				27B5AC682E45F25F00C83B3A /* Highlightr in Frameworks */,
-				27A077402E714ACC008A5483 /* Prettier in Frameworks */,
 				27A0774E2E714C43008A5483 /* Sparkle in Frameworks */,
 				27B5AC6E2E45F27A00C83B3A /* Sparkle in Frameworks */,
-				2732D3012E7047D400F00158 /* PrettierMarkdown in Frameworks */,
-				2732D3052E70487B00F00158 /* PrettierMarkdown in Frameworks */,
-				2732D3032E70482E00F00158 /* PrettierMarkdown in Frameworks */,
-				27A077422E714ACC008A5483 /* PrettierMarkdown in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -625,7 +605,6 @@
 				2B3FDE8A11167EE610FF5A7E /* MiaoYanTests/NativeEditorModeMigrationTests.swift */,
 				A7E1C0DE7A7B000000000002 /* MiaoYanTests/EditorCommitPersistenceTests.swift */,
 				FD01F40C328BCEAA8C086FBD /* MiaoYanTests/EditingTransitionTests.swift */,
-				2BB910EF08812144A576B87C /* MiaoYanTests/VditorIntegrationTests.swift */,
 				A26090600000000000000005 /* NoteSearchReaderTests.swift */,
 				B22C5159360D47542BF89DB7 /* MiaoYanTests/EditorStorageOwnershipTests.swift */,
 				A5B6C7D8E9F0123456789ABC /* MiaoYanTests/SidebarProjectViewTests.swift */,
@@ -637,7 +616,6 @@
 				17D270682FE43740B52C6C24 /* MiaoYanTests/Info.plist */,
 							52E9F645BF1D1614CE32CF10 /* Fixtures */,
 				B3BF87F28104C23773413ADC /* NativeEditorFixtureTests.swift */,
-				2F28851C78E41F04304B62D6 /* VditorBridgeContractTests.swift */,
 				CF2CA25F8D97408FCF502F7D /* MarkdownEditTransactionTests.swift */,
 				483FED1DCDFFFC5CD5E688FA /* MarkdownSourceMapTests.swift */,
 				65E6B635A671A5AE53DFA2EA /* MarkdownRoundTripTests.swift */,
@@ -652,6 +630,7 @@
 				C13000000000000000000004 /* MarkdownRawBlockEditingTests.swift */,
 				C14000000000000000000004 /* MarkdownCommandRoutingTests.swift */,
 				C15000000000000000000002 /* NativeCodeHighlighterTests.swift */,
+				C22000000000000000000002 /* NativeWysiwygContractTests.swift */,
 				C19000000000000000000002 /* NativeEditorViewStateTests.swift */,
 				C18000000000000000000004 /* NativeMarkdownFormatterTests.swift */,
 				C17000000000000000000004 /* MarkdownRenderedBlockStateTests.swift */,
@@ -860,7 +839,6 @@
 			children = (
 				2781609D2E75554200F3D54B /* PrefsSidebarView.swift */,
 				D797004B1F3DD10700BAD94D /* EditTextView.swift */,
-				9C320B8821A040019EFE8F76 /* VditorEditView.swift */,
 				272ABB5E285F305500CCD651 /* SidebarProjectView.swift */,
 				D735E5BC1F2EF66000173215 /* NoteCellView.swift */,
 				D735E5BE1F2F001500173215 /* NoteRowView.swift */,
@@ -1025,10 +1003,7 @@
 			name = MiaoYan;
 			packageProductDependencies = (
 				27977FF32E7126C40016D57D /* CMarkGFM */,
-				27A077472E714AFE008A5483 /* Highlightr */,
 				27A077532E7152C9008A5483 /* KeyboardShortcuts */,
-				27A0773F2E714ACC008A5483 /* Prettier */,
-				27A077412E714ACC008A5483 /* PrettierMarkdown */,
 				27A0774D2E714C43008A5483 /* Sparkle */,
 			);
 			productName = MiaoYan;
@@ -1096,8 +1071,6 @@
 			mainGroup = D7793C661F211C6000CA39B7;
 			packageReferences = (
 				27A077382E714AB1008A5483 /* XCRemoteSwiftPackageReference "swift-cmark-gfm" */,
-				27A0773E2E714ACC008A5483 /* XCRemoteSwiftPackageReference "Prettier" */,
-				27A077462E714AFE008A5483 /* XCRemoteSwiftPackageReference "Highlightr" */,
 				27A0774C2E714C43008A5483 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				27A077522E7152C8008A5483 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 			);
@@ -1227,7 +1200,6 @@
 				1E058AF705DC115AEF56FB09 /* MiaoYanTests/NativeEditorModeMigrationTests.swift in Sources */,
 				A7E1C0DE7A7B000000000001 /* MiaoYanTests/EditorCommitPersistenceTests.swift in Sources */,
 				59C13E726F8F344E9051CD37 /* MiaoYanTests/EditingTransitionTests.swift in Sources */,
-				CB235688DD8D6C55CC5A668E /* MiaoYanTests/VditorIntegrationTests.swift in Sources */,
 				A26090600000000000000002 /* NoteSearchReader.swift in Sources */,
 				A26090600000000000000003 /* NoteSearchReaderTests.swift in Sources */,
 				A11B4048259C36431AF78CA6 /* MiaoYanTests/EditorStorageOwnershipTests.swift in Sources */,
@@ -1238,7 +1210,6 @@
 				7A0100012D4E5F60718293A1 /* MiaoYanTests/RenderedBlockExportTests.swift in Sources */,
 				7AB1664FC5A60FE3EBF3D219 /* MiaoYanTests/ImportScanTests.swift in Sources */,
 							327B1E70E8E08AD18D984D00 /* NativeEditorFixtureTests.swift in Sources */,
-				1E0D8A6C93972A91741DF94F /* VditorBridgeContractTests.swift in Sources */,
 				C5425F107E26D455A4DB664A /* MarkdownEditTransactionTests.swift in Sources */,
 				2853EEB02BD444DB7AB3EC9A /* MarkdownSourceMapTests.swift in Sources */,
 				2499413738C16F44C5AE89E1 /* MarkdownRoundTripTests.swift in Sources */,
@@ -1253,6 +1224,7 @@
 				C13000000000000000000003 /* MarkdownRawBlockEditingTests.swift in Sources */,
 				C14000000000000000000003 /* MarkdownCommandRoutingTests.swift in Sources */,
 				C15000000000000000000001 /* NativeCodeHighlighterTests.swift in Sources */,
+				C22000000000000000000001 /* NativeWysiwygContractTests.swift in Sources */,
 				C19000000000000000000001 /* NativeEditorViewStateTests.swift in Sources */,
 				C18000000000000000000003 /* NativeMarkdownFormatterTests.swift in Sources */,
 				C17000000000000000000003 /* MarkdownRenderedBlockStateTests.swift in Sources */,
@@ -1363,7 +1335,6 @@
 				275F9F5E2E68150E006BC2AC /* ImagePreviewManager.swift in Sources */,
 				27A1B2C32E681510006BC2AC /* PdfExportController.swift in Sources */,
 				27B1B2C32E681510006BC2AC /* RenderedBlockExportController.swift in Sources */,
-				5D1384CA67DF4D73B6F4C215 /* VditorEditView.swift in Sources */,
 				D7153E092285EC6100A2C20F /* TitleTextField.swift in Sources */,
 				D7D372F4207B5B0F00AFBD9F /* SidebarNotesView.swift in Sources */,
 				3680DE38C941303E615282C4 /* MPreviewView.swift in Sources */,
@@ -2043,14 +2014,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		2732D2FD2E70450B00F00158 /* XCRemoteSwiftPackageReference "Prettier" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/simonbs/Prettier.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.2.1;
-			};
-		};
 		27977FF22E7126C40016D57D /* XCRemoteSwiftPackageReference "swift-cmark-gfm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/stackotter/swift-cmark-gfm";
@@ -2065,22 +2028,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.0.0;
-			};
-		};
-		27A0773E2E714ACC008A5483 /* XCRemoteSwiftPackageReference "Prettier" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/simonbs/Prettier.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.2.1;
-			};
-		};
-		27A077462E714AFE008A5483 /* XCRemoteSwiftPackageReference "Highlightr" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/raspu/Highlightr.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.3.0;
 			};
 		};
 		27A0774C2E714C43008A5483 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
@@ -2099,14 +2046,6 @@
 				minimumVersion = 2.3.0;
 			};
 		};
-		27B5AC662E45F25F00C83B3A /* XCRemoteSwiftPackageReference "Highlightr" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/raspu/Highlightr.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.3.0;
-			};
-		};
 		27B5AC6C2E45F27A00C83B3A /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle.git";
@@ -2118,26 +2057,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		2732D2FE2E70450B00F00158 /* Prettier */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 2732D2FD2E70450B00F00158 /* XCRemoteSwiftPackageReference "Prettier" */;
-			productName = Prettier;
-		};
-		2732D3002E7047D400F00158 /* PrettierMarkdown */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 2732D2FD2E70450B00F00158 /* XCRemoteSwiftPackageReference "Prettier" */;
-			productName = PrettierMarkdown;
-		};
-		2732D3022E70482E00F00158 /* PrettierMarkdown */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 2732D2FD2E70450B00F00158 /* XCRemoteSwiftPackageReference "Prettier" */;
-			productName = PrettierMarkdown;
-		};
-		2732D3042E70487B00F00158 /* PrettierMarkdown */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 2732D2FD2E70450B00F00158 /* XCRemoteSwiftPackageReference "Prettier" */;
-			productName = PrettierMarkdown;
-		};
 		27977FF32E7126C40016D57D /* CMarkGFM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 27977FF22E7126C40016D57D /* XCRemoteSwiftPackageReference "swift-cmark-gfm" */;
@@ -2148,21 +2067,6 @@
 			package = 27A077382E714AB1008A5483 /* XCRemoteSwiftPackageReference "swift-cmark-gfm" */;
 			productName = CMarkGFM;
 		};
-		27A0773F2E714ACC008A5483 /* Prettier */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 27A0773E2E714ACC008A5483 /* XCRemoteSwiftPackageReference "Prettier" */;
-			productName = Prettier;
-		};
-		27A077412E714ACC008A5483 /* PrettierMarkdown */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 27A0773E2E714ACC008A5483 /* XCRemoteSwiftPackageReference "Prettier" */;
-			productName = PrettierMarkdown;
-		};
-		27A077472E714AFE008A5483 /* Highlightr */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 27A077462E714AFE008A5483 /* XCRemoteSwiftPackageReference "Highlightr" */;
-			productName = Highlightr;
-		};
 		27A0774D2E714C43008A5483 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 27A0774C2E714C43008A5483 /* XCRemoteSwiftPackageReference "Sparkle" */;
@@ -2172,11 +2076,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 27A077522E7152C8008A5483 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
 			productName = KeyboardShortcuts;
-		};
-		27B5AC672E45F25F00C83B3A /* Highlightr */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 27B5AC662E45F25F00C83B3A /* XCRemoteSwiftPackageReference "Highlightr" */;
-			productName = Highlightr;
 		};
 		27B5AC6D2E45F27A00C83B3A /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;

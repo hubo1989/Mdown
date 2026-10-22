@@ -176,14 +176,18 @@ final class NativeEditorModeMigrationTests: XCTestCase {
 
     // MARK: - backend 协议面
 
-    @MainActor
-    func testVditorEditViewConformsToWysiwygBackend() {
-        // 纯 Swift 协议无 ObjC 运行时 conformance 检查；经泛型约束在
-        // 编译期证明 VditorEditView 实现协议面（缺实现即编译失败）。
-        func requireBackend<B: WysiwygEditingBackend>(_ type: B.Type) -> Bool { true }
-        XCTAssertTrue(
-            requireBackend(VditorEditView.self),
-            "legacy Vditor 必须经同一协议面路由，不得单独接线")
+    /// T22:legacy `useNativeWysiwyg=false` 值兼容迁移为 native——
+    /// activeWysiwygBackend 不再按该开关分流(源码体断言)。
+    func testLegacyBackendValueMigratesToNative() throws {
+        let vc = try source("Controllers/ViewController.swift")
+        let marker = try XCTUnwrap(vc.range(of: "var activeWysiwygBackend"))
+        let end = try XCTUnwrap(
+            vc.range(of: "\n    }", range: marker.upperBound..<vc.endIndex))
+        let body = String(vc[marker.lowerBound..<end.lowerBound])
+        XCTAssertTrue(body.contains("nativeRichHost"), "activeWysiwygBackend 必须返回 native")
+        XCTAssertNil(
+            body.range(of: "useNativeWysiwyg"),
+            "legacy 开关不得再分流 backend(值一律兼容迁移为 native)")
     }
 
     // MARK: - native host：装载与投影

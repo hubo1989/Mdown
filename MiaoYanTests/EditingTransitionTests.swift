@@ -408,26 +408,27 @@ extension EditingFlushOutcome {
 
 // MARK: - 活动后端采集的最小上下文（供既有 hard-save-point 测试迁移复用）
 
-/// 直接包住 (sourceEditor, vditorView, isWysiwyg) 的采集面，等价于
+/// 直接包住 (sourceEditor, richHost, isWysiwyg) 的采集面，等价于
 /// ViewController 的生产 conformance；EditorStorageOwnershipTests 与
-/// NoteSaveDebounceTests 的硬保存点用例经它走统一入口。
+/// NoteSaveDebounceTests 的硬保存点用例经它走统一入口。T22 后
+/// wysiwyg 后端恒为 native rich(Vditor 已退依赖)。
 @MainActor
 final class BackendCaptureStubContext: EditingTransitionContext {
 
     let sourceEditor: EditTextView
-    let vditorView: VditorEditView?
+    let richHost: NativeRichEditorHostView?
     let isWysiwygActive: Bool
     let activeNote: Note?
 
     init(
         activeNote: Note?,
         sourceEditor: EditTextView,
-        vditorView: VditorEditView?,
+        richHost: NativeRichEditorHostView?,
         isWysiwygActive: Bool
     ) {
         self.activeNote = activeNote
         self.sourceEditor = sourceEditor
-        self.vditorView = vditorView
+        self.richHost = richHost
         self.isWysiwygActive = isWysiwygActive
     }
 
@@ -437,7 +438,7 @@ final class BackendCaptureStubContext: EditingTransitionContext {
 
     func captureActiveBuffer(into note: Note) {
         if isWysiwygActive {
-            vditorView?.flushPendingSave()
+            richHost?.flushPendingSave(completion: nil)
         } else {
             sourceEditor.saveTextStorageContent(to: note)
         }

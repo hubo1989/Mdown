@@ -1,51 +1,42 @@
 {
-  "originHash" : "9371541b322d288b66cbea975135f6baebdc7d5116c2e795b122094c4890c41e",
-  "pins" : [
+  "originHash": "9371541b322d288b66cbea975135f6baebdc7d5116c2e795b122094c4890c41e",
+  "pins": [
     {
-      "identity" : "highlightr",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/raspu/Highlightr.git",
-      "state" : {
-        "revision" : "05e7fcc63b33925cd0c1faaa205cdd5681e7bbef",
-        "version" : "2.3.0"
+      "identity": "highlightr",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/raspu/Highlightr.git",
+      "state": {
+        "revision": "05e7fcc63b33925cd0c1faaa205cdd5681e7bbef",
+        "version": "2.3.0"
       }
     },
     {
-      "identity" : "keyboardshortcuts",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sindresorhus/KeyboardShortcuts",
-      "state" : {
-        "revision" : "1aef85578fdd4f9eaeeb8d53b7b4fc31bf08fe27",
-        "version" : "2.4.0"
+      "identity": "keyboardshortcuts",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/sindresorhus/KeyboardShortcuts",
+      "state": {
+        "revision": "1aef85578fdd4f9eaeeb8d53b7b4fc31bf08fe27",
+        "version": "2.4.0"
       }
     },
     {
-      "identity" : "prettier",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/simonbs/Prettier.git",
-      "state" : {
-        "revision" : "266dac500bded844a56771bc1fb2abaa60f6e7b6",
-        "version" : "0.2.1"
+      "identity": "sparkle",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/sparkle-project/Sparkle.git",
+      "state": {
+        "revision": "9a1d2a19d3595fcf8d9c447173f9a1687b3dcadb",
+        "version": "2.8.0"
       }
     },
     {
-      "identity" : "sparkle",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sparkle-project/Sparkle.git",
-      "state" : {
-        "revision" : "9a1d2a19d3595fcf8d9c447173f9a1687b3dcadb",
-        "version" : "2.8.0"
-      }
-    },
-    {
-      "identity" : "swift-cmark-gfm",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/stackotter/swift-cmark-gfm",
-      "state" : {
-        "revision" : "7ec44e7384793e507cf046336aef68586719a24e",
-        "version" : "1.0.2"
+      "identity": "swift-cmark-gfm",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/stackotter/swift-cmark-gfm",
+      "state": {
+        "revision": "7ec44e7384793e507cf046336aef68586719a24e",
+        "version": "1.0.2"
       }
     }
   ],
-  "version" : 3
+  "version": 3
 }

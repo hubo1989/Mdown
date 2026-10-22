@@ -203,8 +203,6 @@ protocol WysiwygEditingBackend: AnyObject {
     func updateAppearance()
 }
 
-extension VditorEditView: WysiwygEditingBackend {}
-
 @MainActor
 final class EditorSessionState {
     var layoutMode: EditorLayoutMode {

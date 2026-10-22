@@ -277,7 +277,7 @@ final class NoteSaveDebounceTests: XCTestCase {
     }
 }
 
-/// T01: Vditor 0.5s 外层 debounce 窗口内的硬保存点（Cmd+S / close /
+/// T01: wysiwyg 后端 0.5s 外层 debounce 窗口内的硬保存点（Cmd+S / close /
 /// terminate）必须立即落盘，不能只更新内存后留下空窗退出。
 extension NoteSaveDebounceTests {
     @MainActor
@@ -288,15 +288,15 @@ extension NoteSaveDebounceTests {
         let note = Note(url: url, with: project)
         note.content = NSMutableAttributedString(string: "v1")
 
-        let vditor = VditorEditView()
-        vditor.loadNote(note)
-        // 用户在 Vditor 输入（0.5s 外层 debounce 与 1.5s Note debounce 均未到）
-        vditor.handleContentChanged("v2", token: vditor.currentLoadTokenValue)
+        let richHost = NativeRichEditorHostView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+        richHost.loadNote(note)
+        // 用户在 wysiwyg 后端输入（0.5s 外层 debounce 与 1.5s Note debounce 均未到）
+        _ = richHost.textView.applyWholeSourceReplacement("v2", name: "test-edit")
 
         // 硬保存点等价链：统一入口采集（活动后端）+ flushPendingSaves 的 drain
         let context = BackendCaptureStubContext(
             activeNote: note, sourceEditor: .init(frame: .zero),
-            vditorView: vditor, isWysiwygActive: true)
+            richHost: richHost, isWysiwygActive: true)
         _ = EditingTransitionCoordinator().finishActiveEditing(
             in: context, forceCompositionFinish: false)
         XCTAssertTrue(note.flushPendingSave(), "flush 必须成功")

@@ -90,17 +90,15 @@ class ViewController:
         set { sessionState.wysiwygMode = newValue }
     }
 
-    var vditorEditView: VditorEditView?
     var nativeRichHost: NativeRichEditorHostView?
     var savedLayoutModeBeforePreview: EditorLayoutMode?
     var previousSingleLayoutMode: EditorLayoutMode = .source
 
-    /// T10 (SPEC NE-01)：wysiwyg 布局的正文后端。native rich 是默认，
-    /// legacy Vditor 是开发期回退（defaults `useNativeWysiwyg=false`）。
-    /// 同一时刻只有一个 backend 被 loadNote/focus——布局层/采集面只经
-    /// 本路由触达后端，禁止两个 backend 并行发布正文（SPEC §13）。
+    /// T10/T22 (SPEC NE-01)：wysiwyg 布局的正文后端。native rich 是唯一
+    /// 实现——legacy Vditor 随 T22 退依赖，旧 `useNativeWysiwyg` 值一律
+    /// 兼容迁移为 native。同一时刻只有一个 backend 被 loadNote/focus。
     var activeWysiwygBackend: (WysiwygEditingBackend & NSView)? {
-        UserDefaultsManagement.useNativeWysiwyg ? nativeRichHost : vditorEditView
+        nativeRichHost
     }
 
     /// T10 (SPEC NE-36)：native 装载失败的笔记在本次会话内回 source
@@ -1113,22 +1111,8 @@ class ViewController:
             editAreaScroll.bottomAnchor.constraint(equalTo: editorContainer.bottomAnchor),
         ])
 
-        // Setup VditorEditView and its container with Auto Layout constraints
-        let vditorView = VditorEditView()
-        vditorView.translatesAutoresizingMaskIntoConstraints = false
-        vditorView.isHidden = true
-        editorContainer.addSubview(vditorView)
-        NSLayoutConstraint.activate([
-            vditorView.leadingAnchor.constraint(equalTo: editorContainer.leadingAnchor),
-            vditorView.trailingAnchor.constraint(equalTo: editorContainer.trailingAnchor),
-            vditorView.topAnchor.constraint(equalTo: editorContainer.topAnchor),
-            vditorView.bottomAnchor.constraint(equalTo: editorContainer.bottomAnchor),
-        ])
-        self.vditorEditView = vditorView
-
-        // T10：native rich backend 与 Vditor 同位宿主（editorContainer 全幅）。
-        // 两者都常驻创建、默认隐藏；activeWysiwygBackend 按 pref 路由，同一
-        // 时刻只有一个可见/被装载（禁止并行两个 backend 发布正文）。
+        // T10/T22：native rich backend 宿主（editorContainer 全幅）。
+        // Vditor 已随 T22 退依赖；activeWysiwygBackend 恒返回本宿主。
         let richHost = NativeRichEditorHostView(frame: .zero)
         richHost.translatesAutoresizingMaskIntoConstraints = false
         richHost.isHidden = true

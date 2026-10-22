@@ -100,33 +100,34 @@ final class EditorStorageOwnershipTests: XCTestCase {
 
     /// T01 风险 #3：wysiwyg 模式下，Cmd+S / close / quit 硬保存点从
     /// source 编辑器 buffer 采集。owner 匹配（同一 note 从 source 切到
-    /// wysiwyg 后 textStorage 停留在旧 v1）时，旧 v1 会覆盖 Vditor 已写进
+    /// wysiwyg 后 textStorage 停留在旧 v1）时，旧 v1 会覆盖 wysiwyg 后端已写进
     /// note.content 的 v2——用户输入丢失。修复前红：
     /// `editor.saveTextStorageContent(to: noteA)` 得到 v1。
     @MainActor
-    func testHardSavePointMustNotOverwriteVditorContentWithStaleSourceBuffer() {
+    func testHardSavePointMustNotOverwriteRichContentWithStaleSourceBuffer() {
         let noteA = makeNote("a.md", body: "v1")
         let editor = EditTextView(frame: .zero)
-        let vditor = VditorEditView()
+        let richHost = NativeRichEditorHostView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
 
         // source 模式加载 A：buffer=v1，owner=A；切 wysiwyg 后 buffer 不变
         editor.publishStorage(NSAttributedString(string: "v1"), owner: noteA)
-        // wysiwyg：Vditor 加载 A 并收到合法 token 的用户编辑消息
-        vditor.loadNote(noteA)
-        vditor.handleContentChanged("v2", token: vditor.currentLoadTokenValue)
+        // wysiwyg：后端加载 A 并收到合法 token 的用户编辑消息
+        richHost.loadNote(noteA)
+        // 模拟用户编辑:T14 整篇替换事务触发 onSourceCommitted 镜像
+        _ = richHost.textView.applyWholeSourceReplacement("v2", name: "test-edit")
         XCTAssertEqual(noteA.content.string, "v2")
 
-        // T08: 硬保存点统一入口（wysiwyg 活动时 Vditor 是权威）。
+        // T08: 硬保存点统一入口（wysiwyg 活动时 rich 后端是权威）。
         let context = BackendCaptureStubContext(
             activeNote: noteA, sourceEditor: editor,
-            vditorView: vditor, isWysiwygActive: true)
+            richHost: richHost, isWysiwygActive: true)
         _ = EditingTransitionCoordinator().finishActiveEditing(
             in: context, forceCompositionFinish: false)
 
         XCTAssertEqual(
             noteA.content.string, "v2",
-            "wysiwyg 活动时硬保存点不得用旧 source buffer 覆盖 Vditor 内容")
-        XCTAssertFalse(vditor.hasUnsavedChanges, "flush 后 Vditor 不再挂起未保存状态")
+            "wysiwyg 活动时硬保存点不得用旧 source buffer 覆盖 rich 内容")
+        XCTAssertFalse(richHost.hasUnsavedChanges, "flush 后 rich 后端不再挂起未保存状态")
     }
 
     /// 反向：非 wysiwyg 时硬保存点仍从 source 编辑器采集（owner guard 不变）。
@@ -139,7 +140,7 @@ final class EditorStorageOwnershipTests: XCTestCase {
         // T08: 硬保存点统一入口（source 模式从编辑器采集，owner guard 不变）。
         let context = BackendCaptureStubContext(
             activeNote: noteA, sourceEditor: editor,
-            vditorView: nil, isWysiwygActive: false)
+            richHost: nil, isWysiwygActive: false)
         _ = EditingTransitionCoordinator().finishActiveEditing(
             in: context, forceCompositionFinish: false)
 

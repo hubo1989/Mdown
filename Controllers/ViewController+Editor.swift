@@ -482,7 +482,6 @@ extension ViewController {
     /// T10 (SPEC §13)：显示活动 backend、隐藏另一个。同一时刻只有一个
     /// backend 可见/被装载——布局层只经 activeWysiwygBackend 路由。
     private func setVisibleWysiwygBackend(_ backend: (WysiwygEditingBackend & NSView)?) {
-        vditorEditView?.isHidden = (backend !== vditorEditView)
         nativeRichHost?.isHidden = (backend !== nativeRichHost)
     }
 

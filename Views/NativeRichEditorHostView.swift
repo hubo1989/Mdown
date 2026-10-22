@@ -34,7 +34,7 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
     var onNoteLoadFailure: ((Note) -> Void)?
 
     private var lastLoadedMarkdown: String?
-    private var hasUnsavedChanges = false
+    private(set) var hasUnsavedChanges = false  // 测试观察口:flush 后应为 false
     private var saveWorkItem: DispatchWorkItem?
     /// 装载身份：每次 loadNote 自增；异步装载完成核对，晚到拒绝。
     private var loadToken: UInt64 = 0
