@@ -15,7 +15,7 @@ import Foundation
 enum MarkdownEditorCommandAdapter {
 
     /// 内容命令注册表。新增内容命令必须在此列名并实现对应路由
-    /// （rich / source / legacy 回退），不允许旁路直写存储。
+    /// (rich / source),不允许旁路直写存储。T22 后 legacy Vditor 路由随依赖移除。
     enum Command {
         case bold
         case italic
@@ -55,8 +55,6 @@ enum MarkdownEditorCommandAdapter {
         /// source 布局：命令经 TextFormatter 在编辑器 buffer 上应用
         /// （同缓冲区坐标，非跨坐标调用）
         case sourceEditor(EditTextView, note: Note)
-        /// legacy Vditor 后端：adapter 不写，调用方保留既有 force-source 行为
-        case legacyVditor
         case refused(RefusalReason)
     }
 
@@ -65,7 +63,6 @@ enum MarkdownEditorCommandAdapter {
         enum Surface {
             case nativeRich(NativeRichEditorHostView)
             case sourceEditor(EditTextView, note: Note)
-            case legacyVditor(sourceEditor: EditTextView, note: Note)
         }
 
         let surface: Surface
@@ -93,8 +90,6 @@ enum MarkdownEditorCommandAdapter {
                 return .refused(.noteIdentityMismatch)
             }
             return .sourceEditor(editor, note: note)
-        case .legacyVditor:
-            return .legacyVditor
         }
     }
 
@@ -107,7 +102,7 @@ enum MarkdownEditorCommandAdapter {
             return performOnRich(command, view: view)
         case .sourceEditor(let editor, let note):
             return performOnSourceEditor(command, editor: editor, note: note)
-        case .legacyVditor, .refused:
+        case .refused:
             return false
         }
     }

@@ -7,7 +7,7 @@ import XCTest
 /// 覆盖四组行为：
 /// 1. 路由判定——native rich 活动时内容命令走 rich source patch,绝不触碰
 ///    隐藏的 source 编辑器;source 布局时走 TextFormatter 同语义;preview /
-///    presentation 一律拒绝;身份失配拒绝;Vditor legacy 返回 legacy 回退。
+///    presentation 一律拒绝;身份失配拒绝。T22 后无 legacy 路由。
 /// 2. rich 面命令原语——underline / link / todo / codeBlock / 快捷模板
 ///    的 source patch 语义(原子、可撤销、selection 映射)。
 /// 3. find/replace——匹配锚在权威 source(含 frontmatter/ref 等不可见范围),
@@ -145,20 +145,22 @@ final class MarkdownCommandRoutingTests: XCTestCase {
     }
 
     @MainActor
-    func testLegacyVditorRoutingFallsBackToLegacyBehavior() {
-        let note = makeNote(body: "plain")
+    func testRegistryCommandsResolveOnSourceSurfaceToo() {
+        // T22:legacy Vditor 路由已随依赖移除(旧值兼容迁移为 native,
+        // 由 NativeEditorModeMigrationTests 的源码体断言钉住);本例守住
+        // 注册表在 source 面的路由完整性,不因删除 legacy 面而失覆盖。
+        let note = makeNote(body: "plain word")
         let editor = EditTextView(frame: .zero)
-        editor.publishStorage(NSAttributedString(string: "plain"), owner: note)
-        editor.setSelectedRange(NSRange(location: 0, length: 5))
-
-        let env = makeEnvironment(
-            surface: .legacyVditor(sourceEditor: editor, note: note), selectedNote: note)
-        let target = MarkdownEditorCommandAdapter.resolve(.bold, in: env)
-        guard case .legacyVditor = target else {
-            return XCTFail("legacy Vditor 必须返回 legacy 回退路由,实际 \(target)")
+        editor.publishStorage(NSAttributedString(string: "plain word"), owner: note)
+        let env = makeEnvironment(surface: .sourceEditor(editor, note: note), selectedNote: note)
+        for command in MarkdownEditorCommandAdapter.Command.allCases {
+            switch MarkdownEditorCommandAdapter.resolve(command, in: env) {
+            case .sourceEditor, .refused:
+                continue  // source 面路由或显式拒绝均可,不得回 legacy
+            case .rich:
+                XCTFail("source 面不得路由到 rich: \(command)")
+            }
         }
-        // legacy 回退 = 既有 force-source 行为,由调用方执行;adapter 不写。
-        XCTAssertEqual(editor.textStorage?.string, "plain")
     }
 
     // MARK: - rich 面命令原语（NE-24：与 TextFormatter 同语义）
