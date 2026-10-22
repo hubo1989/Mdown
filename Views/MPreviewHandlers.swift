@@ -37,6 +37,17 @@ enum PreviewTaskIntentRouter {
         _ payload: PreviewTaskIntentPayload, previewView: MPreviewView, isMainFrame: Bool
     ) {
         guard let displayedNote = previewView.displayedNote else { return }
+        // 渲染身份必须存在且已提交(DOM 就绪);缺身份 = 未完成渲染,
+        // 按 staleRender 拒绝并刷新,不给过期 DOM 任何写通道。
+        guard let renderedNote = previewView.lastRenderedNote,
+            let renderedDigest = previewView.lastRenderedSourceDigest
+        else {
+            AppDelegate.trackError(
+                PreviewTaskIntentError(.staleRender),
+                context: "PreviewTaskIntentRouter.rejected.noRenderIdentity")
+            previewView.updateContent(note: displayedNote, preserveScroll: true)
+            return
+        }
         guard
             let vc = previewView.window?.contentViewController as? ViewController
                 ?? AppContext.shared.viewController
@@ -62,6 +73,8 @@ enum PreviewTaskIntentRouter {
         let context = PreviewTaskIntentApplier.Context(
             surface: surface,
             displayedNote: displayedNote,
+            renderedNote: renderedNote,
+            renderedSourceDigest: renderedDigest,
             currentRenderGeneration: previewView.renderGeneration,
             interactivePreviewAllowed: interactiveAllowed,
             isMainFrame: isMainFrame

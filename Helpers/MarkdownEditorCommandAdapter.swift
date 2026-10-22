@@ -200,6 +200,16 @@ struct PreviewTaskTogglePlan: Equatable {
 @MainActor
 enum PreviewTaskIntent {
 
+    /// 渲染源 digest(djb2,稳定与 Swift 版本无关):渲染成功时记录,
+    /// intent 到达时对活动面笔记重算比对——渲染后内容漂移即拒绝。
+    nonisolated static func sourceDigest(_ source: String) -> UInt64 {
+        var hash: UInt64 = 5381
+        for scalar in source.unicodeScalars {
+            hash = (hash &* 33) &+ UInt64(scalar.value)
+        }
+        return hash
+    }
+
     /// 解析 JS 消息体。仅接受 [String: Any] 的 {index:Int≥0, checked:Bool,
     /// generation:Int|nil}。纯解析，nonisolated。
     nonisolated static func parsePayload(_ body: Any) -> PreviewTaskIntentPayload? {
@@ -213,42 +223,50 @@ enum PreviewTaskIntent {
     }
 
     /// 在权威 source 上定位第 index 个 task item 并核对期望 state。
-    /// 枚举跳过 fenced/indented code、HTML、math、frontmatter、table——
-    /// 这些块里的 `- [x] ` 字面不渲染成 checkbox，计入会与 DOM 序号漂移。
+    /// 枚举与 cmark 的 DOM checkbox 序号对齐:只有行首(允许缩进/quote
+    /// 前缀)的 list marker task 才计数——用 MarkdownBlockModel.parseLine
+    /// 逐行判定,而非全局 regex(行中/内联 HTML 里的 `- [x] ` 字面不渲染
+    /// 成 checkbox,计入会漂移甚至被伪造行顶掉真实序号)。保护块
+    /// (code/math/HTML/frontmatter/table/heading)整块跳过。
     static func planToggle(
         in source: String, index: Int, expectedChecked: Bool
     ) -> Result<PreviewTaskTogglePlan, PreviewTaskIntentRejection> {
         guard index >= 0 else { return .failure(.indexOutOfRange) }
         let document = LosslessMarkdownParser().parse(source)
         let ns = source as NSString
-        let regex = NotesTextProcessor.allTodoInlineRegex
         var ordinal = 0
         for block in document.blocks {
             switch block.kind {
-            case .codeFence, .codeIndented, .htmlBlock, .mathBlock, .frontmatter, .table:
+            case .codeFence, .codeIndented, .htmlBlock, .mathBlock,
+                .frontmatter, .table, .heading, .thematicBreak, .blank:
                 continue
-            default:
+            case .paragraph, .listItem, .quote:
                 break
             }
-            let blockMatches = regex.regularExpression?.matches(
-                in: source, options: [], range: block.rangeUTF16)
-            guard let matches = blockMatches else { continue }
-            for match in matches where NSMaxRange(block.rangeUTF16) <= ns.length {
-                // group 2 = "- [x]" / "- [ ]"（不含尾随空格）
-                let span = match.range(at: 2)
-                guard span.location != NSNotFound, NSMaxRange(span) <= ns.length else { continue }
-                if ordinal == index {
-                    let current = ns.substring(with: span)
-                    let isChecked = current.contains("x")
-                    guard isChecked == expectedChecked else {
-                        return .failure(.staleContent)
+            var lineLoc = block.rangeUTF16.location
+            let blockEnd = NSMaxRange(block.rangeUTF16)
+            while lineLoc < blockEnd {
+                let lineRange = ns.lineRange(for: NSRange(location: lineLoc, length: 0))
+                guard NSMaxRange(lineRange) <= blockEnd else { break }
+                if let task = MarkdownBlockModel.parseLine(ns, lineRange: lineRange).task {
+                    if ordinal == index {
+                        // 括号字面 `[x]`/`[ ]`(dash 与 ordered task 统一)
+                        let span = NSRange(location: task.checkOffsetUTF16 - 1, length: 3)
+                        guard span.location >= 0, NSMaxRange(span) <= ns.length else {
+                            return .failure(.indexOutOfRange)
+                        }
+                        let current = ns.substring(with: span)
+                        guard task.checked == expectedChecked else {
+                            return .failure(.staleContent)
+                        }
+                        return .success(
+                            PreviewTaskTogglePlan(
+                                sourceRange: span, expectedOld: current,
+                                replacement: task.checked ? "[ ]" : "[x]"))
                     }
-                    return .success(
-                        PreviewTaskTogglePlan(
-                            sourceRange: span, expectedOld: current,
-                            replacement: isChecked ? "- [ ]" : "- [x]"))
+                    ordinal += 1
                 }
-                ordinal += 1
+                lineLoc = NSMaxRange(lineRange)
             }
         }
         return .failure(.indexOutOfRange)
@@ -269,6 +287,10 @@ enum PreviewTaskIntentApplier {
         var surface: Surface?
         /// preview 当前显示的笔记（来自原生 displayedNote，不信 JS）。
         var displayedNote: Note
+        /// 本次渲染完成时记录的笔记与渲染源 digest(SPEC §9 displayed
+        /// identity/revision 校验):intent 到达时两者任一落后即拒绝。
+        var renderedNote: Note
+        var renderedSourceDigest: UInt64
         /// preview 当前的渲染代。
         var currentRenderGeneration: UInt64
         /// presentation / PPT 下 checkbox 只是展示，禁改。
@@ -288,6 +310,13 @@ enum PreviewTaskIntentApplier {
         guard let generation = payload.renderGeneration,
             generation == context.currentRenderGeneration
         else { return .staleRender }
+        // 渲染快照身份:渲染对象不是当前笔记(切换中/过期显示)拒绝;
+        // 渲染后内容漂移(用户继续输入)拒绝——digest 对渲染源口径
+        // (getPrettifiedContent)重算,与渲染时记录值比对。
+        guard context.renderedNote === context.displayedNote else { return .staleRender }
+        let currentDigest = PreviewTaskIntent.sourceDigest(
+            context.displayedNote.getPrettifiedContent())
+        guard currentDigest == context.renderedSourceDigest else { return .staleRender }
         guard let surface = context.surface else { return .noEditableSurface }
         guard !context.displayedNote.project.isTrash else { return .readOnly }
 

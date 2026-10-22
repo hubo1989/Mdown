@@ -72,15 +72,25 @@ bundle `com.mdown.t14.smoke`,临时库 `/tmp/mdown-t14-smoke/Library`;
    - phase1 DOM 重建后 checkbox 交互失联(既有缺陷,updateContent 后点不动)
      → phase1 追加 `setupInteractiveCheckboxes()` 重绑。
 
-## 保留的边界与待办
+## 阶段 2(2026-10-22 补交):正向链路根因修复 + 渲染身份防线
 
-- **preview checkbox 正向写盘的截图级证据未取得**:拒绝链路、代数防线、
-  零写入已实机证实;成功链路(定位第 n 项→span 翻转→镜像→落盘)由
-  15 个 PreviewEditIntentTests 覆盖(含 rich/source 两 surface、caret 不动、
-  一次撤销)。修复 stamp/重绑后未能在本会话再取得一次 UI 命中,留维护者
-  一次实测:预览中点击 task checkbox,预期磁盘 `- [ ]`↔`- [x]` 翻转且
-  编辑器 caret 不动。若仍被拒,diagnostics 会留下
-  `PreviewTaskIntentRouter.rejected.<原因>` 定位线索。
+- **正向写盘打不通的根因找到**:`common.js` 读 `element.checked`
+  (property),DOM 点击先翻转 property,原生收到的 `expectedChecked`
+  是翻转后的新态——语义整体反转,任何"当前未勾"的 intent 都被
+  staleContent 拒。改为 `element.hasAttribute('checked')`(渲染时状态,
+  与本函数 DOM 重建的 defaultChecked 维护一致)。
+- `MPreviewView`:渲染代单调递增不再重用 0;新增 lastRenderedNote/
+  lastRenderedSourceDigest,load 暂存、didFinish/updateContent phase1
+  提交,与 stamp 严格同源。
+- `planToggle` 从全局 regex 改为 MarkdownBlockModel.parseLine 行级判定:
+  行中 `foo - [ ]` 与内联 HTML `<span>- [x]</span>` 不再顶替真实 task
+  序号(伪造注入防线);ordered task 计入;cspan 统一括号字面。
+- Applier 增两道防线:渲染身份失配(切笔记中)、渲染后内容漂移
+  (继续输入)均 staleRender 拒绝零写入。
+- 测试:PreviewEditIntentTests 21/21(6 个新用例在旧实现下必失败);
+  相关套件 41/41;全量 595/8(既有 3 环境用例)。
+- 仍未取得:真实 UI 点击 checkbox 的落盘截图(CUA 会话内挂起);
+  JS attribute 修复无法单测——维护者一次实测即可闭环。
 - rich 查找条的全匹配高亮沿用 EditTextView 同色(0.35 alpha),截图缩放下
   可见性偏弱,视觉打磨留 T19。
 - 本会话实机出现一次 `Note.writeError`(code 513 EPERM,原子换名路径),

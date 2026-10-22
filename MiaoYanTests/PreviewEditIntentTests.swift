@@ -94,9 +94,9 @@ final class PreviewEditIntentTests: XCTestCase {
             return XCTFail("index 1 应命中第二个 task,实际 \(plan)")
         }
         let ns = source as NSString
-        XCTAssertEqual(ns.substring(with: toggle.sourceRange), "- [x]")
-        XCTAssertEqual(toggle.expectedOld, "- [x]")
-        XCTAssertEqual(toggle.replacement, "- [ ]")
+        XCTAssertEqual(ns.substring(with: toggle.sourceRange), "[x]")
+        XCTAssertEqual(toggle.expectedOld, "[x]")
+        XCTAssertEqual(toggle.replacement, "[ ]")
     }
 
     @MainActor
@@ -109,8 +109,49 @@ final class PreviewEditIntentTests: XCTestCase {
         }
         let ns = source as NSString
         XCTAssertEqual(
-            ns.substring(with: toggle.sourceRange).hasPrefix("- [ ]"), true,
+            ns.substring(with: toggle.sourceRange), "[ ]",
             "必须命中 fence 外的真实 task")
+    }
+
+    @MainActor
+    func testResolverSkipsInlineHtmlTaskLookalike() {
+        // cmark 不会把内联 HTML 里的 - [x] 渲染成 checkbox;原生枚举
+        // 必须与 DOM 序号对齐,否则伪造行会顶掉真实 task 的序号。
+        let source = "- [ ] real\n<span>- [x] fake</span>\n"
+        let first = PreviewTaskIntent.planToggle(in: source, index: 0, expectedChecked: false)
+        guard case .success(let toggle) = first else {
+            return XCTFail("index 0 应命中真实 task,实际 \(first)")
+        }
+        let ns = source as NSString
+        XCTAssertEqual(ns.substring(with: toggle.sourceRange), "[ ]")
+        guard
+            case .failure(.indexOutOfRange) =
+                PreviewTaskIntent.planToggle(in: source, index: 1, expectedChecked: true)
+        else {
+            return XCTFail("内联 HTML 里的 lookalike 不得计入 DOM 序号")
+        }
+    }
+
+    @MainActor
+    func testResolverSkipsMidLineTaskText() {
+        // 行中 `foo - [ ]` 不是行首 marker,cmark 不渲染 checkbox
+        let source = "foo - [ ] mid\n- [ ] real\n"
+        let plan = PreviewTaskIntent.planToggle(in: source, index: 0, expectedChecked: false)
+        guard case .success(let toggle) = plan else {
+            return XCTFail("index 0 应命中行首真实 task,实际 \(plan)")
+        }
+        let ns = source as NSString
+        XCTAssertEqual(ns.substring(with: toggle.sourceRange), "[ ]", "不得命中行中文本")
+    }
+
+    @MainActor
+    func testResolverCountsOrderedTasks() {
+        let source = "1. [ ] one\n2. [x] two\n"
+        let plan = PreviewTaskIntent.planToggle(in: source, index: 1, expectedChecked: true)
+        guard case .success(let toggle) = plan else {
+            return XCTFail("ordered task 应计入 DOM 序号,实际 \(plan)")
+        }
+        XCTAssertEqual(toggle.replacement, "[ ]")
     }
 
     @MainActor
@@ -142,6 +183,8 @@ final class PreviewEditIntentTests: XCTestCase {
         let context = PreviewTaskIntentApplier.Context(
             surface: .rich(host),
             displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest(source),
             currentRenderGeneration: 3,
             interactivePreviewAllowed: true,
             isMainFrame: true
@@ -170,6 +213,8 @@ final class PreviewEditIntentTests: XCTestCase {
         let context = PreviewTaskIntentApplier.Context(
             surface: .sourceEditor(editor, note),
             displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest(source),
             currentRenderGeneration: 1,
             interactivePreviewAllowed: true,
             isMainFrame: true
@@ -196,6 +241,8 @@ final class PreviewEditIntentTests: XCTestCase {
         let context = PreviewTaskIntentApplier.Context(
             surface: .rich(host),
             displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest(source),
             currentRenderGeneration: 1,
             interactivePreviewAllowed: true,
             isMainFrame: false
@@ -216,6 +263,8 @@ final class PreviewEditIntentTests: XCTestCase {
         let context = PreviewTaskIntentApplier.Context(
             surface: .rich(host),
             displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest(source),
             currentRenderGeneration: 1,
             interactivePreviewAllowed: false,
             isMainFrame: true
@@ -236,6 +285,8 @@ final class PreviewEditIntentTests: XCTestCase {
         let context = PreviewTaskIntentApplier.Context(
             surface: .rich(host),
             displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest(source),
             currentRenderGeneration: 5,
             interactivePreviewAllowed: true,
             isMainFrame: true
@@ -257,6 +308,8 @@ final class PreviewEditIntentTests: XCTestCase {
         let context = PreviewTaskIntentApplier.Context(
             surface: .rich(host),
             displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest(source),
             currentRenderGeneration: 5,
             interactivePreviewAllowed: true,
             isMainFrame: true
@@ -279,6 +332,8 @@ final class PreviewEditIntentTests: XCTestCase {
         let mismatched = PreviewTaskIntentApplier.Context(
             surface: .sourceEditor(editor, editing),
             displayedNote: displayed,
+            renderedNote: displayed,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest("- [ ] alpha\n"),
             currentRenderGeneration: 1,
             interactivePreviewAllowed: true,
             isMainFrame: true
@@ -297,6 +352,8 @@ final class PreviewEditIntentTests: XCTestCase {
         let context = PreviewTaskIntentApplier.Context(
             surface: nil,
             displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest("- [ ] alpha\n"),
             currentRenderGeneration: 1,
             interactivePreviewAllowed: true,
             isMainFrame: true
@@ -308,6 +365,65 @@ final class PreviewEditIntentTests: XCTestCase {
     }
 
     @MainActor
+    func testRenderedNoteIdentityMismatchIsRejected() {
+        // 渲染快照属于别的笔记(切换中)时,generation 可能仍匹配,
+        // 身份防线必须拦住。
+        let displayed = makeNote(body: "- [ ] alpha\n")
+        let renderedFor = makeNote(named: "other.md", body: "- [ ] other\n")
+        let host = makeRichHost(body: "- [ ] alpha\n", note: displayed)
+
+        let context = PreviewTaskIntentApplier.Context(
+            surface: .rich(host),
+            displayedNote: displayed,
+            renderedNote: renderedFor,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest("- [ ] other\n"),
+            currentRenderGeneration: 1,
+            interactivePreviewAllowed: true,
+            isMainFrame: true
+        )
+        let payload = PreviewTaskIntentPayload(index: 0, expectedChecked: false, renderGeneration: 1)
+        guard case .staleRender? = PreviewTaskIntentApplier.apply(payload, in: context) else {
+            return XCTFail("渲染身份失配必须按 staleRender 拒绝")
+        }
+        XCTAssertEqual(host.textView.source, "- [ ] alpha\n", "零写入")
+    }
+
+    @MainActor
+    func testSourceDriftSinceRenderIsRejected() {
+        // 渲染后用户继续输入:活动面内容 digest 已变,过期 intent 不得写。
+        let source = "- [ ] alpha\n"
+        let note = makeNote(body: source)
+        let host = makeRichHost(body: source, note: note)
+        _ = host.textView.applyWholeSourceReplacement(
+            "- [ ] alpha\ntyped after render\n", name: "drift")
+
+        let context = PreviewTaskIntentApplier.Context(
+            surface: .rich(host),
+            displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest(source),
+            currentRenderGeneration: 1,
+            interactivePreviewAllowed: true,
+            isMainFrame: true
+        )
+        let payload = PreviewTaskIntentPayload(index: 0, expectedChecked: false, renderGeneration: 1)
+        guard case .staleRender? = PreviewTaskIntentApplier.apply(payload, in: context) else {
+            return XCTFail("渲染后内容漂移必须按 staleRender 拒绝")
+        }
+        XCTAssertEqual(host.textView.source, "- [ ] alpha\ntyped after render\n", "零写入")
+    }
+
+    @MainActor
+    func testRenderGenerationNeverReusesZero() {
+        let note = makeNote(body: "- [ ] alpha\n")
+        let preview = MPreviewView(frame: .zero, note: note, closure: nil)
+        let first = preview.advanceRenderGeneration()
+        let second = preview.advanceRenderGeneration()
+        XCTAssertGreaterThanOrEqual(first, 1, "首个渲染代不得是 0(0 只属于未渲染)")
+        XCTAssertNotEqual(first, second, "渲染代必须单调,模板重载不得重用")
+    }
+
+    @MainActor
     func testTrashNoteIntentIsRejected() {
         let source = "- [ ] alpha\n"
         let note = makeNote(body: source, isTrash: true)
@@ -316,6 +432,8 @@ final class PreviewEditIntentTests: XCTestCase {
         let context = PreviewTaskIntentApplier.Context(
             surface: .rich(host),
             displayedNote: note,
+            renderedNote: note,
+            renderedSourceDigest: PreviewTaskIntent.sourceDigest(source),
             currentRenderGeneration: 1,
             interactivePreviewAllowed: true,
             isMainFrame: true
