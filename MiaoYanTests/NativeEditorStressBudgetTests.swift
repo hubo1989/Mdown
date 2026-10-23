@@ -54,7 +54,8 @@ final class NativeEditorStressBudgetTests: XCTestCase {
     // MARK: - 同步输入处理预算(SPEC:输入 p95 ≤16ms;tokenizer 属派生样式层)
 
     func testCodeTokenize3KiBWithinDerivedStyleBudget() {
-        let block = "```swift\n"
+        let block =
+            "```swift\n"
             + String(repeating: "let value = compute(a, b) // note\n", count: 90)
             + "```\n"
         let start = Date()
