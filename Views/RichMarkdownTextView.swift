@@ -146,6 +146,16 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         guard let storage = textStorage else { return }
         // G0 修复：display 未变时跳过 textStorage 替换（保持 selection + 避免闪烁）
         if storage.string == newDisplay {
+            // T19 属性残留修复:display 不变时(如 **wrap/unwrap** 两次)
+            // 字体/颜色/段落属性不会被 replaceCharacters 重置,旧 bold/标题
+            // 字号会留在同字节文本上——先铺一遍基准属性再上排版。
+            let full = NSRange(location: 0, length: storage.length)
+            if full.length > 0 {
+                storage.addAttribute(.font, value: bodyFont, range: full)
+                storage.addAttribute(.foregroundColor, value: contentTextColor, range: full)
+                storage.addAttribute(
+                    .paragraphStyle, value: makeBaseParagraphStyle(), range: full)
+            }
             applyDisplayAttributes()
             return
         }
@@ -159,9 +169,19 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         )
         let displayLength = (newDisplay as NSString).length
         storage.addAttribute(.font, value: bodyFont, range: NSRange(location: 0, length: displayLength))
+        storage.addAttribute(
+            .paragraphStyle, value: makeBaseParagraphStyle(),
+            range: NSRange(location: 0, length: displayLength))
         applyDisplayAttributes()
         storage.endEditing()
         composingGuard = false
+    }
+
+    /// T19 预览对齐:super 画完正文后自绘列表圆点/序号(仅装饰层,
+    /// 不改 storage 与映射;空位由 headIndent 让出)。
+    public override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        drawListMarkers(in: dirtyRect)
     }
 
     // MARK: - T19 typewriter / focus(NE-32:只改 view state)
@@ -247,8 +267,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         scaledHeadingFont(level: 1)
     }
 
-    private func scaledHeadingFont(level: Int) -> NSFont {
-        let size = bodyFont.pointSize * [1.7, 1.45, 1.25, 1.1, 1.0, 1.0][min(max(level - 1, 0), 5)]
+    func scaledHeadingFont(level: Int) -> NSFont {
+        let size = bodyFont.pointSize * Self.previewHeadingScales[min(max(level - 1, 0), 5)]
         return NSFontManager.shared.convert(
             bodyFont, toSize: size) ?? bodyFont.withSize(size)
     }
@@ -315,9 +335,12 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 let boldHeading = NSFontManager.shared.convert(heading, toHaveTrait: .boldFontMask) ?? heading
                 if blockRange.length > 0 {
                     storage.addAttribute(.font, value: boldHeading, range: blockRange)
+                    storage.addAttribute(
+                        .paragraphStyle, value: makeHeadingParagraphStyle(level: level),
+                        range: blockRange)
                 }
             case .quote:
-                let quoteColor = contentTextColor.withAlphaComponent(0.72)
+                let quoteColor = previewQuoteColour
                 if isActive, blockRange.length > 0 {
                     storage.addAttribute(.foregroundColor, value: quoteColor, range: blockRange)
                 }
@@ -326,6 +349,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 if isActive, blockRange.length > 0 {
                     storage.addAttribute(.foregroundColor, value: dim, range: blockRange)
                 }
+            case .listItem:
+                break  // marker 缩进在循环后统一应用(见下),避免 O(n²)
             default:
                 break
             }
@@ -336,6 +361,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 applyInlineTypography(segment, range: range, isActive: isActive, mono: mono, storage: storage)
             }
         }
+        // T19 预览对齐:列表悬挂缩进统一一次应用(所有 list 块)。
+        applyListParagraphIndents(storage: storage)
     }
 
     /// T19 视觉:单个行内段的排版属性(codeSpan/粗/斜/删/链接)。
@@ -362,7 +389,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 value: NSUnderlineStyle.single.rawValue, range: range)
         case .linkLabel:
             if isActive {
-                storage.addAttribute(.foregroundColor, value: Theme.accentColor, range: range)
+                storage.addAttribute(.foregroundColor, value: previewLinkColour, range: range)
                 storage.addAttribute(
                     .underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range)
             }
@@ -371,11 +398,9 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         }
     }
 
-    /// 代码底色(浅/深主题):fence 与 code span 共用的淡背景。
+    /// 代码底色(预览对齐:index.html --code-bg 的精确十六进制)。
     private var codeBackgroundColor: NSColor {
-        AppEnvironment.current.userData.isDark
-            ? NSColor.white.withAlphaComponent(0.07)
-            : NSColor.black.withAlphaComponent(0.05)
+        previewCodeBackground
     }
 
     public func refreshFontAttributes() {

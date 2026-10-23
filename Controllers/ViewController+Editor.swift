@@ -563,7 +563,13 @@ extension ViewController {
     @IBAction func toggleWysiwygMode(_ sender: Any? = nil) {
         saveTitleSafely()
         if sessionPreviewMode {
+            // 预览 ⇄ 所见即所得互为切换:从预览进入 WYSIWYG 是确定的
+            // 目标(不是回 source 或"之前布局")。disablePreview 的异步
+            // 恢复回调消费 savedLayoutModeBeforePreview,预置目标即可;
+            // 预览中 sessionLayoutMode 本就未变,不得再翻转。
+            savedLayoutModeBeforePreview = .wysiwyg
             disablePreview()
+            return
         }
         if sessionLayoutMode == .wysiwyg {
             sessionLayoutMode = .source

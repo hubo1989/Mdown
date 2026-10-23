@@ -415,7 +415,7 @@ extension RichMarkdownEditingTests {
         let label =
             view.textStorage?.attribute(
                 .foregroundColor, at: ns.range(of: "docs").location, effectiveRange: nil) as? NSColor
-        XCTAssertEqual(label, Theme.accentColor, "链接 label 应用强调色")
+        XCTAssertEqual(label, view.previewLinkColour, "链接 label 应用预览链接色")
         let here =
             view.textStorage?.attribute(
                 .foregroundColor, at: ns.range(of: "here").location, effectiveRange: nil) as? NSColor
@@ -452,5 +452,96 @@ extension RichMarkdownEditingTests {
         XCTAssertNotEqual(color, .black, "非活跃块降噪")
         XCTAssertEqual(color?.alphaComponent ?? 1, 0.4, accuracy: 0.01)
         _ = boldFont
+    }
+}
+
+// MARK: - T19 预览对齐(字号/行高/颜色/列表缩进/属性残留)
+
+extension RichMarkdownEditingTests {
+
+    @MainActor
+    func testHeadingScaleMatchesPreviewCSS() {
+        let view = RichMarkdownTextView(source: "# a\n## b\n### c\n#### d\n")
+        let ns = view.string as NSString
+        let body = view.bodyFont.pointSize
+        let scales: [(String, CGFloat)] = [("a", 2.0), ("b", 1.5), ("c", 1.25), ("d", 1.0)]
+        for (word, scale) in scales {
+            let font =
+                view.textStorage?.attribute(
+                    .font, at: ns.range(of: word).location, effectiveRange: nil) as? NSFont
+            XCTAssertEqual(
+                font?.pointSize ?? 0, body * scale, accuracy: 0.6,
+                "H\(word) 字号应为正文 ×\(scale)(typography.css)")
+        }
+    }
+
+    @MainActor
+    func testUnwrapBoldRestoresBodyFont() {
+        // 属性残留回归:wrap/unwrap 两次 display 不变(skip 分支),
+        // 旧实现粗体 trait 留在同字节文本上。
+        let view = RichMarkdownTextView(source: "word tail\n")
+        view.setSelectedRange(NSRange(location: 0, length: 4))
+        XCTAssertTrue(view.applyInlineFormat(.strong))
+        let ns = view.string as NSString
+        let bold =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "word").location, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(bold?.fontDescriptor.symbolicTraits.contains(.bold) == true)
+
+        view.setSelectedRange(NSRange(location: 0, length: 4))
+        XCTAssertTrue(view.applyInlineFormat(.strong))
+        XCTAssertEqual(view.source, "word tail\n")
+        let restored =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "word").location, effectiveRange: nil) as? NSFont
+        XCTAssertEqual(restored, view.bodyFont, "unwrap 后同字节必须回正文字体")
+    }
+
+    @MainActor
+    func testCodeBackgroundMatchesPreviewHex() {
+        let view = RichMarkdownTextView(source: "`c`\n")
+        let ns = view.string as NSString
+        let bg =
+            view.textStorage?.attribute(
+                .backgroundColor, at: ns.range(of: "c").location, effectiveRange: nil) as? NSColor
+        let expected = view.previewCodeBackground
+        XCTAssertNotNil(bg)
+        XCTAssertEqual(bg?.redComponent ?? -1, expected.redComponent, accuracy: 0.005)
+        XCTAssertEqual(bg?.greenComponent ?? -1, expected.greenComponent, accuracy: 0.005)
+        XCTAssertEqual(bg?.blueComponent ?? -1, expected.blueComponent, accuracy: 0.005)
+    }
+
+    @MainActor
+    func testBaseLineHeightMatchesPreview() {
+        let view = RichMarkdownTextView(source: "body\n")
+        let ns = view.string as NSString
+        let style =
+            view.textStorage?.attribute(
+                .paragraphStyle, at: ns.range(of: "body").location, effectiveRange: nil)
+            as? NSParagraphStyle
+        XCTAssertEqual(
+            style?.lineHeightMultiple ?? 0, 1.74, accuracy: 0.01,
+            "正文行高应为 1.74(typography.css)")
+    }
+
+    @MainActor
+    func testListMarkerIndentsAndOrdinals() {
+        let view = RichMarkdownTextView(source: "- a\n- b\n1. one\n2. two\n   - nested\n")
+        let markers = view.computeListMarkers()
+        XCTAssertEqual(markers.count, 5)
+        XCTAssertEqual(markers[0].text, "•")
+        XCTAssertEqual(markers[2].ordered, true)
+        XCTAssertEqual(markers[2].ordinal, 1)
+        XCTAssertEqual(markers[3].ordinal, 2)
+        // 深度跟随 parser indentDepth 的整除规则(每 2 空格一级):
+        // 3 空格缩进 = 深度 1(块模型同值;GFM 列对齐语义不另立标准)。
+        XCTAssertEqual(markers[4].depth, 1, "嵌套项深度 = 缩进空格数/2(整除)")
+        // headIndent 写进段落属性
+        let ns = view.string as NSString
+        let style =
+            view.textStorage?.attribute(
+                .paragraphStyle, at: ns.range(of: "a").location, effectiveRange: nil)
+            as? NSParagraphStyle
+        XCTAssertGreaterThan(style?.headIndent ?? 0, 0, "列表项应有 marker 缩进")
     }
 }

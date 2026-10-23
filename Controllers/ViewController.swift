@@ -433,7 +433,12 @@ class ViewController:
 
         // WYSIWYG(active only in wysiwyg layout)
         wysiwygButton?.image?.isTemplate = true
-        applyToolbarButtonState(wysiwygButton, isActive: sessionLayoutMode == .wysiwyg, activeTint: accent, inactiveTint: inactive)
+        // 预览 ⇄ 所见即所得互斥:预览期间 wysiwyg 布局仍在底层,
+        // 但按钮只亮当前展示的那个模式。
+        applyToolbarButtonState(
+            wysiwygButton,
+            isActive: sessionLayoutMode == .wysiwyg && !sessionPreviewMode,
+            activeTint: accent, inactiveTint: inactive)
 
         // Presentation
         applyToolbarButtonState(presentationButton, isActive: sessionPresentationMode || sessionMagicPPTMode, activeTint: accent, inactiveTint: inactive)

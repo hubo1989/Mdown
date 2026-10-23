@@ -219,19 +219,28 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
     // MARK: - 外观（NE-32：字体/主题）
 
     private func applyAppearance() {
-        let size = CGFloat(UserDefaultsManagement.fontSize)
+        // T19 预览对齐:WYSIWYG 使用预览的字体/字号(HtmlManager
+        // previewStyle 注入 --text-font/--code-text-font 的同一来源),
+        // 视觉与预览模式一致;编辑器字体仅作回退。
+        let size = CGFloat(UserDefaultsManagement.previewFontSize)
         textView.bodyFont =
-            NSFont(name: UserDefaultsManagement.fontName, size: size)
+            NSFont(name: UserDefaultsManagement.previewFontName, size: size)
+            ?? NSFont(name: UserDefaultsManagement.fontName, size: size)
             ?? NSFont.systemFont(ofSize: size)
-        textView.codeFont = NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
-        textView.refreshFontAttributes()
+        textView.codeFont =
+            NSFont(name: UserDefaultsManagement.codeFontName, size: size)
+            ?? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
 
         let isDark = AppEnvironment.current.userData.isDark
         // drawBackground=false：背景由 VC 编辑区统一着色，与 EditTextView
         // 行为一致（NE-32 主题切换只换前景/光标）。
         textView.drawsBackground = false
+        // T19 顺序修复:先设颜色再刷新,refreshFontAttributes 用
+        // contentTextColor 铺底,旧顺序(刷新在后)会先画默认黑再覆盖。
+        // 文字色取预览的 --text-color(#262626/#E7E9EA),与预览模式一致。
+        textView.contentTextColor = textView.previewTextColour
         textView.insertionPointColor = isDark ? .white : .black
-        textView.contentTextColor = isDark ? NSColor.white : NSColor.black
+        textView.refreshFontAttributes()
     }
 
     // MARK: - selection 锚点（AC-16：退出回原状态）
