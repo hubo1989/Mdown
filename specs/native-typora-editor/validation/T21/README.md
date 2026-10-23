@@ -22,8 +22,11 @@
 
 ## T21 完整门剩余(不冒充)
 
-1. signed Sandbox 保存/取消/覆盖/授权失效矩阵(需维护者签名环境);
-2. 真实 IME 多笔记步骤与 typing parse disorder 完整回归;
+1. ~~signed Sandbox 保存/取消/覆盖/授权失效矩阵~~ **多数已通过**
+   (2026-10-23,真实签名 sandbox 副本,详见 validation/T23 补录):
+   Sandbox 隔离/保存/覆盖/保存失败提示 pass;授权失效矩阵未完。
+2. 真实 IME 多笔记步骤与 typing parse disorder 完整回归——CUA 合成
+   按键不走输入法管线,无法自动化触发 marked text,需真实用户手敲;
 3. p95 trace/内存测量(本套件为单样本冒烟);
 4. 全故障矩阵(owner/conflict/退役/写错误/失焦/quit)——单元层已有
    覆盖,运行级留维护者实机;

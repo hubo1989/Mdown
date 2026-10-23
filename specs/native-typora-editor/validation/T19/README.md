@@ -83,13 +83,41 @@
 注:仓库级 `swift-format --recursive .` 会扫到 `Build/Intermediates`
 下 T22 退场前的 Prettier 产物(非源码),检查按触及文件口径执行。
 
+## 视觉矩阵实测(2026-10-23,含 Retina/深浅色)
+
+隔离 smoke 副本 `com.mdown.t19.smoke`(独立 bundle ID + 临时库),
+语料含 H1-H3/粗斜删链接/引用/列表/表格/图片/长代码/数学/mermaid。
+本机 Liquid Retina XDR + 外接 4K,截图 3024x1792(2x)。
+
+| 象限 | WYSIWYG | 预览 |
+|---|---|---|
+| 浅色 | 标题层级/粗斜删/链接蓝/inline-code chip/引用降噪/bullet 正确 | 同左 + 表格网格 + 图片真实 + 数学渲染 E=mc² + mermaid 流程图 |
+| 深色 | 同上,链接/code chip/引用深色一致,无白底残留 | 同上,深色主题正确换色 |
+
+结论:
+- **T19 排版对齐(ND 范畴)通过**:标题层级、行高、链接色、code 底色、
+  引用降噪在深/浅色均与预览视觉一致(Retina 2x 无模糊)。
+- **特殊块仍是原文**(数学 `$$`、mermaid fence、表格管道、图片 alt
+  占位),仅预览渲染——这是新 PRD `wysiwyg-display-parity` 的缺口,
+  不属 T19 排版合同。
+- **发现缺陷:有序列表 marker 错位**。WYSIWYG 中序号与内容错行错值
+  ("1."脱离成独立行、"有序第一项"旁是"2."),预览正确(1./2./1嵌套/3.)。
+  浅/深色均复现,与主题无关。归属逐行 marker 自绘实现(T19 part 4),
+  需独立修复,不在排版常量范畴。
+- 深色首启若未生效,检查 `appearanceType` 是否为 `<integer>`(plist
+  类型);`defaults write ... 2` 默认写 string,`as? Int` 读不到会静默
+  回退 System。这是测试设置陷阱,非产品缺陷。
+- 预览首帧有 1-10s 加载延迟(WKWebView 冷启),初次截图空白属加载
+  非故障,DOM 树最终完整(math/mermaid/表格语义均在)。
+
 ## T19 剩余(不声称完成)
 
 1. **spell 按 protected kind 精确分流:AppKit 平台限制裁定** —
    NSTextView/NSSpellChecker 只有整视图开关,无 per-range 排除 API;
    N1 保守策略(富面整体关 continuous spell)保持,精确分流需
    NSSpellChecker 子类化,归 N2,不再列为可收窄缺口。
-2. font/line spacing 参数已在阶段 4 与预览 CSS 常量同源对齐;仍留实测
-   的:Retina/深浅色切换下的实机视觉比对、图片/table 宽度限制、
-   长 code 局部 scroll 的视觉验收(需视觉比对)。
+2. ~~font/line spacing/Retina/darklight 一致性核对~~ **已实测通过**
+   (见上视觉矩阵);图片/table 宽度限制、长 code 局部 scroll 视觉已
+   采(table 限宽生效、code 全铺待 ND-05 局部滚动)。
 3. 实机 keyboard/VoiceOver(AC-17 真实验收,需人机交互)。
+4. **有序列表 marker 错位**(新发现,见上)需修复。
