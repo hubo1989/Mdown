@@ -355,4 +355,37 @@ final class MarkdownBlockRenderHost {
         return regex.stringByReplacingMatches(
             in: text, options: [], range: range, withTemplate: "")
     }
+
+    // MARK: - SVG → NSImage(富编辑 display 附件用)
+
+    /// 把 SVG 产物转为 NSImage(供 RichMarkdownTextView 挂 NSTextAttachment)。
+    /// 经离屏 WKWebView 加载 SVG 后 takeSnapshot;失败返回 nil(调用方回退
+    /// 源码显示,符合 INV-4)。
+    func svgToImage(_ svg: String, naturalSize: NSSize, timeout: TimeInterval = 5) async -> NSImage? {
+        guard naturalSize.width > 0, naturalSize.height > 0 else { return nil }
+        let webView = Self.makeWebView()
+        // frame 对齐 naturalSize:snapshot rect 超出离屏默认 frame
+        // (900×700)时落在可视区外,快照产 0×0 空图(高图必踩)。
+        webView.frame = CGRect(origin: .zero, size: naturalSize)
+        let page = """
+            <!doctype html><html><head><meta charset="utf-8"></head>
+            <body style="margin:0;background:transparent">\(svg)</body></html>
+            """
+        guard
+            let workspace = try? stageWorkspace(files: []),
+            let pageURL = try? writePage(page, in: workspace)
+        else { return nil }
+        defer { try? FileManager.default.removeItem(at: workspace.root) }
+
+        webView.loadFileURL(pageURL, allowingReadAccessTo: workspace.root)
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if webView.isLoading == false, webView.url != nil { break }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        let config = WKSnapshotConfiguration()
+        config.rect = CGRect(origin: .zero, size: naturalSize)
+        guard let image = try? await webView.takeSnapshot(configuration: config) else { return nil }
+        return image
+    }
 }

@@ -148,6 +148,21 @@ final class MarkdownProjectionTests: XCTestCase {
         XCTAssertFalse(p.segments.contains { $0.kind == .codeSpan })
     }
 
+    func testFenceContentStripsFences() {
+        // 标准:开/闭围栏行剥除,内容行间换行保留
+        XCTAssertEqual(
+            MarkdownProjectionBuilder.fenceContent(of: "```mermaid\nflowchart LR\nA-->B\n```\n"),
+            "flowchart LR\nA-->B\n")
+        // EOF 无闭围栏:内容到块尾(与 consumeFence 的截断语义一致)
+        XCTAssertEqual(
+            MarkdownProjectionBuilder.fenceContent(of: "~~~mermaid\nA-->B\n"),
+            "A-->B\n")
+        // 嵌套围栏:CRLF 字节原样保留,短围栏行是内容不是闭围栏
+        XCTAssertEqual(
+            MarkdownProjectionBuilder.fenceContent(of: "````mermaid\r\n```\r\n````\r\n"),
+            "```\r\n")
+    }
+
     func testProtectedBlocksFallBackPlain() throws {
         let table = projection(of: "| a\\|b | c |\n| --- | --- |\n| 1 | 2 |\n", as: .table)
         XCTAssertTrue(table.segments.allSatisfy { $0.kind == .plainFallback })

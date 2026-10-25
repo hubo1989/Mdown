@@ -73,8 +73,32 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     var onAttachmentFinished: ((Result<URL, Error>) -> Void)?
     private(set) var lastAttachmentError: Error?
 
-    public init(source: String) {
+    // MARK: 渲染块显示(PRD ND-02/03:Typora 式图/码切换)
+    // 方法体在 RichMarkdownTextView+RenderedBlocks.swift;状态在此
+    // (stored property 不能进 extension)。
+    /// 渲染图缓存:key = block source 指纹(kind+source)。内容变即
+    /// 换 key,天然触发重渲染。
+    var renderedImages: [String: NSImage] = [:]
+    /// 展开态(显示源码+图)的块序位集合;未收录 = collapsed(只显示图)。
+    /// 刻意按块序位而非内容指纹:单块内容编辑不改变序位,编辑链路的
+    /// 展开意图自动延续(图刷新不把正在编辑的源码收走);内容指纹在
+    /// 每次击键后都换新,按指纹记录会让编辑中的块瞬间收起。
+    var expandedRenderedBlocks: Set<Int> = []
+    /// 渲染请求进行中的块指纹(防重复请求)。
+    var inFlightRenderBlocks: Set<String> = []
+    /// 渲染图供体:nil(默认)走 MarkdownBlockRenderHost 离屏渲染;
+    /// 测试注入确定性假图驱动挂载/切换链路,不起 WKWebView。必须在
+    /// init 传入:首次投影即会发起渲染请求,后置赋值拦不住首帧。
+    var renderedImageProvider: (@MainActor (MarkdownBlockRenderRequest) async -> NSImage?)?
+
+    /// `renderedImageProvider` 是 internal 类型,init 保持 internal;
+    /// 生产调用方(同 target)用默认 nil,测试经 @testable 注入。
+    init(
+        source: String,
+        renderedImageProvider: (@MainActor (MarkdownBlockRenderRequest) async -> NSImage?)? = nil
+    ) {
         self.source = source
+        self.renderedImageProvider = renderedImageProvider
         // document 由 rebuildProjection() 填充；init 只设占位值满足 Swift
         // 全初始化要求，避免 init + rebuildProjection 双重 parse。
         self.document = LosslessMarkdownParser.Document(source: source, blocks: [], lineStartUTF16: [])
@@ -128,8 +152,23 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         var renderedNew: [RenderedBlock] = []
         renderedNew.reserveCapacity(document.blocks.count)
         var cursor = 0
-        for block in document.blocks {
-            let projection = builder.buildProjection(for: block, in: document)
+        for (blockIndex, block) in document.blocks.enumerated() {
+            // 渲染块(mermaid)按展开态投影:
+            // - 有渲染图:collapsed 只显示图;expanded 显示源码+图(Typora 式)
+            // - 缺图(加载中/渲染失败):保持 expanded 投影——源码段可见
+            //   可编辑(INV-4 无效图表合同),U+FFFC 附件段保留:挂载靠
+            //   它发起渲染请求,滤掉即首图死锁。无图时 U+FFFC 无字形,
+            //   视觉近不可见,点击仍可切换显示态。
+            // 展开态按块序位记录:编辑改变指纹但序位不变,展开意图延续。
+            let blockFingerprint = Self.renderedBlockFingerprint(block: block, document: document)
+            let isRenderable = blockFingerprint != nil
+            let hasImage = isRenderable && renderedImages[blockFingerprint!] != nil
+            let wantsExpanded =
+                (isRenderable && !hasImage)
+                || (isRenderable && expandedRenderedBlocks.contains(blockIndex))
+            let mode: MarkdownProjectionBuilder.RenderedBlockMode =
+                wantsExpanded ? .expanded : .collapsed
+            let projection = builder.buildProjection(for: block, in: document, renderedMode: mode)
             renderedNew.append(RenderedBlock(block: block, projection: projection, displayStart: cursor))
             pieces.append(projection.display)
             cursor += projection.display.utf16.count
@@ -273,7 +312,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             bodyFont, toSize: size) ?? bodyFont.withSize(size)
     }
 
-    private func displayRange(of item: RenderedBlock, _ segment: MarkdownProjectionBuilder.Segment) -> NSRange {
+    func displayRange(of item: RenderedBlock, _ segment: MarkdownProjectionBuilder.Segment) -> NSRange {
         NSRange(
             location: item.displayStart + segment.displayRangeUTF16.location,
             length: segment.displayRangeUTF16.length)
@@ -363,6 +402,10 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         }
         // T19 预览对齐:列表悬挂缩进统一一次应用(所有 list 块)。
         applyListParagraphIndents(storage: storage)
+        // 渲染块附件(mermaid 的 NSImage)挂在 U+FFFC 上;图未就绪则
+        // 触发异步渲染,完成回调再重建(源码回退由缺图投影承担)。
+        // 方法体在 RichMarkdownTextView+RenderedBlocks.swift。
+        mountRenderedBlockAttachments(storage: storage)
     }
 
     /// T19 视觉:单个行内段的排版属性(codeSpan/粗/斜/删/链接)。
@@ -1720,6 +1763,21 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         if let span = openLinkIntent(modifierFlags: event.modifierFlags) {
             onOpenLink?(span)
             return
+        }
+        // 渲染块附件点击:切换 collapsed⇄expanded(只改显示,不动 source)。
+        if let layoutManager, let textContainer {
+            let point = convert(event.locationInWindow, from: nil)
+            let glyphIndex = layoutManager.glyphIndex(
+                for: point, in: textContainer, fractionOfDistanceThroughGlyph: nil)
+            if glyphIndex != NSNotFound {
+                let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
+                if charIndex < textStorage?.length ?? 0,
+                    textStorage?.attribute(.attachment, at: charIndex, effectiveRange: nil) != nil,
+                    toggleRenderedBlock(at: charIndex)
+                {
+                    return
+                }
+            }
         }
         super.mouseDown(with: event)
     }

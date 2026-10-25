@@ -91,6 +91,7 @@
 		33F1E2FF1B56462C8C96769E /* MiaoYanTests/PrefsWindowControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D206592CF7404E1D9AF623FD /* MiaoYanTests/PrefsWindowControllerTests.swift */; };
 		452D621FD0BD8D78F323777C /* MiaoYanTests/GitHubAlertsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D4BC0BCD2C364D59E53FA6 /* MiaoYanTests/GitHubAlertsTests.swift */; };
 		F51B4048259C36431AF78CA5 /* MiaoYanTests/NoteFrontmatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7657AFD4D24AA71B9A256741 /* MiaoYanTests/NoteFrontmatterTests.swift */; };
+		220515A7C6035325B6AE86E3 /* MiaoYanTests/RenderedBlockDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B317254BA22E14235A2E210D /* MiaoYanTests/RenderedBlockDisplayTests.swift */; };
 		09C88AEBFA5644F897F0FB72 /* MiaoYanTests/EditorFileSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E034AAE51D345618F9875DF /* MiaoYanTests/EditorFileSyncTests.swift */; };
 		1E058AF705DC115AEF56FB09 /* MiaoYanTests/NativeEditorModeMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B3FDE8A11167EE610FF5A7E /* MiaoYanTests/NativeEditorModeMigrationTests.swift */; };
 		A7E1C0DE7A7B000000000001 /* MiaoYanTests/EditorCommitPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1C0DE7A7B000000000002 /* MiaoYanTests/EditorCommitPersistenceTests.swift */; };
@@ -207,6 +208,7 @@
 		C23000000000000000000001 /* RichMarkdownTextView+TableCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23000000000000000000002 /* RichMarkdownTextView+TableCommands.swift */; };
 		C27000000000000000000001 /* RichMarkdownTextView+Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27000000000000000000002 /* RichMarkdownTextView+Appearance.swift */; };
 		2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */; };
+		FC3A0BC456FF97922543CB7B /* RichMarkdownTextView+RenderedBlocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3FE2C51B348BB60C99DB9F5 /* RichMarkdownTextView+RenderedBlocks.swift */; };
 		E403C6BEE6CF40C7443847A8 /* NativeRichEditorHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */; };
 		60A11954F965D4D5C735985B /* MarkdownEditorHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* MarkdownBlockModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* MarkdownBlockModel.swift */; };
@@ -379,6 +381,7 @@
 		D206592CF7404E1D9AF623FD /* MiaoYanTests/PrefsWindowControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/PrefsWindowControllerTests.swift; sourceTree = SOURCE_ROOT; };
 		C7D4BC0BCD2C364D59E53FA6 /* MiaoYanTests/GitHubAlertsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/GitHubAlertsTests.swift; sourceTree = SOURCE_ROOT; };
 		7657AFD4D24AA71B9A256741 /* MiaoYanTests/NoteFrontmatterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/NoteFrontmatterTests.swift; sourceTree = SOURCE_ROOT; };
+		B317254BA22E14235A2E210D /* MiaoYanTests/RenderedBlockDisplayTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/RenderedBlockDisplayTests.swift; sourceTree = SOURCE_ROOT; };
 		8E034AAE51D345618F9875DF /* MiaoYanTests/EditorFileSyncTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/EditorFileSyncTests.swift; sourceTree = SOURCE_ROOT; };
 		2B3FDE8A11167EE610FF5A7E /* MiaoYanTests/NativeEditorModeMigrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/NativeEditorModeMigrationTests.swift; sourceTree = SOURCE_ROOT; };
 		A7E1C0DE7A7B000000000002 /* MiaoYanTests/EditorCommitPersistenceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/EditorCommitPersistenceTests.swift; sourceTree = SOURCE_ROOT; };
@@ -489,6 +492,7 @@
 		C23000000000000000000002 /* RichMarkdownTextView+TableCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichMarkdownTextView+TableCommands.swift"; sourceTree = "<group>"; };
 		C27000000000000000000002 /* RichMarkdownTextView+Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichMarkdownTextView+Appearance.swift"; sourceTree = "<group>"; };
 		C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RichMarkdownTextView.swift; sourceTree = "<group>"; };
+		E3FE2C51B348BB60C99DB9F5 /* RichMarkdownTextView+RenderedBlocks.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "RichMarkdownTextView+RenderedBlocks.swift"; sourceTree = "<group>"; };
 		2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeRichEditorHostView.swift; sourceTree = "<group>"; };
 		EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditorHistory.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5D /* MarkdownBlockModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownBlockModel.swift; sourceTree = "<group>"; };
@@ -617,6 +621,7 @@
 				B738F144215845899083B5C4 /* MiaoYanTests/StorageInitContentDecisionTests.swift */,
 				C7D4BC0BCD2C364D59E53FA6 /* MiaoYanTests/GitHubAlertsTests.swift */,
 				7657AFD4D24AA71B9A256741 /* MiaoYanTests/NoteFrontmatterTests.swift */,
+				B317254BA22E14235A2E210D /* MiaoYanTests/RenderedBlockDisplayTests.swift */,
 				8E034AAE51D345618F9875DF /* MiaoYanTests/EditorFileSyncTests.swift */,
 				2B3FDE8A11167EE610FF5A7E /* MiaoYanTests/NativeEditorModeMigrationTests.swift */,
 				A7E1C0DE7A7B000000000002 /* MiaoYanTests/EditorCommitPersistenceTests.swift */,
@@ -886,6 +891,7 @@
 				BEE6142E8B5D4BB380FC2B38 /* MPreviewView+Search.swift */,
 				272D1B422E77E9AC00A95674 /* MPreviewView+DiagramExport.swift */,
 							C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */,
+							E3FE2C51B348BB60C99DB9F5 /* RichMarkdownTextView+RenderedBlocks.swift */,
 				C27000000000000000000002 /* RichMarkdownTextView+Appearance.swift */,
 							C23000000000000000000002 /* RichMarkdownTextView+TableCommands.swift */,
 				C25000000000000000000002 /* RichMarkdownTextView+Commands.swift */,
@@ -1220,6 +1226,7 @@
 				BAE809BB946B47E89F92E155 /* MiaoYanTests/StorageInitContentDecisionTests.swift in Sources */,
 				452D621FD0BD8D78F323777C /* MiaoYanTests/GitHubAlertsTests.swift in Sources */,
 				F51B4048259C36431AF78CA5 /* MiaoYanTests/NoteFrontmatterTests.swift in Sources */,
+				220515A7C6035325B6AE86E3 /* MiaoYanTests/RenderedBlockDisplayTests.swift in Sources */,
 				09C88AEBFA5644F897F0FB72 /* MiaoYanTests/EditorFileSyncTests.swift in Sources */,
 				1E058AF705DC115AEF56FB09 /* MiaoYanTests/NativeEditorModeMigrationTests.swift in Sources */,
 				A7E1C0DE7A7B000000000001 /* MiaoYanTests/EditorCommitPersistenceTests.swift in Sources */,
@@ -1380,6 +1387,7 @@
 				A83EF4DBF7A3ACDC75484F87 /* LosslessMarkdownParser.swift in Sources */,
 				CB0CBCC5098271AD6C45CB42 /* MarkdownProjectionBuilder.swift in Sources */,
 				2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */,
+				FC3A0BC456FF97922543CB7B /* RichMarkdownTextView+RenderedBlocks.swift in Sources */,
 				C27000000000000000000001 /* RichMarkdownTextView+Appearance.swift in Sources */,
 				C23000000000000000000001 /* RichMarkdownTextView+TableCommands.swift in Sources */,
 				C25000000000000000000001 /* RichMarkdownTextView+Commands.swift in Sources */,
