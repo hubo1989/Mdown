@@ -200,6 +200,54 @@ extension RichMarkdownTextView {
         return true
     }
 
+    /// Tab 展开斜杠命令(源码面 `EditTextView.handleShortcutExpansion`
+    /// 的 rich 对应,PR #10 follow-up):光标前同一行内的 `/word`
+    /// (word 全字母/数字)在 ShortcutTemplateManager 有模板时替换为
+    /// 模板展开(替换 + cursor 恢复 + `{{select}}` 选中,与
+    /// insertShortcutTemplate 同语义)。无命令/未知模板返回 false,
+    /// 调用方回落既有 Tab 行为。
+    func expandSlashShortcutAtCaret() -> Bool {
+        guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
+        rebuildProjection()
+        let ns = source as NSString
+        let caret = sourceCaret()
+        guard caret <= ns.length else { return false }
+        let lineRange = ns.lineRange(for: NSRange(location: caret, length: 0))
+        guard caret >= lineRange.location,
+            caret - lineRange.location > 0
+        else { return false }
+        let before = ns.substring(
+            with: NSRange(location: lineRange.location, length: caret - lineRange.location))
+        // 与源码面 extractShortcut 同判定:尾段不以 / 结尾、非空、全字母数字
+        guard before.hasSuffix("/") == false,
+            let word = before.components(separatedBy: "/").last,
+            !word.isEmpty,
+            word.allSatisfy({ $0.isLetter || $0.isNumber }),
+            let template = ShortcutTemplateManager.shared.getTemplate(for: word)
+        else { return false }
+        let wordStart = caret - word.utf16.count - 1
+        guard wordStart >= lineRange.location else { return false }
+        let patch = SourcePatch(
+            rangeUTF16: NSRange(location: wordStart, length: word.utf16.count + 1),
+            expectedText: "/" + word,
+            replacement: template.content)
+        let cursorStart = wordStart + template.cursorOffset
+        guard
+            applyStructurePatches(
+                [patch], name: "shortcut-expand-tab",
+                restoreSourceCaret: cursorStart, origin: .structure)
+        else { return false }
+        if template.cursorLength > 0,
+            let span = displayRange(
+                forSourceRange: NSRange(location: cursorStart, length: template.cursorLength)),
+            span.length == template.cursorLength
+        {
+            setSelectedRange(span)
+            scrollRangeToVisible(span)
+        }
+        return true
+    }
+
     /// find：匹配全部锚在权威 source（含 frontmatter/ref 等不可见范围，
     /// NE-23）。大小写/变音不敏感，与 source 模式搜索一致。
     public func sourceMatches(for query: String) -> [NSRange] {

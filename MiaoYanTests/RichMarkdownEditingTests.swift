@@ -230,6 +230,34 @@ final class RichMarkdownEditingTests: XCTestCase {
             "必须展开为 yyyy-MM-dd HH:mm:ss 时间文本")
     }
 
+    /// Tab 展开斜杠命令(PR #10 follow-up:与源码面 Tab 行为对齐)。
+    /// 走真实 delegate 路径(text(_:doCommandBy:)),旧代码在 rich 面
+    /// 只会插入字面 Tab(`/time` 不展开)。
+    func testTabKeyExpandsSlashShortcutOnRichSurface() throws {
+        let source = "记于\n/time\n"
+        let view = makeView(source)
+        // "/time" 占 source[3,8):行尾(闭围栏 \n 前)是 8
+        let caret = try XCTUnwrap(view.displayOffset(forSourceOffset: 8))
+        view.setSelectedRange(NSRange(location: caret, length: 0))
+        XCTAssertTrue(
+            view.text(view, doCommandBy: NSSelectorFromString("insertTab:")),
+            "Tab 应被展开消费")
+        XCTAssertFalse(view.source.contains("/time"), "不得停留字面 `/time`")
+        XCTAssertNotNil(
+            view.source.range(
+                of: #"^记于\n\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n$"#,
+                options: .regularExpression),
+            "Tab 必须展开为时间模板")
+
+        // 无斜杠命令时 Tab 不被吞,回落默认行为(返回 false)。
+        let plain = makeView("普通段落\n")
+        let plainCaret = try XCTUnwrap(plain.displayOffset(forSourceOffset: 4))  // 行尾
+        plain.setSelectedRange(NSRange(location: plainCaret, length: 0))
+        XCTAssertFalse(
+            plain.text(plain, doCommandBy: NSSelectorFromString("insertTab:")),
+            "无命令时 Tab 不得被吞")
+    }
+
     // MARK: undo / redo（单一历史）
 
     func testUndoRedoTypingAndStructure() {

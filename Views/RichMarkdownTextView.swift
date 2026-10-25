@@ -934,7 +934,12 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     private func handleStructuralTab(indent: Bool) -> Bool {
         guard let line = currentStructuralLine(),
             let plan = MarkdownBlockModel.planTab(line: line, source: source as NSString, caret: sourceCaret(), indent: indent)
-        else { return false }
+        else {
+            // 非 list/quote/table:Tab 尝试斜杠命令展开(与源码面 Tab
+            // 行为对齐,PR #10 follow-up);无命令时回落既有 Tab 路径,
+            // Shift+Tab 不展开。
+            return indent && expandSlashShortcutAtCaret()
+        }
         // 最外层 Shift+Tab：吞掉按键但无操作（不删内容、不插 tab）
         if plan.patches.isEmpty { return true }
         return applyStructurePatches(plan.patches, name: plan.name, restoreSourceCaret: plan.caretAfterUTF16)
