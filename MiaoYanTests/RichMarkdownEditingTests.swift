@@ -197,6 +197,39 @@ final class RichMarkdownEditingTests: XCTestCase {
         XCTAssertEqual(view.source, "词 其他\n")
     }
 
+    // MARK: Quick Input 模板展开（PR #10 review F2：rich 面无 Tab 展开路径，
+    // 字面 `/name` 会让 Quick Input 停在字面命令）
+
+    /// 插入命令必须直接展开模板内容，与 source 模式 Tab 展开同语义；
+    /// `{{select}}` 区间按模板语义选中（表头 plain 1:1 映射）。
+    func testShortcutTemplateInsertsExpandedTableTemplate() {
+        let view = makeView("正文\n\n段落\n")
+        view.setSelectedRange(NSRange(location: 3, length: 0))  // "段落" 行首
+        XCTAssertTrue(view.insertShortcutTemplate("table"))
+        XCTAssertFalse(view.source.contains("/table"), "Quick Input 不得停在字面命令")
+        XCTAssertTrue(view.source.contains("| 列1 | 列2 | 列3 |"), "表头必须展开")
+        XCTAssertTrue(view.source.contains("|-----|-----|-----|"), "分隔行必须展开")
+        let selection = view.selectedRange()
+        XCTAssertEqual(selection.length, 2, "{{select}} 区间选中（source 模式展开语义）")
+        XCTAssertEqual(
+            (view.string as NSString).substring(with: selection), "列1",
+            "选中内容必须是模板的 select span 而非附件占位")
+    }
+
+    /// `/time` 展开为时间文本（ShortcutTemplateManager 同一格式），
+    /// caret 落模板末尾。
+    func testShortcutTemplateInsertsExpandedTimeTemplate() {
+        let view = makeView("记于\n")
+        view.setSelectedRange(NSRange(location: 2, length: 0))
+        XCTAssertTrue(view.insertShortcutTemplate("time"))
+        XCTAssertFalse(view.source.contains("/time"), "不得停留字面 `/time`")
+        XCTAssertNotNil(
+            view.source.range(
+                of: #"^记于\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n$"#,
+                options: .regularExpression),
+            "必须展开为 yyyy-MM-dd HH:mm:ss 时间文本")
+    }
+
     // MARK: undo / redo（单一历史）
 
     func testUndoRedoTypingAndStructure() {

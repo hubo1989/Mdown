@@ -79,7 +79,13 @@ extension RichMarkdownTextView {
             origin: .format)
     }
 
-    /// link 命令：选中内容包成 `[label]()`,caret 落 `(` 后（target 输入位）。
+    /// link 命令：选中内容包成 `[label](` 未配对骨架，caret 落 `(` 之后。
+    /// 投影合同里配对 link 的 destination 是隐藏零宽段——display 没有
+    /// 表面可落 caret（PR #10 review：caret 只能收敛到 label 边界，输入
+    /// 会污染 label，target 无从填写）。未配对结构按合同走 plain
+    /// fallback：骨架原文 1:1 可见可编辑，URL 输入/粘贴直接落在 `(` 后；
+    /// 输入 `)` 配对完成后投影自动收敛为渲染态。空选中插入 `[](`，
+    /// caret 落 `[` 后（先输 label）。
     @discardableResult
     public func insertLinkCommand() -> Bool {
         guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
@@ -91,9 +97,13 @@ extension RichMarkdownTextView {
         let label = ns.substring(with: sourceRange)
         let patch = SourcePatch(
             rangeUTF16: sourceRange, expectedText: label,
-            replacement: "[" + label + "]()")
-        // caret 落在 "(" 与 ")" 之间："](" 之后
-        let caretAfter = NSMaxRange(sourceRange) + 2
+            replacement: "[" + label + "](")
+        // label 非空：caret 落 `(` 之后（`[`+label+`]`+`(` 共 label 长度 +3），
+        // 即 target 输入位；label 为空：caret 落 `[` 后（label 输入位）。
+        let caretAfter =
+            sourceRange.length > 0
+            ? NSMaxRange(sourceRange) + 3
+            : sourceRange.location + 1
         return applyStructurePatches([patch], name: "link", restoreSourceCaret: caretAfter, origin: .format)
     }
 
@@ -144,22 +154,50 @@ extension RichMarkdownTextView {
         return applyStructurePatches([patch], name: "code-block", restoreSourceCaret: caret + 4, origin: .format)
     }
 
-    /// 快捷模板：在 caret 插入 `/<name>` 字面（NotesTextProcessor 重扫时
-    /// 展开为对应结构，N1 阶段与 source 模式同语义）。
+    /// 快捷模板：与 source 模式 Tab 展开同语义——直接展开模板内容
+    /// （PR #10 review：rich 面没有 `/name`+Tab 的展开路径，字面插入会让
+    /// Quick Input 停在字面命令）。选区替换为模板内容；caret 按模板
+    /// cursor 标记恢复，`{{select}}` 区间在 display 映射忠实（长度一致）
+    /// 时选中，映射不可信（collapsed 渲染块映射到附件占位）时保持
+    /// caret，不选中附件占位。未知模板退回字面 `/name` 插入（与 source
+    /// 模式 Tab 展开失败同语义）。
     @discardableResult
     public func insertShortcutTemplate(_ name: String) -> Bool {
         guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
         rebuildProjection()
-        let caret = sourceCaret()
         let ns = source as NSString
+        let caret = sourceCaret()
         guard caret <= ns.length else { return false }
-        let text = "/" + name
+        // 跨块选区映射歧义时退化为 caret 插入：显式拒绝会让调用方走
+        // legacy 路径把会话踢回 source 布局（NE-24 不得踢回）。
+        let range = commandSourceSelection() ?? NSRange(location: caret, length: 0)
+        guard NSMaxRange(range) <= ns.length else { return false }
+        guard let template = ShortcutTemplateManager.shared.getTemplate(for: name) else {
+            let text = "/" + name
+            let patch = SourcePatch(
+                rangeUTF16: range, expectedText: ns.substring(with: range), replacement: text)
+            return applyStructurePatches(
+                [patch], name: "shortcut-template",
+                restoreSourceCaret: NSMaxRange(range) + (text as NSString).length,
+                origin: .structure)
+        }
         let patch = SourcePatch(
-            rangeUTF16: NSRange(location: caret, length: 0),
-            expectedText: "", replacement: text)
-        return applyStructurePatches(
-            [patch], name: "shortcut-template", restoreSourceCaret: caret + (text as NSString).length,
-            origin: .structure)
+            rangeUTF16: range, expectedText: ns.substring(with: range),
+            replacement: template.content)
+        let cursorStart = range.location + template.cursorOffset
+        guard
+            applyStructurePatches(
+                [patch], name: "shortcut-template", restoreSourceCaret: cursorStart, origin: .structure)
+        else { return false }
+        if template.cursorLength > 0,
+            let span = displayRange(
+                forSourceRange: NSRange(location: cursorStart, length: template.cursorLength)),
+            span.length == template.cursorLength
+        {
+            setSelectedRange(span)
+            scrollRangeToVisible(span)
+        }
+        return true
     }
 
     /// find：匹配全部锚在权威 source（含 frontmatter/ref 等不可见范围，

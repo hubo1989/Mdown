@@ -189,15 +189,16 @@ final class MarkdownCommandRoutingTests: XCTestCase {
 
         let env = makeEnvironment(surface: .nativeRich(host), selectedNote: note)
         XCTAssertTrue(MarkdownEditorCommandAdapter.perform(.link, on: MarkdownEditorCommandAdapter.resolve(.link, in: env)))
-        XCTAssertEqual(host.textView.source, "plain [word]() here")
-        // caret 落在 () 内等待输入 target（"plain [word]()" → ( 在 12、) 在 13）
+        // 未配对骨架（destination 隐藏零宽段无 display 表面，PR #10 review）：
+        // `(` 后是 plain fallback 原文区，target 输入落位不污染 label
+        XCTAssertEqual(host.textView.source, "plain [word]( here")
         let selected = host.textView.selectedRange()
         XCTAssertEqual(
-            (host.textView.source as NSString).substring(with: NSRange(location: 11, length: 2)),
-            "](")
+            (host.textView.string as NSString).substring(with: NSRange(location: 12, length: 1)),
+            "(")
         XCTAssertEqual(
-            selected.location, 10,
-            "caret 映射到 label 末端(target 区间在 display 隐藏,输入落点正确)")
+            selected, NSRange(location: 13, length: 0),
+            "caret 落 `(` 之后（target 输入位，plain fallback 1:1）")
     }
 
     @MainActor
@@ -246,7 +247,7 @@ final class MarkdownCommandRoutingTests: XCTestCase {
     }
 
     @MainActor
-    func testShortcutTemplateInsertsLiteralAtCaret() {
+    func testShortcutTemplateInsertsExpandedTemplateOnRichSurface() {
         let note = makeNote(body: "plain text")
         let host = makeRichHost(body: "plain text", note: note)
         host.textView.setSelectedRange(NSRange(location: 5, length: 0))
@@ -256,7 +257,14 @@ final class MarkdownCommandRoutingTests: XCTestCase {
             MarkdownEditorCommandAdapter.perform(
                 .insertShortcutTemplate("time"),
                 on: MarkdownEditorCommandAdapter.resolve(.insertShortcutTemplate("time"), in: env)))
-        XCTAssertEqual(host.textView.source, "plain/time text")
+        // rich 面没有 `/name`+Tab 展开路径（PR #10 review）：命令必须直接
+        // 展开模板，不得停留字面命令
+        XCTAssertFalse(host.textView.source.contains("/time"))
+        XCTAssertNotNil(
+            host.textView.source.range(
+                of: #"^plain\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} text$"#,
+                options: .regularExpression),
+            "Quick Input 在 rich 面必须展开为时间模板")
     }
 
     @MainActor

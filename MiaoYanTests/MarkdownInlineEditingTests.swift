@@ -132,6 +132,44 @@ final class MarkdownInlineEditingTests: XCTestCase {
         XCTAssertFalse(MarkdownLinkSafety.isEditableTarget("unknown-scheme:xyz"))
     }
 
+    // MARK: link 命令（PR #10 review F1：destination 是隐藏零宽段，
+    // 配对骨架的 `()` 无 display 表面可落 caret）
+
+    /// 插入命令后用户必须能补完 URL：caret 落 `(` 后的可见原文区，
+    /// 输入只落在 target 位，不污染 label；输入 `)` 配对完成后投影
+    /// 收敛为渲染态（destination 回到隐藏，投影合同不变）。
+    func testLinkCommandTypingCompletesTargetWithoutPollutingLabel() {
+        let view = makeView("plain word here\n")
+        view.setSelectedRange(NSRange(location: 6, length: 4))  // "word"
+        XCTAssertTrue(view.insertLinkCommand())
+        // 未配对骨架：按投影合同走 plain fallback，原文可见
+        XCTAssertEqual(view.source, "plain [word]( here\n")
+        XCTAssertEqual(view.displayText, "plain [word]( here\n", "未配对结构原样显示")
+        XCTAssertEqual(
+            view.selectedRange(), NSRange(location: 13, length: 0),
+            "caret 落 `(` 之后（target 输入位）")
+        view.insertText("https://a.dev")
+        XCTAssertEqual(
+            view.source, "plain [word](https://a.dev here\n",
+            "URL 输入必须落在 `(` 后，不得污染 label")
+        view.insertText(")")
+        XCTAssertEqual(view.source, "plain [word](https://a.dev) here\n", "输入 `)` 配对完成链接")
+        XCTAssertEqual(view.displayText, "plain word here\n", "配对后 destination 隐藏（投影合同不变）")
+    }
+
+    /// 空选中：插入 `[](` 骨架，caret 落 `[` 后的 label 输入槽。
+    func testLinkCommandEmptySelectionCaretLandsInLabelSlot() {
+        let view = makeView("正文\n")
+        view.setSelectedRange(NSRange(location: 2, length: 0))  // "文" 后
+        XCTAssertTrue(view.insertLinkCommand())
+        XCTAssertEqual(view.source, "正文[](\n")
+        XCTAssertEqual(
+            view.selectedRange(), NSRange(location: 3, length: 0),
+            "caret 落 `[` 之后（label 输入位）")
+        view.insertText("词")
+        XCTAssertEqual(view.source, "正文[词](\n", "空骨架输入落在 label 槽")
+    }
+
     func testModifierClickOpensLinkAndKeepsCaret() {
         let view = makeView("[链](https://a.com) 后\n")
         view.setSelectedRange(NSRange(location: 1, length: 0))  // label 内
