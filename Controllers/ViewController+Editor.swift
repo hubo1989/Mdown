@@ -526,9 +526,10 @@ extension ViewController {
 
     /// T10 (AC-16)：离开 wysiwyg（进 preview/presentation/PPT、切布局）
     /// 前保存 native 面的 selection 锚点，退出后经 host 按笔记身份恢复。
+    /// T22：native 是唯一 backend——legacy `useNativeWysiwyg=false` 存量值
+    /// 不得拦截锚点保存（activeWysiwygBackend 已不按该开关分流）。
     func saveNativeRichSelectionAnchorIfNeeded() {
         guard sessionLayoutMode == .wysiwyg,
-            UserDefaultsManagement.useNativeWysiwyg,
             let host = nativeRichHost
         else { return }
         host.saveSelectionAnchor()
@@ -986,6 +987,11 @@ extension ViewController {
             // Get latest content from editor to ensure consistency
             let content = editArea.textStorage?.string ?? note.content.string
             let top = editAreaScroll.contentView.bounds.origin.y
+            // 整篇 insertText 会把 selection 推到文末——caret 必须在派发排版
+            // 任务前捕获（旧 formatter 的 cursorOffset 语义）。迟到结果已被
+            // snapshot 的 revision/source 核对拒绝，被接受路径上 caret 未变，
+            // clamp 到新文档长度即可恢复（与 cleanTypography 同款）。
+            let caret = editArea.selectedRanges[0].rangeValue.location
             let token = UUID()
             formatOwnerToken = token
             let snapshot = NativeMarkdownFormatter.Snapshot(
@@ -999,7 +1005,7 @@ extension ViewController {
                 await MainActor.run {
                     self.applyFormattingResult(
                         newContent, snapshot: snapshot,
-                        requestID: requestID, top: top)
+                        requestID: requestID, top: top, caret: caret)
                 }
             }
         }
@@ -1007,7 +1013,7 @@ extension ViewController {
 
     private func applyFormattingResult(
         _ formattedContent: String, snapshot: NativeMarkdownFormatter.Snapshot,
-        requestID: Int, top: CGFloat
+        requestID: Int, top: CGFloat, caret: Int
     ) {
         guard formatRequestID == requestID else {
             return
@@ -1056,8 +1062,9 @@ extension ViewController {
         editArea.saveTextStorageContent(to: note)
         note.save()
 
-        let cursor = editArea.selectedRange.location
-        let adjustedCursorOffset = min(max(cursor, 0), (newContent as NSString).length)
+        // 恢复排版前捕获的 caret——insertText 已把 selection 推到文末，
+        // 事后读 selectedRange 只会得到 EOF 位置。
+        let adjustedCursorOffset = min(max(caret, 0), (newContent as NSString).length)
         editArea.setSelectedRange(NSRange(location: adjustedCursorOffset, length: 0))
         formatContent = newContent
         note.save(attributed: editArea.attributedString())

@@ -208,7 +208,12 @@ class EditorMenuManager {
     }
 
     func formatText() {
-        ensureSourceModeForEditing()
+        // 不做 ensureSourceModeForEditing 强切:vc.formatText 自身按
+        // 布局分流(preview toast / rich 事务 / source 排版),强切会
+        // 把 wysiwyg 用户先踢回 source 再格式化隐藏 buffer(并把持久
+        // 偏好改写为 source)。非 wysiwyg 时强切本就是 no-op,去掉无
+        // 行为变化;与同文件 insertCodeBlock 等的 rich 路由先例对齐
+        // (T14 NE-24,PR #10 review F1)。
         guard let vc = ViewController.shared() else { return }
         vc.formatText()
     }

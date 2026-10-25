@@ -190,6 +190,24 @@ final class NativeEditorModeMigrationTests: XCTestCase {
             "legacy 开关不得再分流 backend(值一律兼容迁移为 native)")
     }
 
+    /// T22/T10 (AC-16)：legacy `useNativeWysiwyg=false` 存量值同样不得
+    /// 拦截 selection 锚点保存——native 是唯一 backend，否则存量用户每次
+    /// wysiwyg→preview/presentation/切布局都丢 caret(源码体断言)。
+    func testSelectionAnchorSaveNotGatedByLegacyBackendPreference() throws {
+        let editor = try source("Controllers/ViewController+Editor.swift")
+        let marker = try XCTUnwrap(
+            editor.range(of: "func saveNativeRichSelectionAnchorIfNeeded"))
+        let end = try XCTUnwrap(
+            editor.range(of: "\n    }", range: marker.upperBound..<editor.endIndex))
+        let body = String(editor[marker.lowerBound..<end.lowerBound])
+        XCTAssertTrue(
+            body.contains("saveSelectionAnchor()"),
+            "wysiwyg 会话必须实际把锚点落到 host")
+        XCTAssertNil(
+            body.range(of: "useNativeWysiwyg"),
+            "legacy 开关不得拦截锚点保存(存量 false 用户会丢 caret)")
+    }
+
     // MARK: - native host：装载与投影
 
     @MainActor
@@ -352,5 +370,41 @@ final class NativeEditorModeMigrationTests: XCTestCase {
                 body.contains("activeWysiwygBackend"),
                 "\(marker) 必须经 activeWysiwygBackend 路由 backend")
         }
+    }
+
+    /// source 面排版必须恢复排版前捕获的 caret——整篇 insertText 会把
+    /// selection 推到文末，事后读 selectedRange 只会得到 EOF 位置
+    /// （旧 formatter 的 cursorOffset 语义，源码体断言）。
+    func testSourceFormatRestoresCaretCapturedBeforeReplacement() throws {
+        let editor = try source("Controllers/ViewController+Editor.swift")
+        let start = try XCTUnwrap(editor.range(of: "func formatText() {"))
+        let dispatchMarker = try XCTUnwrap(
+            editor.range(of: "private func applyFormattingResult", range: start.upperBound..<editor.endIndex))
+        let formatBody = String(editor[start.lowerBound..<dispatchMarker.lowerBound])
+
+        // 捕获必须发生在派发排版任务之前（replace 前 selection 才是用户位置）
+        let capture = try XCTUnwrap(
+            formatBody.range(of: "let caret = editArea.selectedRanges[0].rangeValue.location"),
+            "formatText 必须在派发排版任务前捕获 source caret")
+        let dispatch = try XCTUnwrap(
+            formatBody.range(of: "applyFormattingResult("),
+            "source 分支必须把 caret 穿进结果应用")
+        XCTAssertLessThan(
+            capture.lowerBound, dispatch.lowerBound,
+            "caret 捕获必须先于异步排版任务派发")
+
+        // 应用端不得读整篇替换后的 selection（那是 EOF 位置）
+        let applyEnd = try XCTUnwrap(
+            editor.range(of: "\n    private func ", range: dispatchMarker.upperBound..<editor.endIndex))
+        let applyBody = String(editor[dispatchMarker.lowerBound..<applyEnd.lowerBound])
+        XCTAssertTrue(
+            applyBody.contains("caret: Int"),
+            "排版结果应用必须接收排版前捕获的 caret")
+        XCTAssertNil(
+            applyBody.range(of: "editArea.selectedRange"),
+            "不得读整篇替换后的 selection 恢复 caret")
+        XCTAssertTrue(
+            applyBody.contains("min(max(caret"),
+            "caret 必须 clamp 到新文档长度")
     }
 }
