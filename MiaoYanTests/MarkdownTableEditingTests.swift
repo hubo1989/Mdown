@@ -392,6 +392,27 @@ extension MarkdownTableEditingTests {
     }
 
     @MainActor
+    func testBacktabFromThirdDataRowFirstCellLandsOnAdjacentRow() {
+        // editableRows = [0, 2, 3, 4](头行 + 3 数据行):第 3 数据行首格
+        // Shift+Tab 必须落紧邻上一行(row 3)末格 "f";旧行为取
+        // first(< r) 会直接跳到头行末格 "b",跳过 row 2/row 3。
+        let view = RichMarkdownTextView(
+            source: "| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n| g | h |\n")
+        let ns = view.source as NSString
+        view.setSelectedRange(NSRange(location: ns.range(of: "g").location, length: 0))
+        XCTAssertTrue(
+            view.text(NSTextView(), doCommandBy: #selector(NSText.insertBacktab(_:))))
+        XCTAssertEqual(
+            view.selectedRange().location, 40,
+            "Shift+Tab 自第 3 数据行首格应落第 2 数据行末格 \"f\",不得跳回头行")
+        // 正向不变:行末格 Tab 跨行落下一行首格
+        XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertTab(_:))))
+        XCTAssertEqual(
+            view.selectedRange().location, ns.range(of: "g").location,
+            "Tab 正向跨行仍落下一行首格")
+    }
+
+    @MainActor
     func testTabOutsideTableFallsBackToStructuralHandling() {
         let view = RichMarkdownTextView(source: "- item\n")
         view.setSelectedRange(NSRange(location: 3, length: 0))
@@ -424,6 +445,34 @@ extension MarkdownTableEditingTests {
         XCTAssertTrue(view.deleteTableRowAtCaret())
         XCTAssertEqual(view.source, "| a | b |\n| --- | --- |\n| e | f |\n")
         XCTAssertTrue(view.performUndo(), "删行单步撤销")
+    }
+
+    @MainActor
+    func testInsertRowBelowMovesCaretToNewRowFirstCell() {
+        let view = makeTableView()
+        let ns = view.source as NSString
+        view.setSelectedRange(NSRange(location: ns.range(of: "c").location + 1, length: 0))
+        XCTAssertTrue(view.insertTableRowBelowAtCaret())
+        // 新行 "|  |  |" 起于 34(table 块内 display 与 source 1:1),
+        // 首格内容在 "| " 后 = 36;旧行为恢复 pre-edit 偏移(27)留在旧行。
+        XCTAssertEqual(
+            view.selectedRange().location, 36,
+            "Add Row Below 后 caret 必须落新行首格,而非停留旧行")
+    }
+
+    @MainActor
+    func testDeleteRowRestoresCaretAtPlanSurvivingPosition() {
+        // 长 body 行删除构造偏移位移:pre-edit caret(37)在新文本中越过
+        // 表格末尾;plan 的存活位 = 被删行原起点(24,现 "| e | f |" 行首)。
+        let view = RichMarkdownTextView(
+            source: "| a | b |\n| --- | --- |\n| ccccccc | d |\n| e | f |\n")
+        let ns = view.source as NSString
+        view.setSelectedRange(NSRange(location: ns.range(of: "d").location + 1, length: 0))
+        XCTAssertTrue(view.deleteTableRowAtCaret())
+        XCTAssertEqual(view.source, "| a | b |\n| --- | --- |\n| e | f |\n")
+        XCTAssertEqual(
+            view.selectedRange().location, 24,
+            "删行后 caret 落 plan 的安全存活位(被删行原起点),不得沿用位移后错位的旧偏移")
     }
 
     @MainActor

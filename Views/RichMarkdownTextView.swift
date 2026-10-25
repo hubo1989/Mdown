@@ -1041,7 +1041,15 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         while editableRows.contains(r) {
             let count = model.rows[r].cells.count
             if c >= 0, c < count { return (r, c) }
-            if let nr = editableRows.first(where: { forward ? $0 > r : $0 < r }) {
+            // 反向取「小于当前行的最后一行」(紧邻上一行):editableRows
+            // 升序,first(< r) 会跳过头行以外的中间数据行。
+            let adjacent: Int?
+            if forward {
+                adjacent = editableRows.first(where: { $0 > r })
+            } else {
+                adjacent = editableRows.last(where: { $0 < r })
+            }
+            if let nr = adjacent {
                 r = nr
                 c = forward ? 0 : model.rows[r].cells.count - 1
             } else {

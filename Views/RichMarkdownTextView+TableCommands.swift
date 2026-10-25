@@ -15,12 +15,15 @@ extension RichMarkdownTextView {
         let column: Int
     }
 
+    /// 应用表格计划。caret 默认落 `plan.caretAfterUTF16`(插行落新行
+    /// 首格、删/移后落安全存活位——增删移后 pre-edit 偏移会错位);
+    /// `keepCaretAt` 仅在调用方显式指定时覆盖。
     func applyTablePlan(
         _ plan: MarkdownTablePlan, _ name: String, keepCaretAt caret: Int? = nil
     ) -> Bool {
         applyStructurePatches(
             plan.patches, name: name,
-            restoreSourceCaret: caret ?? sourceCaret(), origin: .structure)
+            restoreSourceCaret: caret ?? plan.caretAfterUTF16, origin: .structure)
     }
 
     func tableCommandTarget() -> TableCommandTarget? {
