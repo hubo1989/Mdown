@@ -50,7 +50,7 @@ enum MarkdownAttachmentWriter {
         }
         let safeExtension = fileExtension.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.map(String.init).joined()
         let fileName = UUID().uuidString.lowercased() + (safeExtension.isEmpty ? "" : "." + safeExtension)
-        let root = noteURL.deletingLastPathComponent().resolvingSymlinksInPath()
+        let root = attachmentRootDirectory(for: noteURL)
         let folder = root.appendingPathComponent(isImage ? "i" : "files", isDirectory: true)
         guard folder.resolvingSymlinksInPath().standardizedFileURL.path == folder.standardizedFileURL.path else { throw Failure.unsafeDirectory }
         try manager.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -72,5 +72,37 @@ enum MarkdownAttachmentWriter {
         } catch {
             AppDelegate.trackError(error, context: "MarkdownAttachmentWriter.discard")
         }
+    }
+
+    /// Directory that root-relative `/i/...` and `/files/...` references
+    /// resolve against.
+    ///
+    /// `Note.getImageUrl` resolves those paths against `note.project.url`, and
+    /// `Storage.getProjectBy(url:)` picks the deepest registered project that
+    /// contains the note. A note nested below its project would otherwise keep
+    /// a sibling copy the editor can never load, so mirror that resolution
+    /// when choosing the write destination. Notes outside every registered
+    /// project (scratch notes, tests) fall back to the note's own directory,
+    /// which is where flat notes resolve anyway.
+    private static func attachmentRootDirectory(for noteURL: URL) -> URL {
+        let noteDirectory = noteURL.deletingLastPathComponent().resolvingSymlinksInPath()
+        let notePath = noteDirectory.path
+        let projectRoot = registeredProjectURLs()
+            .filter { $0.path == notePath || notePath.hasPrefix($0.path + "/") }
+            .max { $0.path.count < $1.path.count }
+        return projectRoot ?? noteDirectory
+    }
+
+    /// Sidebar-project roots, snapshotted on the main actor. `write` usually
+    /// runs on a detached task while the storage tree is main-actor state, so
+    /// hop to the main thread just long enough to copy the URL list out.
+    private static func registeredProjectURLs() -> [URL] {
+        func snapshot() -> [URL] {
+            MainActor.assumeIsolated {
+                AppEnvironment.current.storage.getProjects().map(\.url)
+            }
+        }
+        if Thread.isMainThread { return snapshot() }
+        return DispatchQueue.main.sync(execute: snapshot)
     }
 }

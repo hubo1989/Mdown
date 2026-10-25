@@ -246,6 +246,7 @@
 		C13000000000000000000003 /* MarkdownRawBlockEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C13000000000000000000004 /* MarkdownRawBlockEditingTests.swift */; };
 		51E95D8D4B21865372D42D48 /* MarkdownCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C7BA8C505C9D6F2A9562427 /* MarkdownCompositionTests.swift */; };
 		A3F7C2E19B4D4E8F8A1C6D50 /* MarkdownEditorHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E4A1F23C5D4E6F9B2A7C31 /* MarkdownEditorHistoryTests.swift */; };
+		0BC4B4F414F44F5698444F889DAB4CB1 /* MarkdownAttachmentWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03585FF6125C4BBABC5E9E9D0B8EB142 /* MarkdownAttachmentWriterTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -381,6 +382,7 @@
 		D206592CF7404E1D9AF623FD /* MiaoYanTests/PrefsWindowControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/PrefsWindowControllerTests.swift; sourceTree = SOURCE_ROOT; };
 		C7D4BC0BCD2C364D59E53FA6 /* MiaoYanTests/GitHubAlertsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/GitHubAlertsTests.swift; sourceTree = SOURCE_ROOT; };
 		7657AFD4D24AA71B9A256741 /* MiaoYanTests/NoteFrontmatterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/NoteFrontmatterTests.swift; sourceTree = SOURCE_ROOT; };
+		03585FF6125C4BBABC5E9E9D0B8EB142 /* MiaoYanTests/MarkdownAttachmentWriterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/MarkdownAttachmentWriterTests.swift; sourceTree = SOURCE_ROOT; };
 		B317254BA22E14235A2E210D /* MiaoYanTests/RenderedBlockDisplayTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/RenderedBlockDisplayTests.swift; sourceTree = SOURCE_ROOT; };
 		8E034AAE51D345618F9875DF /* MiaoYanTests/EditorFileSyncTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/EditorFileSyncTests.swift; sourceTree = SOURCE_ROOT; };
 		2B3FDE8A11167EE610FF5A7E /* MiaoYanTests/NativeEditorModeMigrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiaoYanTests/NativeEditorModeMigrationTests.swift; sourceTree = SOURCE_ROOT; };
@@ -621,6 +623,7 @@
 				B738F144215845899083B5C4 /* MiaoYanTests/StorageInitContentDecisionTests.swift */,
 				C7D4BC0BCD2C364D59E53FA6 /* MiaoYanTests/GitHubAlertsTests.swift */,
 				7657AFD4D24AA71B9A256741 /* MiaoYanTests/NoteFrontmatterTests.swift */,
+				03585FF6125C4BBABC5E9E9D0B8EB142 /* MiaoYanTests/MarkdownAttachmentWriterTests.swift */,
 				B317254BA22E14235A2E210D /* MiaoYanTests/RenderedBlockDisplayTests.swift */,
 				8E034AAE51D345618F9875DF /* MiaoYanTests/EditorFileSyncTests.swift */,
 				2B3FDE8A11167EE610FF5A7E /* MiaoYanTests/NativeEditorModeMigrationTests.swift */,
@@ -1226,6 +1229,7 @@
 				BAE809BB946B47E89F92E155 /* MiaoYanTests/StorageInitContentDecisionTests.swift in Sources */,
 				452D621FD0BD8D78F323777C /* MiaoYanTests/GitHubAlertsTests.swift in Sources */,
 				F51B4048259C36431AF78CA5 /* MiaoYanTests/NoteFrontmatterTests.swift in Sources */,
+				0BC4B4F414F44F5698444F889DAB4CB1 /* MiaoYanTests/MarkdownAttachmentWriterTests.swift in Sources */,
 				220515A7C6035325B6AE86E3 /* MiaoYanTests/RenderedBlockDisplayTests.swift in Sources */,
 				09C88AEBFA5644F897F0FB72 /* MiaoYanTests/EditorFileSyncTests.swift in Sources */,
 				1E058AF705DC115AEF56FB09 /* MiaoYanTests/NativeEditorModeMigrationTests.swift in Sources */,
