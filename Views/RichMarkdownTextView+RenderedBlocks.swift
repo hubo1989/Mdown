@@ -81,8 +81,16 @@ extension RichMarkdownTextView {
                 }
             }
             guard let image else { return }
-            // 核对 revision:渲染期间编辑过则丢弃结果,等下次重建。
-            guard request.revision == self.revision else { return }
+            // 核对 revision:渲染期间编辑过则丢弃迟到结果;编辑触发的
+            // rebuild 已对本块发起过请求(被 in-flight 标记挡住),所以
+            // 这里必须清标记并重建一次,让挂载对缺图块补发——否则图
+            // 停在源码回退,直到下一次无关重建才恢复。Set.remove 幂等,
+            // defer 的清理不受影响。
+            guard request.revision == self.revision else {
+                self.inFlightRenderBlocks.remove(fingerprint)
+                self.rebuildProjection()
+                return
+            }
             self.renderedImages[fingerprint] = image
             self.rebuildProjection()
         }

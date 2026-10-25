@@ -157,4 +157,37 @@ final class RenderedBlockDisplayTests: XCTestCase {
             { view.displayText == edited + "\u{FFFC}\n" },
             "重渲染后应保持展开态(源码+图): \(view.displayText.debugDescription)")
     }
+
+    func testStaleResultRetriesAfterUnrelatedEdit() throws {
+        let source = "```mermaid\nflowchart LR\nA-->B\n```\ntail\n"
+        let image = NSImage(size: NSSize(width: 40, height: 20))
+        let provider: @MainActor (MarkdownBlockRenderRequest) async -> NSImage? = { [weak self] _ in
+            guard let self else { return nil }
+            let count = self.requestCount
+            self.requestCount += 1
+            if count == 0 {
+                // 制造在途窗口:首请求晚归,期间主线程继续编辑
+                try? await Task.sleep(nanoseconds: 600_000_000)
+            }
+            return image
+        }
+        let view = makeView(source, provider: provider)
+        waitUntil(
+            { self.requestCount >= 1 },
+            "首请求应发起")
+
+        // 无关编辑(mermaid 块未变,同指纹):revision +1;编辑触发的
+        // rebuild 对本块的请求被 in-flight 标记挡住。
+        let tail = try XCTUnwrap(
+            view.displayOffset(forSourceOffset: (source as NSString).range(of: "tail").location))
+        view.setSelectedRange(NSRange(location: tail, length: 0))
+        view.insertText("x")
+
+        // 迟到结果被 revision guard 拒收后必须补发同指纹请求并挂图,
+        // 否则图永远停在源码回退(Codex review: RenderedBlocks.swift:87)。
+        waitUntil(
+            { view.displayText.hasPrefix("\u{FFFC}") },
+            "迟到结果丢弃后应补发请求并挂图: \(view.displayText.debugDescription)")
+        XCTAssertGreaterThanOrEqual(requestCount, 2, "同指纹应至少发起两次请求")
+    }
 }
