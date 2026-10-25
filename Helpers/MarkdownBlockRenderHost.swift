@@ -84,9 +84,13 @@ final class MarkdownBlockRenderHost {
         else { return nil }
         defer { try? FileManager.default.removeItem(at: workspace.root) }
 
+        // 明暗态注入 <html> 的 darkmode class:theme-manager.isDarkMode
+        // 只认 documentElement 上的该 class(staged 页面无 CUSTOM_CSS
+        // 占位),不注入则 mermaid 恒按浅色主题配色。
+        let darkClass = request.isDarkTheme ? " class=\"darkmode\"" : ""
         let page = """
             <!doctype html>
-            <html>
+            <html\(darkClass)>
             <head>
               <meta charset="utf-8">
               <script defer src="js/mermaid.min.js"></script>

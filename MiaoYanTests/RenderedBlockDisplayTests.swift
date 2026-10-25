@@ -190,4 +190,146 @@ final class RenderedBlockDisplayTests: XCTestCase {
             "迟到结果丢弃后应补发请求并挂图: \(view.displayText.debugDescription)")
         XCTAssertGreaterThanOrEqual(requestCount, 2, "同指纹应至少发起两次请求")
     }
+
+    /// PR #10 Codex review:主题切换后已渲染图不得停在旧主题。
+    ///
+    /// 图缓存 key 只含内容指纹,不含主题;host 的 updateAppearance 只
+    /// 刷字体/颜色,从不清 renderedImages——深浅切换后已挂的图永久使用
+    /// 旧主题栅格。经真实入口(host.updateAppearance + userData.isDark
+    /// 翻转)断言:主题真变时缺图块必须补发渲染请求并重新收起。
+    @MainActor
+    func testThemeFlipThroughHostReRequestsRenderedImage() {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MiaoYanRenderedBlockThemeTests-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: tempDir) }
+
+        let noteURL = tempDir.appendingPathComponent("mermaid.md")
+        let body = "```mermaid\nflowchart LR\nA-->B\n```\n"
+        try? body.write(to: noteURL, atomically: true, encoding: .utf8)
+        let project = Project(url: tempDir, label: "test", isRoot: true)
+        let note = Note(url: noteURL, with: project)
+        note.content = NSMutableAttributedString(string: body)
+        note.markContentAsLoaded()
+
+        let host = NativeRichEditorHostView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+            styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        addTeardownBlock { [weak window] in window?.close() }
+
+        // host init 时 source 为空、无渲染块,后置注入 provider 拦得住
+        // 首帧(装载发生在 loadNote)。
+        let image = NSImage(size: NSSize(width: 40, height: 20))
+        host.textView.renderedImageProvider = { [weak self] _ in
+            self?.requestCount += 1
+            return image
+        }
+        host.loadNote(note)
+        waitUntil(
+            { host.textView.displayText == "\u{FFFC}\n" },
+            "首图挂载后 collapsed 态应只显示附件图: \(host.textView.displayText.debugDescription)")
+        XCTAssertEqual(requestCount, 1, "同内容首图只应请求一次")
+
+        // 主题翻转 + 真实外观入口:缓存必须作废并按新主题重渲。
+        let userData = AppEnvironment.current.userData
+        let originalIsDark = userData.isDark
+        defer { userData.isDark = originalIsDark }
+        userData.isDark = !originalIsDark
+        host.updateAppearance()
+
+        waitUntil(
+            { self.requestCount >= 2 },
+            "主题切换后应对缺图块补发渲染请求,而非复用旧主题缓存图")
+        waitUntil(
+            { host.textView.displayText == "\u{FFFC}\n" },
+            "重渲完成后应重新收起为附件图: \(host.textView.displayText.debugDescription)")
+
+        // 同主题重复刷新(字体等外观更新)不得反复作废重渲。
+        let countAfterThemeFlip = requestCount
+        host.updateAppearance()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertEqual(requestCount, countAfterThemeFlip, "主题未变时的外观刷新不应清渲染图缓存")
+    }
+
+    /// 失效方法本身的机制合同:清缓存 → 缺图投影 → 补发请求 → 重新收起。
+    /// host 入口的接线由上一用例经 updateAppearance 覆盖;这里直调隔离
+    /// 验证 RichMarkdownTextView 侧行为。
+    func testInvalidateRenderedBlockImagesReRequestsAndRecollapses() {
+        let image = NSImage(size: NSSize(width: 40, height: 20))
+        let provider: @MainActor (MarkdownBlockRenderRequest) async -> NSImage? = { [weak self] _ in
+            self?.requestCount += 1
+            return image
+        }
+        let view = makeView("```mermaid\nflowchart LR\nA-->B\n```\n", provider: provider)
+        waitUntil(
+            { view.displayText == "\u{FFFC}\n" },
+            "图就绪后 collapsed 态应只显示附件图: \(view.displayText.debugDescription)")
+        XCTAssertEqual(requestCount, 1, "同内容首图只应请求一次")
+
+        // 失效瞬间:缓存已清,投影必须立刻回到缺图态(源码 + 附件段),
+        // 并同步对缺图块补发渲染请求。
+        view.invalidateRenderedBlockImages()
+        XCTAssertTrue(
+            view.displayText.contains("flowchart LR"),
+            "失效后缓存已清,应回缺图 expanded 投影: \(view.displayText.debugDescription)")
+        waitUntil(
+            { self.requestCount >= 2 },
+            "失效后应对缺图块补发渲染请求")
+        waitUntil(
+            { view.displayText == "\u{FFFC}\n" },
+            "重渲完成后应重新收起为附件图: \(view.displayText.debugDescription)")
+
+        // 缓存为空时失效必须是空操作(不重建、不补发):用永不产图的
+        // provider 隔离验证——首请求返回 nil 后缓存仍空,再失效不应
+        // 触发额外请求。
+        var nilProviderRequestCount = 0
+        let nilProvider: @MainActor (MarkdownBlockRenderRequest) async -> NSImage? = { _ in
+            nilProviderRequestCount += 1
+            return nil
+        }
+        let nilView = makeView("```mermaid\nflowchart TD\nA-->B\n```\n", provider: nilProvider)
+        waitUntil(
+            { nilProviderRequestCount >= 1 },
+            "缺图首帧应发起一次请求")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        let countBeforeEmptyInvalidate = nilProviderRequestCount
+        nilView.invalidateRenderedBlockImages()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        XCTAssertEqual(
+            nilProviderRequestCount, countBeforeEmptyInvalidate,
+            "缓存已空时失效应为空操作,不得触发重建或补发")
+    }
+
+    /// 渲染请求必须携带当前明暗态(PR #10 主题 finding 完整链路:
+    /// host 页面按 isDarkTheme 注入 darkmode class,否则 mermaid
+    /// 恒渲浅色图,主题切换重渲也产不出深色)。
+    func testRenderRequestCarriesCurrentAppearance() {
+        let userData = AppEnvironment.current.userData
+        let original = userData.isDark
+        defer { userData.isDark = original }
+        var capturedDark: [Bool] = []
+        let provider: @MainActor (MarkdownBlockRenderRequest) async -> NSImage? = { [weak self] request in
+            self?.capturedSources.append(request.source)
+            capturedDark.append(request.isDarkTheme)
+            return nil
+        }
+
+        userData.isDark = true
+        _ = makeView("```mermaid\nflowchart LR\nA-->B\n```\n", provider: provider)
+        waitUntil(
+            { !capturedDark.isEmpty },
+            "首请求应发起")
+        XCTAssertEqual(capturedDark, [true], "深色态请求必须携带 isDarkTheme=true")
+
+        // 翻转明暗后,新视图的首请求应携带新值(invalidate 在缓存
+        // 为空时按合同幂等跳过,不走它;每个视图首请求都读当前态)。
+        userData.isDark = false
+        _ = makeView("```mermaid\nflowchart TD\nC-->D\n```\n", provider: provider)
+        waitUntil(
+            { capturedDark.count >= 2 },
+            "第二个视图应发起请求")
+        XCTAssertEqual(capturedDark.last, false, "浅色态请求必须携带 isDarkTheme=false")
+    }
 }

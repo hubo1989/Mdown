@@ -48,9 +48,15 @@ struct MarkdownBlockRenderRequest: Equatable {
     let themeGeneration: UInt64
     let kind: MarkdownBlockRenderKind
     let source: String
+    /// 渲染时的明暗主题(mermaid 页面按它注入 darkmode class,
+    /// theme-manager.isDarkMode 据此配色)。默认 false 保持既有
+    /// 调用方语义不变。
+    var isDarkTheme: Bool = false
 
     /// 内容指纹:kind + source + 主题代(刻意不含 revision——同内容
-    /// 的新 revision 应命中缓存;主题/内容任一变化即失效)。
+    /// 的新 revision 应命中缓存;主题/内容任一变化即失效)。明暗不
+    /// 入指纹:host 实例每次新建、缓存不跨请求复用,视图层缓存的
+    /// 失效由主题切换时的 invalidateRenderedBlockImages 承担。
     var fingerprint: String {
         var hasher = Hasher()
         hasher.combine(kind.rawValue)

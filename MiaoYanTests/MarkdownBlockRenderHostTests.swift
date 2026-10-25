@@ -54,6 +54,24 @@ final class MarkdownBlockRenderHostTests: XCTestCase {
         XCTAssertNotNil(host.cachedArtifact(for: request), "ready 产物必须落缓存")
     }
 
+    func testDarkThemeMermaidStillProducesSVGArtifact() async throws {
+        // PR #10 主题 finding:深色请求的页面注入 darkmode class
+        // (theme-manager.isDarkMode 只认它),链路必须与浅色同样可用。
+        let host = MarkdownBlockRenderHost()
+        var request = makeRequest(
+            source: "flowchart LR\nA[\"深色\"] --> B[\"End\"]")
+        request.isDarkTheme = true
+
+        let rendered = await host.render(request, timeout: 20)
+        let artifact = try XCTUnwrap(rendered, "深色 mermaid 必须产出 artifact")
+
+        guard case .svg(let svg) = artifact.payload else {
+            return XCTFail("mermaid 产物应为 svg,实际 \(artifact.payload)")
+        }
+        XCTAssertTrue(svg.contains("<svg"), "产物应为 SVG 标记: \(svg.prefix(80))")
+        XCTAssertGreaterThan(artifact.naturalSize.width, 0, "宽度应为正")
+    }
+
     func testInvalidMermaidReturnsNilAndDoesNotPoisonCache() async throws {
         let host = MarkdownBlockRenderHost()
         let request = makeRequest(source: "flowchart ??? definitely invalid")

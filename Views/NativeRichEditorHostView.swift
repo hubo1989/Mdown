@@ -38,9 +38,13 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
     private var saveWorkItem: DispatchWorkItem?
     /// 装载身份：每次 loadNote 自增；异步装载完成核对，晚到拒绝。
     private var loadToken: UInt64 = 0
-    /// 进 preview / 切模式前保存的 selection 锚点（AC-16 退出回原布局）。
+    /// 进 preview / 切模式前保存的 selection 锚点(AC-16 退出回原布局)。
     /// 与笔记身份绑定：切到其它笔记后旧锚点不得恢复到新正文。
     private var selectionAnchor: (owner: ObjectIdentifier, range: NSRange)?
+    /// 上次 applyAppearance 落地的明暗态。updateAppearance 也会在无主题
+    /// 变化时被调(字体刷新等),只有真翻转才作废渲染图,避免无谓重渲。
+    /// nil = 首次(初始化),无已渲染图可失效。
+    private var lastAppliedDarkAppearance: Bool?
 
     private let scrollView = NSScrollView()
 
@@ -240,6 +244,14 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
         // 文字色取预览的 --text-color(#262626/#E7E9EA),与预览模式一致。
         textView.contentTextColor = textView.previewTextColour
         textView.insertionPointColor = isDark ? .white : .black
+        // 主题真变(而非字体等外观刷新)才作废 mermaid 渲染图:图按当前
+        // 主题离屏渲染,但缓存 key 只含内容指纹,不清即永久停在旧主题
+        // (PR #10 Codex review)。失效由 RichMarkdownTextView 侧重建投影
+        // 并对缺图块补发请求;主题未变时跳过,避免同主题刷新反复重渲。
+        if lastAppliedDarkAppearance != nil, lastAppliedDarkAppearance != isDark {
+            textView.invalidateRenderedBlockImages()
+        }
+        lastAppliedDarkAppearance = isDark
         textView.refreshFontAttributes()
     }
 

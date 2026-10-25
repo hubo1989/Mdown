@@ -58,7 +58,8 @@ extension RichMarkdownTextView {
         let request = MarkdownBlockRenderRequest(
             blockID: fingerprint, noteID: "", revision: revision,
             themeGeneration: 0, kind: .mermaid,
-            source: MarkdownProjectionBuilder.fenceContent(of: blockText))
+            source: MarkdownProjectionBuilder.fenceContent(of: blockText),
+            isDarkTheme: AppEnvironment.current.userData.isDark)
         Task { @MainActor in
             defer { self.inFlightRenderBlocks.remove(fingerprint) }
             let image: NSImage?
@@ -118,5 +119,23 @@ extension RichMarkdownTextView {
             return true
         }
         return false
+    }
+
+    /// 外观/主题变化时作废已挂的渲染图并重建投影(PR #10 Codex review)。
+    ///
+    /// 图缓存 key 只有内容指纹(kind+source,见 renderedBlockFingerprint),
+    /// 不含主题——主题切换后缓存命中的仍是旧主题栅格图,不作废即永久
+    /// 陈旧。清空后 rebuildProjection 把渲染块投影回缺图态(expanded,
+    /// 源码可见),applyDisplayAttributes 尾部的 mountRenderedBlockAttachments
+    /// 对缺图块自动补发渲染请求,新请求由 host 按当前主题离屏渲染。
+    ///
+    /// 刻意不推进 revision(内容未变,revision 是编辑序号),也不往
+    /// MarkdownBlockRenderRequest.themeGeneration 塞代数:host 侧不消费
+    /// 该字段,真实失效面就是这份 view 级缓存;等 host 学会按主题渲染
+    /// 时再把主题代接进请求与指纹。
+    func invalidateRenderedBlockImages() {
+        guard !renderedImages.isEmpty else { return }
+        renderedImages.removeAll()
+        rebuildProjection()
     }
 }
