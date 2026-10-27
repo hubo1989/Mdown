@@ -519,6 +519,9 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         // user navigates away inside that window. force:true bypasses the
         // throttle; content dedup still skips no-op snapshots.
         if let previous = EditTextView.note, previous !== note {
+            // T09：快照前先采集 session 提交原文（local recovery trigger，
+            // buffer 仍属于 previous 时刷新镜像；owner 不匹配时安全 no-op）。
+            viewController.captureSessionSourceForVersionSnapshot(of: previous)
             NoteVersionManager.shared.saveVersionIfNeeded(for: previous, force: true)
         }
 
@@ -1014,6 +1017,21 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         syncEditingSession(with: content, owner: owner)
     }
 
+    /// T09: 会话已自行推进代际（watcher 无 dirty 重载、版本恢复、显式接受
+    /// 外部版本）后，把新基线发布进 buffer。与 `publishStorage` 的差别是
+    /// **不再 rebase 会话**——`replaceAll` 只应发生一次，否则 generation
+    /// 双跳、`storageIsStale` 防护与测试断言都偏离真实代际。字节赋值留在
+    /// 主文件：storageNote 的 private(set) 不放宽。
+    /// 程序化装载同样不登记 undo。
+    func publishStorageWithoutRebasingSession(_ content: NSAttributedString, owner: Note?) {
+        withoutUndoRegistration {
+            textStorage?.setAttributedString(content)
+        }
+        storageNote = owner
+        editingSession?.markStoragePublished()
+        updateStorageRevision(editingSession?.revision ?? 0)
+    }
+
     /// T08: finish an in-flight IME composition so leaving points capture the
     /// confirmed text instead of a buffer missing the composing draft
     /// (NE-13). Returns false while a composition stays active — transition
@@ -1024,33 +1042,6 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         guard hasMarkedText() else { return true }
         unmarkText()
         return !hasMarkedText()
-    }
-
-    func saveTextStorageContent(to note: Note) {
-        guard let storage = textStorage else { return }
-        // Refuse cross-note writes: when the buffer belongs to a different
-        // note than the requested target (preview-family modes after a list
-        // switch, see `storageNote` doc), copying it over would replace the
-        // target note's entire content with another file's text (#543).
-        guard let owner = storageNote, owner.isEqualURL(url: note.url) else {
-            let mismatch = NSError(
-                domain: "com.tw93.miaoyan.race",
-                code: 3,
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "textStorage owner (\(storageNote?.url.lastPathComponent ?? "nil")) != save target (\(note.url.lastPathComponent))"
-                ])
-            AppDelegate.trackError(mismatch, context: "EditTextView.saveTextStorageContent.ownerGuard")
-            return
-        }
-        // T05: 失效 buffer / 退役 note 的整篇写回拒绝（identity/revision
-        // 防护，见 EditTextView+EditingSession.editingSessionAllowsSave）。
-        guard editingSessionAllowsSave(to: note) else { return }
-        let string = storage.attributedSubstring(from: NSRange(0..<storage.length))
-        let cleaned = NSMutableAttributedString(attributedString: string)
-            .unLoadImages()
-            .unLoadCheckboxes()
-        note.content = cleaned
     }
 
     func setEditorTextColor(_ color: NSColor) {

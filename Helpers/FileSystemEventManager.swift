@@ -262,28 +262,43 @@ class FileSystemEventManager {
         let contentChanged = fsContent.string != memoryContent.string
 
         guard contentChanged else { return }
+        let externalString = fsContent.string
 
-        // Conflict-aware path for the active editor:
-        // If this note is open and its editor body diverges from what we are
-        // about to overwrite with disk content, write a backup so the user's
-        // in-progress text is not silently destroyed by an external sync /
-        // editor.
+        // T09 (SPEC §7.3 / NE-19): the note currently owned by the editor
+        // buffer goes through the source session, which decides by local-dirty
+        // state. The storageNote identity (not the table selection) is the
+        // authority here: in preview-family modes EditTextView.note follows the
+        // list while the buffer keeps the last edited note (#543).
         if EditTextView.note == note,
             let editArea = delegate?.editArea,
-            // In preview-family modes the buffer may still hold another
-            // note's text (#543); only treat it as this note's local copy
-            // when the storage owner matches, or the backup would contain
-            // the wrong note's content.
             editArea.storageNote === note
         {
-            let editorString = editArea.string
-            if editorString != fsContent.string {
-                writeConflictBackup(for: note, editorContent: editorString)
+            if editArea.applyExternalFileChange(externalString, owner: note) {
+                // No local changes: the session replaced its baseline with the
+                // disk truth (generation advanced) and republished the buffer.
+                // Sync the committed mirror and refresh the editor surface —
+                // fill() republishes from note.content, so it must see the new
+                // truth or the buffer would flip back to the pre-change text.
+                note.content = NSMutableAttributedString(attributedString: fsContent)
+                note.undoManager.removeAllActions()
+                delegate?.notesTableView.reloadRow(note: note)
+                delegate?.refillEditArea(suppressSave: true)
+                return
+            }
+            // Local dirty / in-flight composition: keep BOTH (NE-19). Back up
+            // the local draft (the buffer is the session-authoritative source),
+            // leave the external version on disk, and do NOT clear history or
+            // refill-overwrite the user's draft. The external body is parked in
+            // the session (`adoptPendingExternalVersion`) for an explicit
+            // choice; no three-way merge is attempted.
+            if editArea.string != externalString {
+                writeConflictBackup(for: note, editorContent: editArea.string)
                 delegate?.toast(
                     message: I18n.str("External change detected. Local copy backed up~"),
                     style: .failure
                 )
             }
+            return
         }
 
         note.content = NSMutableAttributedString(attributedString: fsContent)

@@ -1180,18 +1180,16 @@ class Storage {
         let manager = FileManager.default
 
         for url in urls {
+            // T09 (PLAN)：孤立附件清理只走可恢复路径（系统 Trash）。不做
+            // removeItem 兜底——Trash 失败通常意味着卷不可写/满，此时静默
+            // 硬删等价于任意删除用户文件；宁可报告失败让用户手动处理。
             do {
                 var resultingItemUrl: NSURL?
                 try manager.trashItem(at: url, resultingItemURL: &resultingItemUrl)
                 removed.append(url)
             } catch {
-                do {
-                    try manager.removeItem(at: url)
-                    removed.append(url)
-                } catch {
-                    failed.append(url)
-                    AppDelegate.trackError(error, context: "Storage.cleanOrphanAttachments")
-                }
+                failed.append(url)
+                AppDelegate.trackError(error, context: "Storage.cleanOrphanAttachments")
             }
         }
 
