@@ -177,6 +177,26 @@ final class RichMarkdownEditingTests: XCTestCase {
         XCTAssertEqual(view.source, "项目\n", "Backspace 在项首只删 marker")
     }
 
+    /// T11：heading 内容内行内格式命令，marker 字节不动（AC-01）。
+    func testInlineFormatInsideHeadingKeepsMarker() {
+        let view = makeView("## 标题\n")
+        // display "标题\n"，选中 "题"
+        view.setSelectedRange(NSRange(location: 0, length: 2))  // 选中 "标题"
+        XCTAssertTrue(view.applyInlineFormat(.strong))
+        XCTAssertEqual(view.source, "## **标题**\n", "heading marker 与内容字节精确")
+        XCTAssertEqual(view.displayText, "标题\n")
+    }
+
+    /// T11：format 命令登记单一历史，undo 回 wrap 前字节。
+    func testInlineFormatUndoRestoresBytes() {
+        let view = makeView("词 其他\n")
+        view.setSelectedRange(NSRange(location: 0, length: 1))
+        XCTAssertTrue(view.applyInlineFormat(.emphasis))
+        XCTAssertEqual(view.source, "*词* 其他\n")
+        XCTAssertTrue(view.performUndo())
+        XCTAssertEqual(view.source, "词 其他\n")
+    }
+
     // MARK: undo / redo（单一历史）
 
     func testUndoRedoTypingAndStructure() {
