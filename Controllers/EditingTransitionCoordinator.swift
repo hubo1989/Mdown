@@ -259,7 +259,7 @@ final class SystemEditingTransitionPresenter: EditingTransitionPresenting {
 extension ViewController: EditingTransitionContext {
 
     var activeEditingNote: Note? {
-        if sessionLayoutMode == .wysiwyg, let current = vditorEditView?.currentNote {
+        if sessionLayoutMode == .wysiwyg, let current = activeWysiwygBackend?.currentNote {
             return current
         }
         return EditTextView.note
@@ -272,7 +272,7 @@ extension ViewController: EditingTransitionContext {
 
     func captureActiveBuffer(into note: Note) {
         if sessionLayoutMode == .wysiwyg {
-            vditorEditView?.flushPendingSave()
+            activeWysiwygBackend?.flushPendingSave(completion: nil)
         } else {
             editArea.saveTextStorageContent(to: note)
         }

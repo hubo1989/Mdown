@@ -188,6 +188,9 @@
 /* Class = "NSMenuItem"; title = "Toggle Split View"; ObjectID = "Tgl-Spl-View"; */
 "Tgl-Spl-View.title" = "分割表示を切り替え";
 
+/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "Tgl-Wys-Menu"; */
+"Tgl-Wys-Menu.title" = "WYSIWYG を切り替え";
+
 /* Class = "NSMenuItem"; title = "Toggle TOC"; ObjectID = "Tgl-TOC-Menu"; */
 "Tgl-TOC-Menu.title" = "目次の表示切替";
 

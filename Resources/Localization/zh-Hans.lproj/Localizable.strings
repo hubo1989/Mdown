@@ -289,6 +289,7 @@
 "Reload" = "重新加载";
 "Note reloaded~" = "笔记已刷新~";
 "Font size: %d" = "字体大小：%d";
+"Native editor failed to load this note; showing source." = "原生编辑器加载此笔记失败，已切回源码显示。";
 
 /* Version History */
 "Version History" = "版本历史";

@@ -91,8 +91,21 @@ class ViewController:
     }
 
     var vditorEditView: VditorEditView?
+    var nativeRichHost: NativeRichEditorHostView?
     var savedLayoutModeBeforePreview: EditorLayoutMode?
     var previousSingleLayoutMode: EditorLayoutMode = .source
+
+    /// T10 (SPEC NE-01)：wysiwyg 布局的正文后端。native rich 是默认，
+    /// legacy Vditor 是开发期回退（defaults `useNativeWysiwyg=false`）。
+    /// 同一时刻只有一个 backend 被 loadNote/focus——布局层/采集面只经
+    /// 本路由触达后端，禁止两个 backend 并行发布正文（SPEC §13）。
+    var activeWysiwygBackend: (WysiwygEditingBackend & NSView)? {
+        UserDefaultsManagement.useNativeWysiwyg ? nativeRichHost : vditorEditView
+    }
+
+    /// T10 (SPEC NE-36)：native 装载失败的笔记在本次会话内回 source
+    /// 显示，不写全局 layout pref——pref 仍是用户的 wysiwyg 选择。
+    var wysiwygLoadFailureNote: Note?
 
     var sessionIsExporting: Bool {
         get { sessionState.isOnExport }
@@ -1113,6 +1126,24 @@ class ViewController:
         ])
         self.vditorEditView = vditorView
 
+        // T10：native rich backend 与 Vditor 同位宿主（editorContainer 全幅）。
+        // 两者都常驻创建、默认隐藏；activeWysiwygBackend 按 pref 路由，同一
+        // 时刻只有一个可见/被装载（禁止并行两个 backend 发布正文）。
+        let richHost = NativeRichEditorHostView(frame: .zero)
+        richHost.translatesAutoresizingMaskIntoConstraints = false
+        richHost.isHidden = true
+        richHost.onNoteLoadFailure = { [weak self] note in
+            self?.handleNativeWysiwygLoadFailure(note)
+        }
+        editorContainer.addSubview(richHost)
+        NSLayoutConstraint.activate([
+            richHost.leadingAnchor.constraint(equalTo: editorContainer.leadingAnchor),
+            richHost.trailingAnchor.constraint(equalTo: editorContainer.trailingAnchor),
+            richHost.topAnchor.constraint(equalTo: editorContainer.topAnchor),
+            richHost.bottomAnchor.constraint(equalTo: editorContainer.bottomAnchor),
+        ])
+        self.nativeRichHost = richHost
+
         // Add container and preview to split view using addArrangedSubview
         contentSplitView.addArrangedSubview(editorContainer)
         contentSplitView.addArrangedSubview(previewScroll)
@@ -1278,8 +1309,8 @@ class ViewController:
                 self.editArea.fill(note: note, options: .silent)
                 if self.sessionLayoutMode == .wysiwyg {
                     self.editAreaScroll.isHidden = true
-                    self.vditorEditView?.isHidden = false
-                    self.vditorEditView?.loadNote(note)
+                    self.activeWysiwygBackend?.isHidden = false
+                    self.activeWysiwygBackend?.loadNote(note)
                 }
                 self.revealEditor()
             }
@@ -1366,8 +1397,9 @@ class ViewController:
     func revealEditor() {
         if sessionLayoutMode == .wysiwyg {
             editAreaScroll.isHidden = true
-            vditorEditView?.isHidden = false
-            vditorEditView?.alphaValue = 1
+            let backend = activeWysiwygBackend
+            backend?.isHidden = false
+            backend?.alphaValue = 1
             titleLabel.alphaValue = 1
             return
         }
