@@ -1,19 +1,17 @@
-# V4.2.0 Zinogre 🍝
+# V0.0.101 Nergigante 🎉
 
-1. 修复已删除笔记被延迟保存重新创建的问题，切换侧栏或重启后不会再次出现
-2. 修复复杂 LaTeX 公式渲染，下标、绝对值和自适应括号现在可在预览与 PPT 中正确组合
-3. 修复删除笔记后侧边栏可能横向偏移的问题，文件夹列表会始终贴齐窗口宽度
-4. 改进 PDF 导出，Mermaid 图表不再重复渲染，标题也会沿用当前笔记字体
-5. 修复 PPT 本地图片丢失，以及窗口置顶时偏好设置被遮挡的问题
-6. 改进 HDR 照片在 Markdown 预览中的显示效果，画面不再异常过曝
-7. 新增官方 Mdown Agent Skill，让 Agent 能按Mdown的语法、附件、PPT 与 CLI 规范处理笔记
+1. 项目全面更名为 Mdown：Xcode 工程、Target、Scheme、CLI、Agent Skills 与全部界面文案统一为 Mdown
+2. 应用身份迁移至 com.mdown.app、iCloud.com.mdown.app 与 group.mdown-manager，新旧偏好与笔记数据非破坏自动迁移
+3. 修复 WYSIWYG 模式下键盘输入被搜索框拦截的问题，编辑器现在可以正常打字
+4. 新增 OpenCodeReview AI 自动代码审查工作流，PR 提交后自动触发中文审查
+5. CLI 新增 mdown 主命令，保留 miao/miaoyan 兼容别名与 MIAOYAN_PATH 环境变量回退
+6. 版本历史目录、置顶标记、光标位置与垃圾桶标记全面支持新旧双读双写，升级后不丢数据
 
 ---
 
-1. Prevents deleted notes from being recreated by delayed saves after switching sections or restarting
-2. Complex LaTeX formulas now render correctly in preview and PPT when subscripts, absolute values, and adaptive delimiters are combined
-3. Sidebar folders remain horizontally aligned after deleting notes, reloading, or resizing the window
-4. PDF exports no longer rerender Mermaid diagrams, and headings use the current note font
-5. PPT keeps local images, and Preferences stays visible when windows are kept on top
-6. HDR photos display with balanced tones instead of appearing overexposed in Markdown preview
-7. New official Mdown Agent Skill teaches agents the app's Markdown, attachment, PPT, and CLI conventions
+1. Complete rebrand to Mdown: Xcode project, targets, schemes, CLI, Agent Skills, and all UI strings unified under the Mdown name
+2. App identity migrated to com.mdown.app, iCloud.com.mdown.app, and group.mdown-manager with non-destructive automatic migration of legacy preferences and note data
+3. Fixed WYSIWYG mode keyboard input being intercepted by the search field; the editor now accepts typed input correctly
+4. Added OpenCodeReview AI code review workflow that automatically triggers Chinese-language reviews on pull requests
+5. CLI gains the mdown primary command with miao/miaoyan compatibility aliases and MIAOYAN_PATH environment variable fallback
+6. Version history directories, pin markers, cursor positions, and trash markers support dual read/write for both new and legacy formats, preserving data across upgrades

@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import Mdown
 
@@ -176,5 +177,23 @@ final class VditorIntegrationTests: XCTestCase {
         vc.enableWysiwygMode()
         XCTAssertEqual(vc.vditorEditView?.isHidden, false)
         XCTAssertEqual(vc.editAreaScroll.isHidden, true)
+    }
+
+    /// 回归：WYSIWYG 正文（WKWebView）获得焦点时，字母键不得被"输入即搜索"
+    /// 拦截到搜索框——用户报告"所见即所得不能输入、只能删除"的根因。
+    /// firstResponder 是 WebKit 私有 WKContentView（VditorEditView 的后代），
+    /// 既不是 EditTextView 也不是 NSTextView，旧条件把它当成"非编辑器"。
+    @MainActor
+    func testTypeToSearchDoesNotStealKeysFromWysiwygEditor() {
+        let vc = ViewController()
+        let editor = VditorEditView()
+        vc.vditorEditView = editor
+        let inner = NSView()
+        editor.addSubview(inner)
+
+        XCTAssertTrue(vc.isWysiwygTypingTarget(inner), "WKWebView 内部的 firstResponder 必须视为编辑器输入目标")
+        XCTAssertTrue(vc.isWysiwygTypingTarget(editor), "VditorEditView 本身获得焦点时同样保留键盘输入")
+        XCTAssertFalse(vc.isWysiwygTypingTarget(NSView()), "其他视图（笔记列表等）仍走输入即搜索")
+        vc.vditorEditView = nil
     }
 }

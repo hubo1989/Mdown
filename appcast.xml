@@ -12,6 +12,47 @@
       <pubDate>Sat, 12 Sep 2026 03:16:12 +0000</pubDate>
       <enclosure url="https://github.com/hubo1989/Mdown/releases/download/V0.0.1/Mdown_V0.0.1.zip" sparkle:shortVersionString="0.0.1" sparkle:version="0.0.1" sparkle:edSignature="58NC7wdEJVRz0saWgo8ChWczYcBADDxHhB+PNdEE/o2dElLkGVxpnUHOWFft66tproAiuKVRw9HNK989QAZnAg==" length="29337575" type="application/octet-stream"/>
       <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+    </item>    <item>
+      <title>0.0.101</title>
+      <link>https://github.com/hubo1989/Mdown/releases</link>
+      <description><![CDATA[
+<p align="center">
+  <a href="https://github.com/hubo1989/Mdown" target="_blank">
+    <img src="https://gw.alipayobjects.com/zos/k/t0/43.png" width="110" />
+  </a>
+  <h1 align="center">Mdown V0.0.101 Nergigante 🎉</h1>
+  <div align="center">A native Markdown editor for engineers.</div>
+</p>
+
+<h3>Changelog</h3>
+  <ol>
+    <li>Complete rebrand to Mdown: Xcode project, targets, schemes, CLI, Agent Skills, and all UI strings unified under the Mdown name</li>
+    <li>App identity migrated to com.mdown.app, iCloud.com.mdown.app, and group.mdown-manager with non-destructive automatic migration of legacy preferences and note data</li>
+    <li>Fixed WYSIWYG mode keyboard input being intercepted by the search field; the editor now accepts typed input correctly</li>
+    <li>Added OpenCodeReview AI code review workflow that automatically triggers Chinese-language reviews on pull requests</li>
+    <li>CLI gains the mdown primary command with miao/miaoyan compatibility aliases and MIAOYAN_PATH environment variable fallback</li>
+    <li>Version history directories, pin markers, cursor positions, and trash markers support dual read/write for both new and legacy formats, preserving data across upgrades</li>
+  </ol>
+
+<h3>更新日志</h3>
+  <ol>
+    <li>项目全面更名为 Mdown：Xcode 工程、Target、Scheme、CLI、Agent Skills 与全部界面文案统一为 Mdown</li>
+    <li>应用身份迁移至 com.mdown.app、iCloud.com.mdown.app 与 group.mdown-manager，新旧偏好与笔记数据非破坏自动迁移</li>
+    <li>修复 WYSIWYG 模式下键盘输入被搜索框拦截的问题，编辑器现在可以正常打字</li>
+    <li>新增 OpenCodeReview AI 自动代码审查工作流，PR 提交后自动触发中文审查</li>
+    <li>CLI 新增 mdown 主命令，保留 miao/miaoyan 兼容别名与 MIAOYAN_PATH 环境变量回退</li>
+    <li>版本历史目录、置顶标记、光标位置与垃圾桶标记全面支持新旧双读双写，升级后不丢数据</li>
+  </ol>
+
+<hr />
+<p>If you find Mdown useful, please consider giving it a star and recommending it to your friends.</p>
+
+> https://github.com/hubo1989/Mdown
+          ]]>      </description>
+      <pubDate>Tue, 27 Oct 2026 12:31:47 +0000</pubDate>
+      <enclosure url="https://github.com/hubo1989/Mdown/releases/download/V0.0.101/Mdown_V0.0.101.zip" sparkle:shortVersionString="0.0.101" sparkle:version="0.0.101" sparkle:edSignature="W6YUdsk4jks1RtwAK9TVo4pvlYiI1JrJLx+Ru1QunB2L0IPLNsy9PEB/N+VNQrMFWkw/y6Gbh34v/0IefhfbDw==" length="27486976" type="application/octet-stream"/>
+      <sparkle:minimumSystemVersion>12.0</sparkle:minimumSystemVersion>
     </item>
+
   </channel>
 </rss>
