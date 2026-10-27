@@ -7,19 +7,23 @@ name: Release build
 # publish: no GitHub Release, no appcast update, no reactions ritual —
 # those stay with the maintainer's local scripts).
 #
+# Notarization uses an app-specific password (same route as TransFrame),
+# not an App Store Connect API key — the latter needs the Account Holder.
+#
 # Required secrets (repo → Settings → Secrets and variables → Actions):
 #   MAC_SIGNING_P12         base64 of the PKCS#12 export of the
 #                           "Developer ID Application: ..." identity
-#                           (cert + private key), export password in
-#                           MAC_SIGNING_P12_PASSWORD
+#                           (cert + private key)
 #   MAC_SIGNING_P12_PASSWORD  password used when creating the .p12
-#   ASC_KEY_ID              App Store Connect API key id (10 chars)
-#   ASC_ISSUER_ID           App Store Connect API issuer id (UUID)
-#   ASC_API_KEY_P8          base64 of the .p8 private key file
+#   APPLE_ID                Apple ID of a team member with notary
+#                           access (the one used for the app password)
+#   APPLE_APP_PASSWORD      app-specific password for that Apple ID
+#                           (account.apple.com → Sign-In and Security
+#                           → App-Specific Passwords; NOT the account
+#                           password)
 #
-# Creating the ASC API key: appstoreconnect.apple.com → Users and Access
-# → Integrations → App Store Connect API → Team Keys → Generate
-# (minimum role: Developer; notarytool only needs submission access).
+# The Apple ID must be a member of team 27LU47J28S with a role that can
+# submit notarization (any paid-team role works; no Account Holder).
 
 on:
   workflow_dispatch:
@@ -41,6 +45,7 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.3.app/Contents/Developer
       SIGN_IDENTITY: "Developer ID Application: Chengdu Chunfenshijie Technology Co.,Ltd. (27LU47J28S)"
+      TEAM_ID: "27LU47J28S"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,7 +55,7 @@ jobs:
       - name: Fail fast on missing secrets
         run: |
           missing=0
-          for s in MAC_SIGNING_P12 MAC_SIGNING_P12_PASSWORD ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8; do
+          for s in MAC_SIGNING_P12 MAC_SIGNING_P12_PASSWORD APPLE_ID APPLE_APP_PASSWORD; do
             if [ -z "${!s}" ]; then echo "::error::$s secret not set (see workflow header)"; missing=1; fi
           done
           [ "$missing" -eq 0 ]
@@ -79,19 +84,16 @@ jobs:
 
       - name: Build, sign and notarize
         env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
           set -euo pipefail
-          # notarytool on CI uses the ASC API key (.p8) instead of a
+          # notarytool on CI uses an app-specific password instead of a
           # keychain profile; store-credentials validates it right here.
-          echo "$ASC_API_KEY_P8" | base64 --decode > "AuthKey_${ASC_KEY_ID}.p8"
           xcrun notarytool store-credentials mdown-notary-ci \
-            --key "AuthKey_${ASC_KEY_ID}.p8" \
-            --key-id "$ASC_KEY_ID" \
-            --issuer "$ASC_ISSUER_ID"
-          rm -f "AuthKey_${ASC_KEY_ID}.p8"
+            --apple-id "$APPLE_ID" \
+            --team-id "$TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD"
           # build.sh defaults to the same Developer ID identity; point its
           # notary step at the CI profile and keep everything else intact.
           MDOWN_NOTARY_PROFILE=mdown-notary-ci bash scripts/build.sh
