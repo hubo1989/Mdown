@@ -58,6 +58,13 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     /// 最近一次 display→source 同步被拒的原因（nil = 无拒绝）。
     /// 测试/诊断观察口：拒绝本身合法（映射歧义），静默接受 display 才是 bug。
     private(set) var lastSyncRejection: EditRejection?
+    /// T12：最近一次触发的输入规则（空段前缀完成）。nil = 未触发。
+    /// 测试/诊断观察口——转换本身不改 source（parser 接管），此口用于
+    /// 验证组合输入/粘贴/保护块内不触发（NE-13/NE-10）。
+    private(set) var lastInputRuleTriggered: InputRuleMatch?
+    /// T12：粘贴/拖放期间置位（readSelectionFromPasteboard 覆盖点），
+    /// 输入规则不评估——粘贴不是 typing（NE-21）。
+    private var isPastingFlag = false
 
     public init(source: String) {
         self.source = source
@@ -222,9 +229,11 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         let replacement = diff.replacement
         let oldText = diff.oldText
 
-        // 定位编辑窗所属块并映射为 source patch；patch 被拒或编辑落在
-        // 块间分隔符（不属于任何投影）时不静默吞掉——source 是权威，
-        // cachedDisplay 不得领先 source。
+        // 定位编辑窗所属块并映射为 source patch；编辑窗跨块（oldText 含
+        // 块间换行）或单块映射失配时，先验证完整映射再做一次跨块替换事务
+        // （SPEC §4.3「跨块选区替换：验证完整映射后一次事务」）；不可安全
+        // 映射时不静默吞掉——source 是权威，cachedDisplay 不得领先 source。
+        var applied = false
         let editDisplayStart = prefix
         for item in rendered
         where editDisplayStart >= item.displayStart
@@ -239,22 +248,30 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 expectedText: oldText,
                 replacement: replacement
             )
-            switch MarkdownPatchApplier.applyPatches([patch], to: source) {
-            case .success(let newSource):
-                let selectionBefore = selectedRange()
+            // patch 必须完整落在本块内：跨块编辑窗（oldText 含块间换行）
+            // 的 display 文本可能与 source 侧后续块内容碰巧重合，仅凭
+            // expectedText 匹配不能证明单块映射成立——越界的一律交给
+            // 跨块 span 路径验证（marked 期间无 span 路径，回退显示）。
+            let withinBlock = sourceStart >= item.block.rangeUTF16.location
+                && sourceStart + oldText.utf16.count <= NSMaxRange(item.block.rangeUTF16)
+            if withinBlock,
+                case .success(let newSource) = MarkdownPatchApplier.applyPatches([patch], to: source)
+            {
                 // T06：composition 提交已在上方 marked/justUnmarked 分支
                 // 处理（一次成组 + 清基线）。这里只剩普通 typing。
+                // T12：selectionBefore 统一 source 坐标——编辑前 caret 即
+                // 插入点，undo 恢复时经投影映射回 display。
                 history.record(
                     MarkdownEditorHistory.RecordInput(
                         patches: [patch], sourceBefore: source,
                         selectionBefore: MarkdownSelection(
-                            anchorUTF16: selectionBefore.location,
-                            focusUTF16: NSMaxRange(selectionBefore),
+                            anchorUTF16: patch.rangeUTF16.location,
+                            focusUTF16: patch.rangeUTF16.location,
                             affinity: .downstream
                         ),
                         selectionAfter: MarkdownSelection(
-                            anchorUTF16: selectionBefore.location + replacement.utf16.count,
-                            focusUTF16: selectionBefore.location + replacement.utf16.count,
+                            anchorUTF16: patch.rangeUTF16.location + replacement.utf16.count,
+                            focusUTF16: patch.rangeUTF16.location + replacement.utf16.count,
                             affinity: .downstream
                         ),
                         origin: .typing,
@@ -262,12 +279,51 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                     ))
                 source = newSource
                 revision += 1
-            case .failure(let rejection):
-                // 观察口（测试/诊断）：映射歧义或 expectedText 失配时拒绝
-                // 写 source；随后统一走回退分支把显示拉回 source。
-                lastSyncRejection = rejection
+                applied = true
+                // T12 输入规则（§4.3 空段前缀）：单空格纯插入完成段首结构
+                // 前缀时重组 undo 单元（一键 undo 回字面）。组合输入已在上
+                // 方 marked 分支 return；粘贴经 isPastingFlag 排除；保护块
+                // （code/math/table/html/frontmatter）由 protectedRanges 排除。
+                if patch.rangeUTF16.length == 0 && replacement == " " && !isPastingFlag {
+                    evaluateInputRule(insertedOffset: patch.rangeUTF16.location)
+                }
             }
             break
+        }
+
+        if !applied, !oldText.isEmpty,
+            let span = sourceRangeSpanningBlocks(
+                forDisplayRange: NSRange(location: prefix, length: oldText.utf16.count))
+        {
+            // 跨块替换：expectedText 是 source 侧实际字节（display 的
+            // oldText 与 source 区间文本因 marker 隐藏而不同）。
+            let spanText = (source as NSString).substring(with: span)
+            let patch = SourcePatch(rangeUTF16: span, expectedText: spanText, replacement: replacement)
+            if case .success(let newSource) = MarkdownPatchApplier.applyPatches([patch], to: source) {
+                history.record(
+                    MarkdownEditorHistory.RecordInput(
+                        patches: [patch], sourceBefore: source,
+                        selectionBefore: MarkdownSelection(
+                            anchorUTF16: span.location, focusUTF16: span.location, affinity: .downstream
+                        ),
+                        selectionAfter: MarkdownSelection(
+                            anchorUTF16: span.location + replacement.utf16.count,
+                            focusUTF16: span.location + replacement.utf16.count,
+                            affinity: .downstream
+                        ),
+                        origin: .typing,
+                        name: "typing-replace"
+                    ))
+                source = newSource
+                revision += 1
+                applied = true
+            }
+        }
+
+        if !applied {
+            // 观察口（测试/诊断）：单块与跨块映射均失败时拒绝写 source；
+            // 随后统一走回退分支把显示拉回 source。
+            lastSyncRejection = .expectedTextMismatch
         }
 
         // composition 期间不重建（保持 markedTextRange）；否则以 source 为准
@@ -275,11 +331,23 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         // 被跳过（无闪烁、无 selection 重置）；失败时显示被显式回退。每次编辑
         // 后立即收敛坐标：延迟到下一次编辑再收敛会让 rendered 的 displayStart/
         // 块长过期，块尾连续输入自第 3 字符起定位错。
+        // T12：caret 恢复走 source 坐标经投影映射——输入规则触发结构转换
+        // （如 "-" → 列表 marker 隐藏）时 display 长度变化，旧 display 偏移
+        // 直接 clamp 会把 caret 甩到块末，下一次输入落错行。
         if !hasMarkedText() {
             let restore = selectedRange()
             rebuildProjection()
-            let clamped = min(restore.location, max(0, (string as NSString).length - restore.length))
-            setSelectedRange(NSRange(location: clamped, length: restore.length))
+            if applied,
+                let lastPatch = history.undoStack.last?.patches.last
+            {
+                let sourceCaretAfter = lastPatch.rangeUTF16.location + lastPatch.replacement.utf16.count
+                let display = displayOffset(forSourceOffset: sourceCaretAfter)
+                    ?? min(restore.location, max(0, (string as NSString).length - restore.length))
+                setSelectedRange(NSRange(location: min(display, (string as NSString).length), length: 0))
+            } else {
+                let clamped = min(restore.location, max(0, (string as NSString).length - restore.length))
+                setSelectedRange(NSRange(location: clamped, length: restore.length))
+            }
         } else {
             cachedDisplay = newDisplay
         }
@@ -316,6 +384,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
                 expectedText: oldText,
                 replacement: replacement
             )
+            // marked 期间投影保持进入组合时的版本，块长不会随候选增长。
+            // 不能拿冻结的块尾验证当前候选范围；实际旧文本由 patch 校验。
             if case .success(let newSource) = MarkdownPatchApplier.applyPatches([patch], to: source) {
                 source = newSource
                 revision += 1
@@ -371,25 +441,27 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         return nil
     }
 
-    /// G0 诊断口：caret 的 source 偏移与所在 list item（测试观察用）。
+    /// G0 诊断口：caret 的 source 偏移与所在结构行（测试观察用）。
     func debugListItemLocalization() -> (sourceCaret: Int, item: Bool) {
         rebuildProjection()
-        return (sourceCaret(), currentListItem() != nil)
+        return (sourceCaret(), currentStructuralLine()?.kind != .none)
     }
 
-    // MARK: - 结构命令（Enter/Tab/Backspace 于 list；G0 三层 list 原型）
+    // MARK: - 结构命令（Enter/Tab/Backspace/Delete；T12 MarkdownBlockModel 规划）
 
     public func text(_: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         rebuildProjection()  // 结构命令需要准确的块定位
         switch commandSelector {
         case #selector(insertNewline(_:)):
-            return handleEnterInList()
+            return handleStructuralEnter()
         case #selector(insertTab(_:)):
-            return handleTabInList(indent: true)
+            return handleStructuralTab(indent: true)
         case #selector(insertBacktab(_:)):
-            return handleTabInList(indent: false)
+            return handleStructuralTab(indent: false)
         case #selector(deleteBackward(_:)):
-            return handleBackspaceAtListItemStart()
+            return handleStructuralBackspace()
+        case #selector(deleteForward(_:)):
+            return handleStructuralDeleteForward()
         default:
             return false
         }
@@ -409,171 +481,108 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         return displayCaret
     }
 
-    /// 当前 caret 所在 list item 的定位。
-    private struct ListItemContext {
-        let block: LosslessMarkdownParser.Block
-        let lineRange: NSRange
-        /// marker 总长（缩进 + 符号 + 尾随空格），Backspace/Enter 拆分用。
-        let markerLength: Int
-        /// marker 符号起始（含缩进），Tab 缩进/退格的插入点。
-        let markerOffset: Int
-    }
-
-    /// 解析行首 marker：无序 `-`/`*`/`+` 或有序 `数字.`/`数字)` + 尾随空格
-    /// （或行尾裸 marker 空项）。marker 符号起点（相对行首）与总长；
-    /// 无 marker（含紧贴内容的 "-x"/"1.x"）返回 nil。
-    private static func parseListMarker(_ body: some StringProtocol) -> (symbolStart: Int, length: Int)? {
-        var idx = body.startIndex
-        // 缩进
-        while idx < body.endIndex, body[idx] == " " || body[idx] == "\t" {
-            idx = body.index(after: idx)
-        }
-        let symbolStart = body.distance(from: body.startIndex, to: idx)
-        guard idx < body.endIndex else { return nil }
-        let c = body[idx]
-        if c == "-" || c == "*" || c == "+" {
-            idx = body.index(after: idx)
-            let markerLen = body.distance(from: body.startIndex, to: idx)
-            guard idx < body.endIndex else { return (symbolStart, markerLen) }
-            let n = body[idx]
-            if n == "\n" || n == "\r" { return (symbolStart, markerLen) }
-            guard n == " " || n == "\t" else { return nil }
-            while idx < body.endIndex, body[idx] == " " || body[idx] == "\t" {
-                idx = body.index(after: idx)
-            }
-            return (symbolStart, body.distance(from: body.startIndex, to: idx))
-        }
-        // 有序：数字串 + ./) + 空格（或行尾空项）
-        var digits = 0
-        while idx < body.endIndex, body[idx].isNumber {
-            digits += 1
-            idx = body.index(after: idx)
-        }
-        guard digits > 0, idx < body.endIndex, body[idx] == "." || body[idx] == ")" else { return nil }
-        idx = body.index(after: idx)
-        let markerLen = body.distance(from: body.startIndex, to: idx)
-        guard idx < body.endIndex else { return (symbolStart, markerLen) }
-        let n = body[idx]
-        if n == "\n" || n == "\r" { return (symbolStart, markerLen) }
-        guard n == " " || n == "\t" else { return nil }
-        while idx < body.endIndex, body[idx] == " " || body[idx] == "\t" {
-            idx = body.index(after: idx)
-        }
-        return (symbolStart, body.distance(from: body.startIndex, to: idx))
-    }
-
-    private func currentListItem() -> ListItemContext? {
+    /// caret 所在的容器行（list item / quote 内的当前行）结构模型。
+    /// 非 list/quote 块或 caret 不在块内返回 nil。
+    private func currentStructuralLine() -> MarkdownBlockLine? {
         let caret = sourceCaret()
         let ns = source as NSString
         for block in document.blocks {
-            guard case .listItem = block.kind else { continue }
-            let blockStart = block.rangeUTF16.location
-            let blockEnd = NSMaxRange(block.rangeUTF16)
-            guard caret >= blockStart, caret <= blockEnd else { continue }
-            let probe = min(max(caret, blockStart), max(blockStart, blockEnd - 1))
+            let isContainer: Bool
+            switch block.kind {
+            case .listItem, .quote: isContainer = true
+            default: isContainer = false
+            }
+            guard isContainer,
+                caret >= block.rangeUTF16.location, caret <= NSMaxRange(block.rangeUTF16)
+            else { continue }
+            let probe = min(max(caret, block.rangeUTF16.location), max(block.rangeUTF16.location, NSMaxRange(block.rangeUTF16) - 1))
             let lineRange = ns.lineRange(for: NSRange(location: probe, length: 0))
-            let line = ns.substring(with: lineRange)
-            // 嵌套项行首有缩进，连同有序 marker 一起解析（与块解析器同规则）
-            guard let marker = Self.parseListMarker(line) else { return nil }
-            return ListItemContext(
-                block: block, lineRange: lineRange,
-                markerLength: marker.length, markerOffset: marker.symbolStart
-            )
+            return MarkdownBlockModel.parseLine(ns, lineRange: lineRange)
         }
         return nil
     }
 
+    /// 应用结构 patch 并登记历史。返回 false 表示 patch 被拒（坐标/期望
+    /// 文本失配）——调用方据此返回未处理，交给 AppKit 默认行为，不吞键。
+    @discardableResult
     private func applyStructurePatches(
         _ patches: [SourcePatch], name: String, restoreSourceCaret: Int? = nil
-    ) {
-        let selectionBefore = selectedRange()
-        if case .success(let newSource) = MarkdownPatchApplier.applyPatches(patches, to: source) {
-            let caretAfter = restoreSourceCaret ?? sourceCaret()
-            history.record(
-                MarkdownEditorHistory.RecordInput(
-                    patches: patches, sourceBefore: source,
-                    selectionBefore: MarkdownSelection(
-                        anchorUTF16: selectionBefore.location,
-                        focusUTF16: NSMaxRange(selectionBefore),
-                        affinity: .downstream
-                    ),
-                    selectionAfter: MarkdownSelection(
-                        anchorUTF16: caretAfter, focusUTF16: caretAfter, affinity: .downstream
-                    ),
-                    origin: .structure,
-                    name: name
-                ))
-            source = newSource
-            revision += 1
-            rebuildProjection()
-            if let caret = restoreSourceCaret, let display = displayOffset(forSourceOffset: caret) {
-                setSelectedRange(NSRange(location: display, length: 0))
-            }
+    ) -> Bool {
+        guard !patches.isEmpty else { return true }
+        let selectionBefore = sourceCaret()
+        guard case .success(let newSource) = MarkdownPatchApplier.applyPatches(patches, to: source) else {
+            return false
         }
-    }
-
-    private func handleEnterInList() -> Bool {
-        guard let item = currentListItem() else { return false }
-        let lineRange = item.lineRange
-        let markerLength = item.markerLength
-        let ns = source as NSString
-        let line = ns.substring(with: lineRange)
-        let content = String(line.dropFirst(markerLength)).trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if content.isEmpty {
-            // 空项回车：退出列表（删 marker 行）
-            let lineLen = lineRange.length
-            applyStructurePatches(
-                [
-                    SourcePatch(rangeUTF16: NSRange(location: lineRange.location, length: lineLen), expectedText: line, replacement: "")
-                ], name: "list-exit", restoreSourceCaret: lineRange.location)
-            return true
-        }
-        // 拆分：在 caret 处插入换行 + 同级 marker，caret 之后的内容归新项
-        // （Typora 语义）；caret 恰在内容起点时前项为空项，可再 Enter 退出。
-        let marker = String(line.prefix(markerLength))
-        let contentStart = lineRange.location + markerLength
-        let lineEnd = NSMaxRange(lineRange) - (line.hasSuffix("\n") ? 1 : 0)
-        let insertAt = max(contentStart, min(sourceCaret(), lineEnd))
-        applyStructurePatches(
-            [
-                SourcePatch(rangeUTF16: NSRange(location: insertAt, length: 0), expectedText: "", replacement: "\n" + marker)
-            ], name: "list-split", restoreSourceCaret: insertAt + 1 + markerLength)
-        return true
-    }
-
-    private func handleTabInList(indent: Bool) -> Bool {
-        guard let item = currentListItem() else { return false }
-        let lineRange = item.lineRange
-        let markerAt = lineRange.location + item.markerOffset
-
-        if indent {
-            applyStructurePatches(
-                [
-                    SourcePatch(rangeUTF16: NSRange(location: markerAt, length: 0), expectedText: "", replacement: "  ")
-                ], name: "list-indent", restoreSourceCaret: markerAt + 2)
-        } else if item.markerOffset >= 2 {
-            applyStructurePatches(
-                [
-                    SourcePatch(rangeUTF16: NSRange(location: markerAt - 2, length: 2), expectedText: "  ", replacement: "")
-                ], name: "list-outdent", restoreSourceCaret: markerAt - 2)
+        let caretAfter = restoreSourceCaret ?? sourceCaret()
+        history.record(
+            MarkdownEditorHistory.RecordInput(
+                patches: patches, sourceBefore: source,
+                selectionBefore: MarkdownSelection(
+                    anchorUTF16: selectionBefore,
+                    focusUTF16: selectionBefore, affinity: .downstream
+                ),
+                selectionAfter: MarkdownSelection(
+                    anchorUTF16: caretAfter, focusUTF16: caretAfter, affinity: .downstream
+                ),
+                origin: .structure,
+                name: name
+            ))
+        source = newSource
+        revision += 1
+        rebuildProjection()
+        if let caret = restoreSourceCaret {
+            // 新空行在 display 上零长度（marker 全隐藏）：caret 自身可能
+            // 无 display 映射，回退试下一 unit（行尾换行），再不行 clamp
+            // 到 display 末尾（拆分尾空行的落点）。
+            let sourceLen = (source as NSString).length
+            let display = displayOffset(forSourceOffset: caret)
+                ?? displayOffset(forSourceOffset: min(caret + 1, sourceLen))
+                ?? (string as NSString).length
+            setSelectedRange(NSRange(location: min(display, (string as NSString).length), length: 0))
         }
         return true
     }
 
-    private func handleBackspaceAtListItemStart() -> Bool {
-        guard let item = currentListItem() else { return false }
-        let lineRange = item.lineRange
-        let markerLength = item.markerLength
-        let caret = sourceCaret()
-        // caret 恰在内容起点（marker 之后）
-        guard caret == lineRange.location + markerLength, caret > 0 else { return false }
-        let ns = source as NSString
-        let marker = ns.substring(with: NSRange(location: lineRange.location, length: markerLength))
-        applyStructurePatches(
-            [
-                SourcePatch(rangeUTF16: NSRange(location: lineRange.location, length: markerLength), expectedText: marker, replacement: "")
-            ], name: "list-unmark", restoreSourceCaret: lineRange.location)
+    private func handleStructuralEnter() -> Bool {
+        guard let line = currentStructuralLine(),
+            let plan = MarkdownBlockModel.planEnter(line: line, source: source as NSString, caret: sourceCaret())
+        else { return false }
+        return applyStructurePatches(plan.patches, name: plan.name, restoreSourceCaret: plan.caretAfterUTF16)
+    }
+
+    private func handleStructuralTab(indent: Bool) -> Bool {
+        guard let line = currentStructuralLine(),
+            let plan = MarkdownBlockModel.planTab(line: line, source: source as NSString, caret: sourceCaret(), indent: indent)
+        else { return false }
+        // 最外层 Shift+Tab：吞掉按键但无操作（不删内容、不插 tab）
+        if plan.patches.isEmpty { return true }
+        return applyStructurePatches(plan.patches, name: plan.name, restoreSourceCaret: plan.caretAfterUTF16)
+    }
+
+    private func handleStructuralBackspace() -> Bool {
+        guard let line = currentStructuralLine(),
+            let plan = MarkdownBlockModel.planBackspace(line: line, source: source as NSString, caret: sourceCaret())
+        else { return false }
+        return applyStructurePatches(plan.patches, name: plan.name, restoreSourceCaret: plan.caretAfterUTF16)
+    }
+
+    private func handleStructuralDeleteForward() -> Bool {
+        guard let line = currentStructuralLine(),
+            let plan = MarkdownBlockModel.planDeleteForward(line: line, source: source as NSString, caret: sourceCaret())
+        else { return false }
+        return applyStructurePatches(plan.patches, name: plan.name, restoreSourceCaret: plan.caretAfterUTF16)
+    }
+
+    /// task 勾选翻转：精确替换括号内单字符（NE-07 精确 span toggle）。
+    /// preview checkbox intent（T14）复用同一入口，保证同一事务语义。
+    @discardableResult
+    public func toggleTaskAtSelection() -> Bool {
+        rebuildProjection()
+        guard let line = currentStructuralLine(),
+            let patch = MarkdownBlockModel.planTaskToggle(line: line)
+        else { return false }
+        // 勾选字符等长替换：display 不变，selection 原地保持
+        applyStructurePatches([patch], name: "task-toggle", restoreSourceCaret: sourceCaret())
         return true
     }
 
@@ -620,7 +629,6 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         }
         let planned = InlineFormatPlanner.patches(kind, selected: sourceRange, source: sourceNS, unwrap: unwrap)
 
-        let selectionBefore = selectedRange()
         guard case .success(let newSource) = MarkdownPatchApplier.applyPatches(planned.patches, to: source) else {
             return false
         }
@@ -628,8 +636,8 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             MarkdownEditorHistory.RecordInput(
                 patches: planned.patches, sourceBefore: source,
                 selectionBefore: MarkdownSelection(
-                    anchorUTF16: selectionBefore.location,
-                    focusUTF16: NSMaxRange(selectionBefore), affinity: .downstream
+                    anchorUTF16: sourceRange.location,
+                    focusUTF16: NSMaxRange(sourceRange), affinity: .downstream
                 ),
                 selectionAfter: MarkdownSelection(
                     anchorUTF16: planned.selectionAfter.location,
@@ -685,6 +693,102 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         return nil
     }
 
+    /// display 区间 → 跨块 source 区间（跨块替换用）。两端点须落在不同
+    /// 投影块——单块选区含隐藏 inline marker（如闭 backtick 前）不走 span
+    /// 路径，安全拒绝。端点在块间缝上时：起点归前块末尾（含其尾换行），
+    /// 终点吸收下一块的隐藏 marker——跨块替换按 Typora 语义消解结构，
+    /// 不得把不可见 marker 泄漏成可见字面。任一端点无映射返回 nil。
+    private func sourceRangeSpanningBlocks(forDisplayRange range: NSRange) -> NSRange? {
+        guard range.length > 0,
+            let start = spanningSourceEdge(range.location, atStart: true),
+            let end = spanningSourceEdge(NSMaxRange(range), atStart: false),
+            start.itemIndex != end.itemIndex,
+            end.value >= start.value
+        else { return nil }
+        return NSRange(location: start.value, length: end.value - start.value)
+    }
+
+    private func spanningSourceEdge(_ offset: Int, atStart: Bool) -> (itemIndex: Int, value: Int)? {
+        for (index, item) in rendered.enumerated() {
+            let blockLen = item.projection.display.utf16.count
+            guard offset >= item.displayStart, offset <= item.displayStart + blockLen else { continue }
+            let local = offset - item.displayStart
+            if atStart, local == 0 {
+                // 块首（含首块 display 0）：取块 source 起点，marker 落入
+                // 替换区间——跨块选择替换按 Typora 语义消解结构
+                return (index, item.block.rangeUTF16.location)
+            }
+            if !atStart, local == blockLen, index + 1 < rendered.count,
+                rendered[index + 1].displayStart == offset
+            {
+                // 终点落在块缝：下一块起点的隐藏 marker 一并进入替换区间，
+                // 不得泄漏成可见字面
+                let next = rendered[index + 1]
+                let value = next.projection.sourceOffset(forDisplay: 0)
+                    ?? next.block.rangeUTF16.location
+                return (index + 1, value)
+            }
+            if let mapped = item.projection.sourceOffset(forDisplay: local) {
+                return (index, mapped)
+            }
+            // 块内投影缝隙（防御）：clamp 到块 source 端
+            return (
+                index,
+                atStart ? NSMaxRange(item.block.rangeUTF16) : item.block.rangeUTF16.location
+            )
+        }
+        return nil
+    }
+
+    // MARK: - T12 输入规则（§4.3 空段前缀；转换由 parser 接管，这里只
+    // 重组 undo 单元并留下观察口）
+
+    private func evaluateInputRule(insertedOffset: Int) {
+        guard let match = MarkdownInputRules.matchPrefixInsertion(
+            source: source, insertedOffset: insertedOffset,
+            protectedRanges: protectedBlockRanges()
+        ) else { return }
+        lastInputRuleTriggered = match
+        // 一键 undo 回完整字面前缀：把构成前缀的连续纯插入 typing 合并
+        // 为单条（跨时间窗的显式重组；链不完整则保持既有粒度，不吞字）。
+        _ = history.collapseTypingPrefix(
+            prefixRange: match.prefixRangeUTF16,
+            selectionAfter: MarkdownSelection(
+                anchorUTF16: NSMaxRange(match.prefixRangeUTF16),
+                focusUTF16: NSMaxRange(match.prefixRangeUTF16),
+                affinity: .downstream
+            ),
+            name: "input-rule-\(match.kind.rawValue)"
+        )
+    }
+
+    /// 保护块 range（输入规则不触发的区域：code/indented code/html/
+    /// table/frontmatter——NE-10 按 literal 处理）。
+    private func protectedBlockRanges() -> [NSRange] {
+        document.blocks.compactMap { block in
+            switch block.kind {
+            case .codeFence, .codeIndented, .htmlBlock, .table, .frontmatter:
+                return block.rangeUTF16
+            default:
+                return nil
+            }
+        }
+    }
+
+    /// 粘贴/拖放统一入口：⌘V 与 drop 都经读板路径，在这里置位排除输入
+    /// 规则（NE-21 粘贴不触发 typing rule）。
+    public override func paste(_ sender: Any?) {
+        isPastingFlag = true
+        defer { isPastingFlag = false }
+        super.paste(sender)
+    }
+
+    public override func readSelection(from pboard: NSPasteboard) -> Bool {
+        isPastingFlag = true
+        defer { isPastingFlag = false }
+        return super.readSelection(from: pboard)
+    }
+
     /// selection/caret 命中的 inline link（label 或 target 均算命中）。
     public func linkAtSelection() -> InlineLinkSpan? {
         rebuildProjection()
@@ -709,14 +813,13 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         guard case .success(let newSource) = MarkdownPatchApplier.applyPatches([patch], to: source) else {
             return false
         }
-        let selectionBefore = selectedRange()
+        let caretBefore = sourceCaret()
         let caretAfter = span.targetRangeUTF16.location + (newTarget as NSString).length
         history.record(
             MarkdownEditorHistory.RecordInput(
                 patches: [patch], sourceBefore: source,
                 selectionBefore: MarkdownSelection(
-                    anchorUTF16: selectionBefore.location,
-                    focusUTF16: NSMaxRange(selectionBefore), affinity: .downstream
+                    anchorUTF16: caretBefore, focusUTF16: caretBefore, affinity: .downstream
                 ),
                 selectionAfter: MarkdownSelection(
                     anchorUTF16: caretAfter, focusUTF16: caretAfter, affinity: .downstream
@@ -755,6 +858,9 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     /// T06：undo/redo 经 history 返回新 source 与 selection，view 推进
     /// 自己的 revision（每次外观变更都是新 revision，包括 undo）。不允许
     /// 以「回退到旧 revision」冒充——旧 async 任务必须按 revision 失效。
+    /// T12：history 的 selection 统一 source 坐标，恢复时经当前投影映射
+    /// 回 display（marker 隐藏处两者偏移不同，直接当 display 用会错位）；
+    /// 映射失败 clamp 到 display 长度，绝不落到投影外。
     @discardableResult
     public func performUndo() -> Bool {
         rebuildProjection()
@@ -762,9 +868,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         source = undo.source
         revision += 1
         rebuildProjection()
-        if undo.selection.focusUTF16 <= (string as NSString).length {
-            setSelectedRange(NSRange(location: undo.selection.focusUTF16, length: 0))
-        }
+        restoreSelectionFromSource(undo.selection)
         return true
     }
 
@@ -775,10 +879,15 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         source = redo.source
         revision += 1
         rebuildProjection()
-        if redo.selection.focusUTF16 <= (string as NSString).length {
-            setSelectedRange(NSRange(location: redo.selection.focusUTF16, length: 0))
-        }
+        restoreSelectionFromSource(redo.selection)
         return true
+    }
+
+    private func restoreSelectionFromSource(_ selection: MarkdownSelection) {
+        let displayLen = (string as NSString).length
+        let focus = displayOffset(forSourceOffset: selection.focusUTF16)
+            ?? min(selection.focusUTF16, displayLen)
+        setSelectedRange(NSRange(location: min(focus, displayLen), length: 0))
     }
 
     // MARK: - composition 观测（G0 探针）
@@ -787,11 +896,11 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         // T06：进入 marked 时记录基线（composition 提交的历史 base）。
         // 仅首次进入记录；marked 期间的 update 不覆盖。
         if markedSourceBefore == nil {
-            let currentRange = self.selectedRange()
+            let currentCaret = sourceCaret()
             markedSourceBefore = source
             markedSelectionBefore = MarkdownSelection(
-                anchorUTF16: currentRange.location,
-                focusUTF16: NSMaxRange(currentRange),
+                anchorUTF16: currentCaret,
+                focusUTF16: currentCaret,
                 affinity: .downstream
             )
         }

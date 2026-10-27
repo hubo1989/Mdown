@@ -115,7 +115,20 @@ struct MarkdownProjectionBuilder {
         case .codeFence, .codeIndented, .htmlBlock, .table, .thematicBreak, .blank:
             return plain(blockText, kind: .plainFallback, base: block.rangeUTF16.location)
         case .heading(let level):
-            let markerLen = level + 1  // '#'×level + 空格
+            let text = blockText as NSString
+            var markerLen = 0
+            while markerLen < text.length,
+                text.character(at: markerLen) == asciiUnit(" ") || text.character(at: markerLen) == asciiUnit("\t")
+            {
+                markerLen += 1
+            }
+            markerLen += level
+            // 裸标题 marker 不带分隔空格；换行仍是可编辑的显示位置。
+            while markerLen < text.length,
+                text.character(at: markerLen) == asciiUnit(" ") || text.character(at: markerLen) == asciiUnit("\t")
+            {
+                markerLen += 1
+            }
             // marker 段用文档绝对坐标（与 inlineSegments 一致）：块相对 0 会
             // 让非首块 heading 的 marker 指向文档开头。display 坐标统一由
             // finalize 重算（inlineSegments 已各自 finalize，重算幂等）。
@@ -131,12 +144,9 @@ struct MarkdownProjectionBuilder {
             finalizeDisplayRanges(&segments)
             return Projection(display: segments.displayText, segments: segments)
         case .listItem, .quote:
-            // 多行容器逐行处理：每行前缀 marker 隐藏，行内容走 inline
-            return lineWiseProjection(
-                blockText: blockText, block: block,
-                isQuote: {
-                    if case .listItem = block.kind { return false }; return true
-                }())
+            // 多行容器逐行处理：行前缀（quote 层 + 内层 list marker）隐藏，
+            // 行内容走 inline
+            return lineWiseProjection(blockText: blockText, block: block)
         case .paragraph:
             let segments = inlineSegments(of: blockText, contentStart: 0, block: block)
             return Projection(display: segments.displayText, segments: segments)
@@ -148,7 +158,7 @@ struct MarkdownProjectionBuilder {
     }
 
     private func lineWiseProjection(
-        blockText: String, block: LosslessMarkdownParser.Block, isQuote: Bool
+        blockText: String, block: LosslessMarkdownParser.Block
     ) -> Projection {
         let ns = blockText as NSString
         var segments: [Segment] = []
@@ -156,13 +166,40 @@ struct MarkdownProjectionBuilder {
         while lineStart < ns.length {
             let lineRange = ns.lineRange(for: NSRange(location: lineStart, length: 0))
             let line = ns.substring(with: lineRange)
-            let prefixLen = isQuote ? quotePrefixLength(line) : listItemMarkerLength(line)
+            let parsed = MarkdownBlockModel.parseLine(
+                line as NSString, lineRange: NSRange(location: 0, length: line.utf16.count))
+            let prefixLen = parsed.prefixLength
+            // task 勾选字面（`[x] `/`[ ] `）保持可见：T14 原生勾选框落地前，
+            // 勾选状态必须可见可定位（NE-07）。
+            var hiddenLen = prefixLen
+            if let task = parsed.task {
+                let bracketRel = task.checkOffsetUTF16 - 1
+                if bracketRel >= 0, bracketRel < prefixLen {
+                    hiddenLen = bracketRel
+                }
+            }
             segments.append(
                 Segment(
                     kind: .hiddenMarker,
-                    sourceRangeUTF16: NSRange(location: block.rangeUTF16.location + lineStart, length: prefixLen),
-                    displayRangeUTF16: NSRange(location: -1, length: 0), displayText: ""
+                    sourceRangeUTF16: NSRange(location: block.rangeUTF16.location + lineStart, length: hiddenLen),
+                    displayRangeUTF16: NSRange(location: -1, length: 0), displayText: "",
+                    // T12：行级 marker 是 opening——上一行末与下一行内容首共享
+                    // 的 display 边界点，caret 归属下一行内容首（marker 后），
+                    // 否则结构命令后落在新行首的输入会插到上一行尾。
+                    isOpening: true
                 ))
+            if hiddenLen < prefixLen {
+                segments.append(
+                    Segment(
+                        kind: .text,
+                        sourceRangeUTF16: NSRange(
+                            location: block.rangeUTF16.location + lineStart + hiddenLen,
+                            length: prefixLen - hiddenLen),
+                        displayRangeUTF16: NSRange(location: -1, length: prefixLen - hiddenLen),
+                        displayText: ns.substring(
+                            with: NSRange(location: lineStart + hiddenLen, length: prefixLen - hiddenLen))
+                    ))
+            }
             segments.append(
                 contentsOf: inlineSegments(
                     of: blockText, contentStart: lineStart + prefixLen,
@@ -378,21 +415,8 @@ struct MarkdownProjectionBuilder {
         return 0
     }
 
-    /// 行首 quote 前缀（`>` + 缩进）长度。行尾换行不计入前缀（空 quote 行
-    /// 的换行必须留在 display），无 `>` 的懒延续行返回 0。
-    private func quotePrefixLength(_ blockText: String) -> Int {
-        let t = blockText as NSString
-        var i = 0
-        while i < t.length {
-            let c = t.character(at: i)
-            if c == asciiUnit(">") || c == asciiUnit(" ") || c == asciiUnit("\t") {
-                i += 1
-            } else {
-                break
-            }
-        }
-        return i
-    }
+    /// 行首 quote 前缀（`>` + 缩进）由 `MarkdownBlockModel.parseLine` 的
+    /// quote 分支处理（含混合嵌套的内层 list/task 前缀）。
 
     private struct CodeSpanRange {
         let openEnd: Int

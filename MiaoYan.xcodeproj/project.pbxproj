@@ -217,6 +217,8 @@
 		2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */; };
 		E403C6BEE6CF40C7443847A8 /* NativeRichEditorHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */; };
 		60A11954F965D4D5C735985B /* MarkdownEditorHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* MarkdownBlockModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* MarkdownBlockModel.swift */; };
+		A1B2C3D4E5F60718293A4B5E /* MarkdownInputRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5F /* MarkdownInputRules.swift */; };
 		A5AF1EC1E3506C998ECE0C7A /* MarkdownEditingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494FFF60961549EA22C86A45 /* MarkdownEditingSession.swift */; };
 		CFE3B9BBFDF156422F96C499 /* EditingTransitionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11FD8331545303BA6B35F527 /* EditingTransitionCoordinator.swift */; };
 		109B149EC1A3DDE3E3CD248B /* EditTextView+EditingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D8B1EB80A29CD7BB2A3AA17 /* EditTextView+EditingSession.swift */; };
@@ -224,6 +226,8 @@
 		5287E2EC852C6B3430FB5872 /* MarkdownEditingSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B788393DA817D0A6AD2FE3 /* MarkdownEditingSessionTests.swift */; };
 		DEF7CFD7BDBFA56B6913D42B /* RichMarkdownEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC983E1A693D0ECDE33447B /* RichMarkdownEditingTests.swift */; };
 		A11B0C0DEF01020304050607 /* MarkdownInlineEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */; };
+		A1B2C3D4E5F60718293A4B60 /* MarkdownListEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */; };
+		A1B2C3D4E5F60718293A4B62 /* MarkdownInputRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */; };
 		51E95D8D4B21865372D42D48 /* MarkdownCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C7BA8C505C9D6F2A9562427 /* MarkdownCompositionTests.swift */; };
 		A3F7C2E19B4D4E8F8A1C6D50 /* MarkdownEditorHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E4A1F23C5D4E6F9B2A7C31 /* MarkdownEditorHistoryTests.swift */; };
 /* End PBXBuildFile section */
@@ -473,6 +477,8 @@
 		C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RichMarkdownTextView.swift; sourceTree = "<group>"; };
 		2842DC7C2BF67F6AD0897039 /* NativeRichEditorHostView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeRichEditorHostView.swift; sourceTree = "<group>"; };
 		EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditorHistory.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* MarkdownBlockModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownBlockModel.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5F /* MarkdownInputRules.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInputRules.swift; sourceTree = "<group>"; };
 		494FFF60961549EA22C86A45 /* MarkdownEditingSession.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditingSession.swift; sourceTree = "<group>"; };
 		11FD8331545303BA6B35F527 /* EditingTransitionCoordinator.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EditingTransitionCoordinator.swift; sourceTree = "<group>"; };
 		6D8B1EB80A29CD7BB2A3AA17 /* EditTextView+EditingSession.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "EditTextView+EditingSession.swift"; sourceTree = "<group>"; };
@@ -480,6 +486,8 @@
 		B6B788393DA817D0A6AD2FE3 /* MarkdownEditingSessionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditingSessionTests.swift; sourceTree = "<group>"; };
 		FBC983E1A693D0ECDE33447B /* RichMarkdownEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RichMarkdownEditingTests.swift; sourceTree = "<group>"; };
 		A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInlineEditingTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownListEditingTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownInputRulesTests.swift; sourceTree = "<group>"; };
 		1C7BA8C505C9D6F2A9562427 /* MarkdownCompositionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownCompositionTests.swift; sourceTree = "<group>"; };
 		B8E4A1F23C5D4E6F9B2A7C31 /* MarkdownEditorHistoryTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditorHistoryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -606,6 +614,8 @@
 				B0FA6085AE3E4CF16F573B66 /* NativeFixtureLoader.swift */,
 				FBC983E1A693D0ECDE33447B /* RichMarkdownEditingTests.swift */,
 				A11B0C0DEF01020304050608 /* MarkdownInlineEditingTests.swift */,
+				A1B2C3D4E5F60718293A4B61 /* MarkdownListEditingTests.swift */,
+				A1B2C3D4E5F60718293A4B63 /* MarkdownInputRulesTests.swift */,
 				B6B788393DA817D0A6AD2FE3 /* MarkdownEditingSessionTests.swift */,
 				1C7BA8C505C9D6F2A9562427 /* MarkdownCompositionTests.swift */,
 				B8E4A1F23C5D4E6F9B2A7C31 /* MarkdownEditorHistoryTests.swift */,
@@ -735,6 +745,7 @@
 							779BD6B8640449564912F3C8 /* MarkdownEditTransaction.swift */,
 				EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */,
 				494FFF60961549EA22C86A45 /* MarkdownEditingSession.swift */,
+				A1B2C3D4E5F60718293A4B5D /* MarkdownBlockModel.swift */,
 );
 			path = Business;
 			sourceTree = "<group>";
@@ -878,6 +889,7 @@
 				285B3797D4737A0CF9939BF5 /* MarkdownSourceMap.swift */,
 				8D30E9F2FF2880BAD3A8492A /* LosslessMarkdownParser.swift */,
 				966B1F9356197D3446B1BDCD /* MarkdownProjectionBuilder.swift */,
+				A1B2C3D4E5F60718293A4B5F /* MarkdownInputRules.swift */,
 );
 			path = Helpers;
 			sourceTree = "<group>";
@@ -1187,6 +1199,8 @@
 				7BDCCA9B2766D8CC45D1A017 /* NativeFixtureLoader.swift in Sources */,
 				DEF7CFD7BDBFA56B6913D42B /* RichMarkdownEditingTests.swift in Sources */,
 				A11B0C0DEF01020304050607 /* MarkdownInlineEditingTests.swift in Sources */,
+				A1B2C3D4E5F60718293A4B60 /* MarkdownListEditingTests.swift in Sources */,
+				A1B2C3D4E5F60718293A4B62 /* MarkdownInputRulesTests.swift in Sources */,
 				5287E2EC852C6B3430FB5872 /* MarkdownEditingSessionTests.swift in Sources */,
 				51E95D8D4B21865372D42D48 /* MarkdownCompositionTests.swift in Sources */,
 				A3F7C2E19B4D4E8F8A1C6D50 /* MarkdownEditorHistoryTests.swift in Sources */,
@@ -1313,6 +1327,8 @@
 				2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */,
 				E403C6BEE6CF40C7443847A8 /* NativeRichEditorHostView.swift in Sources */,
 				60A11954F965D4D5C735985B /* MarkdownEditorHistory.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* MarkdownBlockModel.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5E /* MarkdownInputRules.swift in Sources */,
 				A5AF1EC1E3506C998ECE0C7A /* MarkdownEditingSession.swift in Sources */,
 				109B149EC1A3DDE3E3CD248B /* EditTextView+EditingSession.swift in Sources */,
 				C4D2E8F17A3B4C5D9E6F0A12 /* EditTextView+History.swift in Sources */,
