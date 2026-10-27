@@ -11,7 +11,7 @@ Usage:
     --pub-date "Wed, 04 Mar 2026 10:00:00 +0000" \
     --signature "<sparkle signature>" \
     --length 12345 \
-    --zip-url "https://miaoyan.app/Release/MiaoYan_V2.8.0.zip"
+    --zip-url "https://github.com/hubo1989/Mdown/releases/download/V2.8.0/Mdown_V2.8.0.zip"
 EOF
 }
 
@@ -88,7 +88,7 @@ description_body=""
 if [[ -n "$DESCRIPTION_HTML_FILE" && -f "$DESCRIPTION_HTML_FILE" ]]; then
   description_body="$(cat "$DESCRIPTION_HTML_FILE")"
 else
-  description_body="$(printf '      <p>妙言 4.0 新增 iPhone 和 iPad 版本,同时继续提供 GitHub 下载和 Sparkle 更新。你可以选择 App Store 自动更新,也可以继续使用 direct-download 版本。</p>\n      <p>MiaoYan 4.0 adds iPhone and iPad support while keeping GitHub downloads and Sparkle updates available. You can use App Store automatic updates or stay on the direct-download build.</p>\n      <p><a href=\"https://apps.apple.com/app/id6759252269\">Mac App Store</a> · <a href=\"https://github.com/tw93/MiaoYan/releases\">GitHub Releases</a></p>')"
+  description_body="$(printf '      <p>Mdown 更新，请查看 GitHub Releases 中的更新说明。</p>\n      <p>See GitHub Releases for the Mdown changelog.</p>\n      <p><a href="https://github.com/hubo1989/Mdown/releases">GitHub Releases</a></p>')"
 fi
 
 item_file="$(mktemp)"

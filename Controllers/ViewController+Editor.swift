@@ -118,7 +118,7 @@ extension ViewController {
             sessionPreviewMode = true
         }
 
-        // Defensive: a stale `miaoyan-split-mode` body class would leave the
+        // Defensive: a stale `mdown-split-mode` body class would leave the
         // standalone preview without any visible scrollbar. togglePreview
         // already clears sessionSplitMode, but the underlying WKWebView
         // class is not toggled by that flag flip alone.
@@ -747,7 +747,7 @@ extension ViewController {
         // Handle both presentation and PPT modes
         if sessionPresentationMode || sessionMagicPPTMode {
             if sessionMagicPPTMode {
-                disableMiaoYanPPT()
+                disableMdownPPT()
             } else {
                 disablePresentation()
             }
@@ -757,7 +757,7 @@ extension ViewController {
     }
     // MARK: - PPT Mode
 
-    func isMiaoYanPPT(needToast: Bool = true) -> Bool {
+    func isMdownPPT(needToast: Bool = true) -> Bool {
         guard let note = notesTableView.getSelectedNote() else {
             return false
         }
@@ -766,7 +766,7 @@ extension ViewController {
             return true
         }
         if needToast {
-            toast(message: I18n.str("No delimiter --- identification, Cannot use MiaoYan PPT~"), style: .failure)
+            toast(message: I18n.str("No delimiter --- identification, Cannot use Mdown PPT~"), style: .failure)
         }
         return false
     }
@@ -774,16 +774,16 @@ extension ViewController {
     func toggleMagicPPT() {
         saveTitleSafely()
         if sessionMagicPPTMode {
-            disableMiaoYanPPT()
+            disableMdownPPT()
         } else {
-            if !isMiaoYanPPT() {
+            if !isMdownPPT() {
                 return
             }
-            enableMiaoYanPPT()
+            enableMdownPPT()
         }
     }
 
-    func enableMiaoYanPPT() {
+    func enableMdownPPT() {
         // Ensure a note is selected before entering PPT mode
         ensureNoteSelection(preferLastSelected: true)
 
@@ -867,7 +867,7 @@ extension ViewController {
         }
     }
 
-    func disableMiaoYanPPT() {
+    func disableMdownPPT() {
         // Clear magicPPT flag FIRST to allow disablePreview to work properly
         sessionMagicPPTMode = false
 
@@ -1413,12 +1413,12 @@ extension ViewController {
     @IBAction func toggleMagicPPT(_ sender: Any) {
         saveTitleSafely()
         if sessionMagicPPTMode {
-            disableMiaoYanPPT()
+            disableMdownPPT()
         } else {
-            if !isMiaoYanPPT() {
+            if !isMdownPPT() {
                 return
             }
-            enableMiaoYanPPT()
+            enableMdownPPT()
         }
     }
 
@@ -1719,7 +1719,7 @@ extension ViewController {
     }
 
     private func showAlert(for title: String) {
-        MiaoYanAlert.show(
+        MdownAlert.show(
             message: I18n.str("Please change the title"),
             informativeText: String(format: I18n.str("This %@ under this folder already exists!"), title),
             for: view.window

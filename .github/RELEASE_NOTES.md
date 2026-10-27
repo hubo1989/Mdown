@@ -6,7 +6,7 @@
 4. 改进 PDF 导出，Mermaid 图表不再重复渲染，标题也会沿用当前笔记字体
 5. 修复 PPT 本地图片丢失，以及窗口置顶时偏好设置被遮挡的问题
 6. 改进 HDR 照片在 Markdown 预览中的显示效果，画面不再异常过曝
-7. 新增官方 MiaoYan Agent Skill，让 Agent 能按妙言的语法、附件、PPT 与 CLI 规范处理笔记
+7. 新增官方 Mdown Agent Skill，让 Agent 能按Mdown的语法、附件、PPT 与 CLI 规范处理笔记
 
 ---
 
@@ -16,4 +16,4 @@
 4. PDF exports no longer rerender Mermaid diagrams, and headings use the current note font
 5. PPT keeps local images, and Preferences stays visible when windows are kept on top
 6. HDR photos display with balanced tones instead of appearing overexposed in Markdown preview
-7. New official MiaoYan Agent Skill teaches agents the app's Markdown, attachment, PPT, and CLI conventions
+7. New official Mdown Agent Skill teaches agents the app's Markdown, attachment, PPT, and CLI conventions

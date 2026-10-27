@@ -6,7 +6,7 @@
       "type": "shell",
       "command": "xcodebuild",
       "args": [
-        "-scheme", "MiaoYan",
+        "-scheme", "Mdown",
         "-configuration", "Debug",
         "-destination", "platform=macOS",
         "-derivedDataPath", "${workspaceFolder}/.vscode/DerivedData",

@@ -704,8 +704,8 @@ class ViewController:
             return UserDefaultsManagement.storageUrl != nil
         }
 
-        if menuItem.action == #selector(exportMiaoYanPPT(_:)) {
-            return isMiaoYanPPT(needToast: false)
+        if menuItem.action == #selector(exportMdownPPT(_:)) {
+            return isMdownPPT(needToast: false)
         }
 
         if menuItem.action == #selector(toggleMagicPPT(_:)) {
@@ -721,7 +721,7 @@ class ViewController:
         let canUseMenu = UserDefaultsManagement.canUseMenu
         if let title = menuItem.menu?.identifier?.rawValue {
             switch title {
-            case "miaoyanMenu":
+            case "mdownMenu":
                 if menuItem.identifier?.rawValue == "cleanAttachmentsMenu" {
                     menuItem.keyEquivalentModifierMask = [.command, .option, .shift]
                     return canUseMenu
@@ -1013,10 +1013,10 @@ class ViewController:
     }
 
     func applyModernChromeStyling() {
-        view.applyMiaoYanPaneBackground()
-        notesListCustomView.applyMiaoYanPaneBackground()
-        outlineHeader.applyMiaoYanPaneBackground()
-        projectHeaderView.applyMiaoYanPaneBackground()
+        view.applyMdownPaneBackground()
+        notesListCustomView.applyMdownPaneBackground()
+        outlineHeader.applyMdownPaneBackground()
+        projectHeaderView.applyMdownPaneBackground()
 
         storageOutlineView.backgroundColor = Theme.paneBackgroundColor
         notesTableView.backgroundColor = Theme.paneBackgroundColor
@@ -1318,7 +1318,7 @@ class ViewController:
         // modes move EditTextView.note without refilling textStorage).
         guard textView.storageNote === note else {
             let mismatch = NSError(
-                domain: "com.tw93.miaoyan.race",
+                domain: "com.mdown.app.race",
                 code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "textStorage owner drift in textDidChange"])
             AppDelegate.trackError(mismatch, context: "ViewController.textDidChange.ownerGuard")
@@ -1391,7 +1391,7 @@ class ViewController:
                 let timestamp = formatter.string(from: Date())
                 let logMessage = "\(timestamp) [ViewController] \(message)\n"
 
-                let fileURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads/miaoyan_debug.log")
+                let fileURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads/mdown_debug.log")
 
                 if let handle = try? FileHandle(forWritingTo: fileURL) {
                     handle.seekToEndOfFile()

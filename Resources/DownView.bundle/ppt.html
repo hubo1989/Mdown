@@ -49,12 +49,12 @@
 
   <script>
     // Setup text selection using common module
-    MiaoYanCommon.setupTextSelection();
+    (window.MdownCommon || window.MiaoYanCommon).setupTextSelection();
   </script>
 
   <script>
     // Setup checkboxes using common module
-    MiaoYanCommon.setupCheckboxes();
+    (window.MdownCommon || window.MiaoYanCommon).setupCheckboxes();
   </script>
   <script src="ppt/dist/reveal.js"></script>
   <script src="ppt/plugin/markdown/markdown.js"></script>
@@ -288,7 +288,7 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       // Optimize images using common module
-      MiaoYanCommon.optimizeImages();
+      (window.MdownCommon || window.MiaoYanCommon).optimizeImages();
 
       // Initialize Markmap for PPT mode using diagram handler
       DiagramHandler.initializeMarkmapForPPT();

@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug MiaoYan (LLDB DAP)",
+      "name": "Debug Mdown (LLDB DAP)",
       "type": "lldb-dap",
       "request": "launch",
-      "program": "${workspaceFolder}/.vscode/DerivedData/Build/Products/Debug/MiaoYan.app/Contents/MacOS/MiaoYan",
+      "program": "${workspaceFolder}/.vscode/DerivedData/Build/Products/Debug/Mdown.app/Contents/MacOS/Mdown",
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "xcodebuild Debug",
       "env": { "NSUnbufferedIO": "YES" },

@@ -225,7 +225,7 @@ class SidebarProjectView: NSOutlineView,
             return false
         }
 
-        // Don't allow moving before first item (MiaoYan)
+        // Don't allow moving before first item (Mdown)
         guard targetIndex > 0 else {
             return false
         }
@@ -543,7 +543,7 @@ class SidebarProjectView: NSOutlineView,
     }
 
     private func configureForSidebarItemType(_ cell: SidebarCellView, sidebarItem: SidebarItem, baseFont: NSFont, accentColor: NSColor) {
-        // The "妙言" header lockup keeps its pre-macOS-26 sizing: the modern
+        // The "Mdown" header lockup keeps its pre-macOS-26 sizing: the modern
         // chrome compaction (icon 24->20, font +2->+1) made it read noticeably
         // smaller, which the maintainer rejected. Icon, spacing, leading and
         // font weight stay at the larger legacy values on every OS.
@@ -748,7 +748,7 @@ class SidebarProjectView: NSOutlineView,
             return pasteboardItem
         }
 
-        // Don't allow dragging the first item (MiaoYan - .All type)
+        // Don't allow dragging the first item (Mdown - .All type)
         if itemIndex == 0 {
             return nil
         }
@@ -957,7 +957,7 @@ class SidebarProjectView: NSOutlineView,
 
             let messageText = I18n.str("Are you sure you want to remove project \"%@\" and all files inside?")
 
-            MiaoYanAlert.confirm(
+            MdownAlert.confirm(
                 message: String(format: messageText, project.label),
                 informativeText: I18n.str("This action cannot be undone."),
                 confirmTitle: I18n.str("Remove"),
@@ -1007,7 +1007,7 @@ class SidebarProjectView: NSOutlineView,
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 26))
         field.focusRingType = .none
         field.placeholderString = I18n.str("Project name")
-        let alert = MiaoYanAlert.make(
+        let alert = MdownAlert.make(
             message: I18n.str("New project"),
             style: .informational,
             buttons: [I18n.str("Add"), I18n.str("Cancel")]
@@ -1078,7 +1078,7 @@ class SidebarProjectView: NSOutlineView,
             }
 
         } catch {
-            MiaoYanAlert.show(
+            MdownAlert.show(
                 message: error.localizedDescription,
                 style: .warning,
                 for: window

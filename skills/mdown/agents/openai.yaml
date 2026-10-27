@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mdown"
+  short_description: "Create polished notes and slides for Mdown"
+  default_prompt: "Use $mdown to create a polished Mdown note or presentation."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "MiaoYan"
-  short_description: "Create polished notes and slides for MiaoYan"
-  default_prompt: "Use $miaoyan to create a polished MiaoYan note or presentation."

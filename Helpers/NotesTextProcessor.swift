@@ -181,7 +181,7 @@ public class NotesTextProcessor {
             return content
         }
         let fullRange = NSRange(location: 0, length: attributedString.length)
-        let tagQuery = "miaoyan://goto/"
+        let tagQuery = "mdown://goto/"
 
         // Process app link patterns
         appUrlRegex.matches(content.string, range: fullRange) { result in

@@ -1,6 +1,6 @@
 ---
 name: release
-description: Prepare, validate, and publish a MiaoYan direct-download GitHub Release. Not for App Store builds.
+description: Prepare, validate, and publish a Mdown direct-download GitHub Release. Not for App Store builds.
 version: 1.5.0
 allowed-tools:
   - Bash
@@ -11,18 +11,18 @@ allowed-tools:
 disable-model-invocation: true
 ---
 
-# MiaoYan Release Workflow
+# Mdown Release Workflow
 
 Use this skill only when the maintainer explicitly asks for a GitHub Release.
 
 ## Version Rules
 
 - Release tags use uppercase `Vx.y.z`.
-- `MARKETING_VERSION` in `MiaoYan.xcodeproj/project.pbxproj` must match the tag without the leading `V`.
+- `MARKETING_VERSION` in `Mdown.xcodeproj/project.pbxproj` must match the tag without the leading `V`.
 - `CURRENT_PROJECT_VERSION` must equal `MARKETING_VERSION`. Sparkle compares `sparkle:version` in appcast.xml against the app's `CFBundleVersion` (which maps to `CURRENT_PROJECT_VERSION`). If they diverge, users get an infinite update prompt loop (see V3.5.1 incident, #524).
 - Release notes should be prepared before tagging.
 - Signing, notarization, and Sparkle credentials are maintainer-managed. Do not commit credential paths, private key filenames, passwords, or secret values.
-- Sparkle signing must use the MiaoYan release key. Do not rely on the default Sparkle Keychain account because it may belong to another app.
+- Sparkle signing must use the Mdown release key. Do not rely on the default Sparkle Keychain account because it may belong to another app.
 
 ## Release Notes Format
 
@@ -35,8 +35,8 @@ Use this skill only when the maintainer explicitly asks for a GitHub Release.
 
 ```bash
 git diff --quiet && git diff --cached --quiet
-grep "MARKETING_VERSION" MiaoYan.xcodeproj/project.pbxproj | head -1
-grep "CURRENT_PROJECT_VERSION" MiaoYan.xcodeproj/project.pbxproj | head -1
+grep "MARKETING_VERSION" Mdown.xcodeproj/project.pbxproj | head -1
+grep "CURRENT_PROJECT_VERSION" Mdown.xcodeproj/project.pbxproj | head -1
 gh release list --limit 10
 gh run list --limit 10
 ```
@@ -49,7 +49,7 @@ Stop if:
 
 ## Build And Publish
 
-Use the repository's release scripts for the actual build, packaging, signing, notarization, and appcast update. The only tracked workflow is `ci.yml`; do not assume a `release.yml` workflow exists.
+Use the repository's release scripts for the actual build, packaging, signing, notarization, and appcast update. `ci.yml` runs validation; `release-build.yml` is a manually approved packaging workflow. Publishing the GitHub Release and appcast remains separate.
 
 When a local release script is required, confirm these before running it:
 
@@ -71,9 +71,9 @@ Use `scripts/release-ci/verify_sparkle_signature.sh --zip <zip> --signature <sig
 Reactions are part of publish completion. After the release is live, add the six positive reactions and read them back to confirm:
 
 ```bash
-rid=$(gh api repos/tw93/MiaoYan/releases/tags/V<x.y.z> --jq .id)
-for r in +1 laugh heart hooray rocket eyes; do gh api -X POST repos/tw93/MiaoYan/releases/$rid/reactions -f content="$r"; done
-gh api repos/tw93/MiaoYan/releases/$rid/reactions --jq '.[].content'
+rid=$(gh api repos/hubo1989/Mdown/releases/tags/V<x.y.z> --jq .id)
+for r in +1 laugh heart hooray rocket eyes; do gh api -X POST repos/hubo1989/Mdown/releases/$rid/reactions -f content="$r"; done
+gh api repos/hubo1989/Mdown/releases/$rid/reactions --jq '.[].content'
 ```
 
 Never add `-1` or `confused`; a negative reaction on our own release reads as self-deprecation.

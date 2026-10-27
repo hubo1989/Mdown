@@ -143,7 +143,7 @@ struct EditorSettings: SettingsConfigurable {
             vc.disablePreview()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak vc] in
                 vc?.refillEditArea(force: true)
-                if let vc, !vc.isMiaoYanPPT(needToast: false) {
+                if let vc, !vc.isMdownPPT(needToast: false) {
                     vc.enablePreview()
                 }
             }

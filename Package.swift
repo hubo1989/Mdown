@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "MiaoYan",
+    name: "Mdown",
     defaultLocalization: "en",
     platforms: [
         .macOS(.v11),

@@ -399,7 +399,7 @@ class NotesTableView: NSTableView {
                     currentNote.save(content: currentNote.content)
                 } else {
                     let mismatch = NSError(
-                        domain: "com.tw93.miaoyan.race",
+                        domain: "com.mdown.app.race",
                         code: 2,
                         userInfo: [NSLocalizedDescriptionKey: "textStorage owner drift in tableViewSelectionDidChange"])
                     AppDelegate.trackError(mismatch, context: "NotesTableView.tableViewSelectionDidChange.ownerGuard")
@@ -721,7 +721,7 @@ class NotesTableView: NSTableView {
         }
 
         if event.modifierFlags.contains(.option), event.modifierFlags.contains(.control), event.modifierFlags.contains(.shift), event.keyCode == kVK_ANSI_P {
-            vc?.exportMiaoYanPPT(self)
+            vc?.exportMdownPPT(self)
             return
         }
 

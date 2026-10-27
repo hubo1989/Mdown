@@ -89,7 +89,7 @@ enum MenuIconRegistry {
         IconMapping(symbol: "chevron.left.forwardslash.chevron.right", selectors: ["exportHtml:"], identifiers: []),
         IconMapping(symbol: "photo", selectors: ["exportImage:"], identifiers: []),
         IconMapping(symbol: "doc.richtext", selectors: ["exportPdf:"], identifiers: []),
-        IconMapping(symbol: "wand.and.stars", selectors: ["exportMiaoYanPPT:"], identifiers: []),
+        IconMapping(symbol: "wand.and.stars", selectors: ["exportMdownPPT:"], identifiers: []),
         IconMapping(symbol: "folder.badge.plus", selectors: ["addProject:"], identifiers: []),
         IconMapping(symbol: "folder.badge.plus", selectors: ["newSubfolder:"], identifiers: []),
         IconMapping(symbol: "terminal", selectors: ["openInTerminal:"], identifiers: []),

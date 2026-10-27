@@ -270,7 +270,7 @@ extension MPreviewView {
         let printCSS = """
                 (function() {
                     var style = document.createElement('style');
-                    style.id = 'miaoyan-export-style';
+                    style.id = 'mdown-export-style';
                     style.innerHTML = `\(trimmedMediaCSS)
                            \(exportLayoutCSS)
                         }
@@ -289,7 +289,7 @@ extension MPreviewView {
     }
 
     private func removePrintStyles() {
-        let removeScript = "var s = document.getElementById('miaoyan-export-style'); if(s) s.remove();"
+        let removeScript = "var s = document.getElementById('mdown-export-style'); if(s) s.remove();"
         evaluateJavaScript(removeScript, completionHandler: nil)
     }
 
@@ -609,7 +609,7 @@ extension MPreviewView {
                 vc.toastDismiss()
                 vc.toastExport(status: false)
                 if vc.shouldDisablePPTAfterExport {
-                    vc.disableMiaoYanPPT()
+                    vc.disableMdownPPT()
                     vc.shouldDisablePPTAfterExport = false
                 }
                 return
@@ -637,7 +637,7 @@ extension MPreviewView {
                 vc.toastDismiss()
 
                 if vc.shouldDisablePPTAfterExport {
-                    vc.disableMiaoYanPPT()
+                    vc.disableMdownPPT()
                     vc.shouldDisablePPTAfterExport = false
                 }
 

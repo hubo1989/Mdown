@@ -9,9 +9,9 @@
 
 ```bash
 # 本机可行基线命令（与 CLAUDE.md 记录的 CODE_SIGNING_ALLOWED=NO 形态的差异见 §2）
-xcodebuild -project MiaoYan.xcodeproj -scheme MiaoYan -configuration Debug \
+xcodebuild -project Mdown.xcodeproj -scheme Mdown -configuration Debug \
   CODE_SIGNING_ALLOWED=NO MACOSX_DEPLOYMENT_TARGET=12.0 build          # SUCCEEDED
-xcodebuild test -project MiaoYan.xcodeproj -scheme MiaoYan \
+xcodebuild test -project Mdown.xcodeproj -scheme Mdown \
   -destination 'platform=macOS' MACOSX_DEPLOYMENT_TARGET=12.0 \
   CODE_SIGN_IDENTITY=-                                                 # 全量单测
 ```
@@ -59,13 +59,13 @@ xcodebuild test -project MiaoYan.xcodeproj -scheme MiaoYan \
 ## 2. 签名与环境差异（本机新事实，影响后续所有本机验证）
 
 - 本机无 Team `5EH69Y5X38` 的 "Mac Development" 证书：默认签名 test 报 `No signing certificate found`。
-- `CODE_SIGNING_ALLOWED=NO`（CLAUDE.md 记录的本机形态）在 Xcode 27 下出现 **test runner hung before establishing connection**（333s 超时，纯逻辑单类同样挂起；MiaoYan.app 本体可正常启动运行）。归因假设：无签名宿主无法被 Xcode 27 runner attach，待证。
+- `CODE_SIGNING_ALLOWED=NO`（CLAUDE.md 记录的本机形态）在 Xcode 27 下出现 **test runner hung before establishing connection**（333s 超时，纯逻辑单类同样挂起；Mdown.app 本体可正常启动运行）。归因假设：无签名宿主无法被 Xcode 27 runner attach，待证。
 - **可行组合：`CODE_SIGN_IDENTITY=-`（ad-hoc 签名）**，runner 正常连接，181 tests 全部执行。T00 起本机单测统一用该形态。
 - 上述 3 个 WKWebView 失败在 ad-hoc 签名下出现，宿主日志大量 `Sandbox restriction`（WebContent 进程）。待证假设：ad-hoc 签名无 entitlements 导致 macOS 27 沙箱限制 WebContent，CI（macos-15、CODE_SIGNING_ALLOWED=NO）上这些测试通过。**判定为环境性失败，不作为代码回归处理，也不顺手修**；后续涉及 WKWebView 的验收在本机记录该限制。
 
-## 3. Corpus（MiaoYanTests/Fixtures/NativeEditor/）
+## 3. Corpus（MdownTests/Fixtures/NativeEditor/）
 
-复用 `specs/typora-research/fixtures/` 4 个样本（byte-identical，SHA256 与研究 manifest 核对一致），新增 4 个生成样本，manifest 见 `MiaoYanTests/Fixtures/NativeEditor/manifest.json`：
+复用 `specs/typora-research/fixtures/` 4 个样本（byte-identical，SHA256 与研究 manifest 核对一致），新增 4 个生成样本，manifest 见 `MdownTests/Fixtures/NativeEditor/manifest.json`：
 
 | 文件 | 覆盖 | SHA256（前 8） |
 |---|---|---|
@@ -80,7 +80,7 @@ xcodebuild test -project MiaoYan.xcodeproj -scheme MiaoYan \
 
 压力样本（200KiB/2k 行、1MiB、10MiB）**不进 repo/bundle**：由测试内确定性生成器按 manifest `stress_specs` 产生，首次固化后回填期望 SHA256；此决定为 T00 设计选择（repo 卫生 + hash 仍固定）。
 
-注册证据：9 文件 + 2 group（`Fixtures`/`NativeEditor`）注册进 pbxproj（BuildFile/FileReference/group children/MiaoYanTests Resources phase 四处），`plutil -lint` 通过。`MiaoYanTests/NativeEditorFixtureTests.swift`（5 tests，Bundle 查找 + SHA256 + BOM/CRLF/tab/无末尾换行特征断言）注册进 Sources 并通过：**5/5 passed**。
+注册证据：9 文件 + 2 group（`Fixtures`/`NativeEditor`）注册进 pbxproj（BuildFile/FileReference/group children/MdownTests Resources phase 四处），`plutil -lint` 通过。`MdownTests/NativeEditorFixtureTests.swift`（5 tests，Bundle 查找 + SHA256 + BOM/CRLF/tab/无末尾换行特征断言）注册进 Sources 并通过：**5/5 passed**。
 
 ## 4. 当前编辑栈 baseline（代码事实，供迁移对比）
 

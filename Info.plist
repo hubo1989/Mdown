@@ -57,7 +57,7 @@
 			<key>CFBundleURLIconFile</key>
 			<string>icon</string>
 			<key>CFBundleURLName</key>
-			<string>com.tw93.miaoyan</string>
+			<string>com.mdown.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>mdown</string>
@@ -70,7 +70,7 @@
 			<key>CFBundleURLIconFile</key>
 			<string>icon</string>
 			<key>CFBundleURLName</key>
-			<string>com.tw93.miaoyan</string>
+			<string>com.mdown.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>nv</string>
@@ -108,7 +108,7 @@
 	<string>NSApplication</string>
 	<key>NSUbiquitousContainers</key>
 	<dict>
-		<key>iCloud.com.tw93.miaoyan</key>
+		<key>iCloud.com.mdown.app</key>
 		<dict>
 			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
 			<true/>

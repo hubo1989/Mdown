@@ -161,14 +161,14 @@ final class EditorPrefsViewController: BasePrefsViewController {
     // MARK: - Localization Helpers for raw/display mapping
     private func localizedLineBreak(_ raw: String) -> String {
         switch raw {
-        case "MiaoYan": return I18n.str("MiaoYan")
+        case "MiaoYan": return I18n.str("Mdown")
         case "Github": return I18n.str("Github")
         default: return raw
         }
     }
 
     private func rawLineBreak(from display: String) -> String {
-        if display == I18n.str("MiaoYan") { return "MiaoYan" }
+        if display == I18n.str("Mdown") { return "MiaoYan" }
         if display == I18n.str("Github") { return "Github" }
         return display
     }

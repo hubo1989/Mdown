@@ -32,23 +32,23 @@ jobs:
       - name: Resolve SPM dependencies
         run: |
           xcodebuild \
-            -project MiaoYan.xcodeproj \
-            -scheme MiaoYan \
+            -project Mdown.xcodeproj \
+            -scheme Mdown \
             -resolvePackageDependencies
 
       - name: Build macOS app (Debug)
         run: |
           set -o pipefail
           xcodebuild \
-            -project MiaoYan.xcodeproj \
-            -scheme MiaoYan \
+            -project Mdown.xcodeproj \
+            -scheme Mdown \
             -configuration Debug \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
             build | xcbeautify --renderer github-actions || \
           xcodebuild \
-            -project MiaoYan.xcodeproj \
-            -scheme MiaoYan \
+            -project Mdown.xcodeproj \
+            -scheme Mdown \
             -configuration Debug \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
@@ -58,19 +58,19 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild test \
-            -project MiaoYan.xcodeproj \
-            -scheme MiaoYan \
+            -project Mdown.xcodeproj \
+            -scheme Mdown \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO | xcbeautify --renderer github-actions || \
           xcodebuild test \
-            -project MiaoYan.xcodeproj \
-            -scheme MiaoYan \
+            -project Mdown.xcodeproj \
+            -scheme Mdown \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO
 
   build-ios:
     name: iOS build
-    # MiaoYanMobile uses iOS 26 SwiftUI APIs (glassEffect / Liquid Glass).
+    # MdownMobile uses iOS 26 SwiftUI APIs (glassEffect / Liquid Glass).
     # Those symbols only ship in Xcode 26 SDKs, so this job requires the
     # macos-26 runner image. If macos-26 is unavailable the job will fail
     # with a clear runner-not-found error; switch to advisory or skip
@@ -83,8 +83,8 @@ jobs:
       - name: Build iOS app (Debug)
         run: |
           xcodebuild \
-            -project MiaoYan.xcodeproj \
-            -scheme MiaoYanMobile \
+            -project Mdown.xcodeproj \
+            -scheme MdownMobile \
             -configuration Debug \
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
@@ -119,6 +119,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: CLI compatibility smoke
+        run: |
+          bash scripts/tests/cli-smoke.sh
+          bash scripts/tests/cli-smoke.sh scripts/miaoyan
+
       - name: Render appcast description HTML
         run: bash scripts/release-ci/notes_to_html.sh .github/RELEASE_NOTES.md > /tmp/description.html
 
@@ -146,8 +151,8 @@ jobs:
           # Every target/config must match the tag, not just the first
           # occurrence: the V3.5.1 / #524 drift was a single target out of
           # sync. Collect the distinct values and assert each equals the tag.
-          MARKETING=$(grep 'MARKETING_VERSION = ' MiaoYan.xcodeproj/project.pbxproj | sed -E 's/.*MARKETING_VERSION = ([^;]+);.*/\1/' | tr -d ' ' | sort -u)
-          PROJECT=$(grep 'CURRENT_PROJECT_VERSION = ' MiaoYan.xcodeproj/project.pbxproj | sed -E 's/.*CURRENT_PROJECT_VERSION = ([^;]+);.*/\1/' | tr -d ' ' | sort -u)
+          MARKETING=$(grep 'MARKETING_VERSION = ' Mdown.xcodeproj/project.pbxproj | sed -E 's/.*MARKETING_VERSION = ([^;]+);.*/\1/' | tr -d ' ' | sort -u)
+          PROJECT=$(grep 'CURRENT_PROJECT_VERSION = ' Mdown.xcodeproj/project.pbxproj | sed -E 's/.*CURRENT_PROJECT_VERSION = ([^;]+);.*/\1/' | tr -d ' ' | sort -u)
           echo "tag=${STRIPPED}"
           printf 'MARKETING_VERSION values:\n%s\n' "${MARKETING}"
           printf 'CURRENT_PROJECT_VERSION values:\n%s\n' "${PROJECT}"

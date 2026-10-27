@@ -26,10 +26,10 @@ format_item() {
 
 cat <<EOF
 <p align="center">
-  <a href="https://miaoyan.app/" target="_blank">
+  <a href="https://github.com/hubo1989/Mdown" target="_blank">
     <img src="https://gw.alipayobjects.com/zos/k/t0/43.png" width="110" />
   </a>
-  <h1 align="center">MiaoYan ${TITLE}</h1>
+  <h1 align="center">Mdown ${TITLE}</h1>
   <div align="center">A native Markdown editor for engineers.</div>
 </p>
 EOF
@@ -73,7 +73,7 @@ fi
 cat <<'FOOTER'
 
 <hr />
-<p>If you find MiaoYan useful, please consider giving it a star and recommending it to your friends.</p>
+<p>If you find Mdown useful, please consider giving it a star and recommending it to your friends.</p>
 
-> https://github.com/tw93/MiaoYan
+> https://github.com/hubo1989/Mdown
 FOOTER

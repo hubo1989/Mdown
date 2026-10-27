@@ -71,7 +71,7 @@
   <script defer src="js/lightense.min.js"></script>
   <script defer src="js/tocbot.min.js"></script>
 
-  <!-- MiaoYan Modular Scripts -->
+  <!-- Mdown Modular Scripts -->
   <script defer src="js/theme-config.js"></script>
   <script defer src="js/common.js"></script>
   <script defer src="js/theme-manager.js"></script>
@@ -118,20 +118,20 @@
 
   <script>
     // Deferred scripts (common.js, theme-config.js) execute before DOMContentLoaded,
-    // so wrapping here ensures MiaoYanCommon and ThemeConfig are defined before use.
+    // so wrapping here ensures MdownCommon and ThemeConfig are defined before use.
     document.addEventListener('DOMContentLoaded', function () {
-      MiaoYanCommon.initializeCore();
-      MiaoYanCommon.setupTextSelection();
+      (window.MdownCommon || window.MiaoYanCommon).initializeCore();
+      (window.MdownCommon || window.MiaoYanCommon).setupTextSelection();
 
       if ('CUSTOM_CSS' === 'darkmode') {
         ThemeConfig.applyDarkModeStyles();
       }
 
-      MiaoYanCommon.onDOMReady(function () {
+      (window.MdownCommon || window.MiaoYanCommon).onDOMReady(function () {
         // Initialize lazy loading and layout immediately
-        MiaoYanCommon.setupHeaderAnchors();
-        MiaoYanCommon.optimizeImages();
-        MiaoYanCommon.setupImageZoom();
+        (window.MdownCommon || window.MiaoYanCommon).setupHeaderAnchors();
+        (window.MdownCommon || window.MiaoYanCommon).optimizeImages();
+        (window.MdownCommon || window.MiaoYanCommon).setupImageZoom();
 
         if (window.DiagramHandler) {
           DiagramHandler.initializeAll();

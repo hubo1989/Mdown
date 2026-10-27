@@ -1,4 +1,4 @@
-# MiaoYan 所见即所得编辑与渲染块单独导出 — Spec
+# Mdown 所见即所得编辑与渲染块单独导出 — Spec
 
 状态：方案草案，未实施。本文中的“必须”是建议采用的验收合同，不表示对应能力已经存在。实施任务见 [PLAN.md](PLAN.md)。
 
@@ -32,8 +32,8 @@
 | [Helpers/FileSystemEventManager.swift](../../Helpers/FileSystemEventManager.swift) 的外部修改处理会备份 `editArea.string`、重载并清除 undo | 富文本接入后必须备份权威 Markdown，而不是投影或旧源码缓冲；现有流程不等于三方合并 |
 | [Controllers/ViewController+Editor.swift](../../Controllers/ViewController+Editor.swift) 中 Prettier 由显式 `formatText()` 调用，本轮未找到 format-on-save 设置 | 不引入隐式保存格式化；新模式需补足格式化事务 undo 和同笔记 revision 校验 |
 | [Business/Markdown.swift](../../Business/Markdown.swift) 的 `renderMarkdownHTML` 是渲染入口，并先运行 `protectMarkdownMath` | HTML 的 sourcepos 不能直接当作原始 Markdown 的列偏移；编辑定位必须针对原文建立映射 |
-| [MiaoYan.xcodeproj/project.pbxproj](../../MiaoYan.xcodeproj/project.pbxproj) 的 macOS deployment target 为 11.5 | 首版以现有 TextKit 1 能力为基线；不为本功能擅自升级系统最低版本 |
-| [MiaoYan-AppStore.entitlements](../../MiaoYan-AppStore.entitlements) 已有用户选择文件读写和网络客户端权限 | 保存走原生系统面板，不扩展成任意文件访问，不放宽 ATS |
+| [Mdown.xcodeproj/project.pbxproj](../../Mdown.xcodeproj/project.pbxproj) 的 macOS deployment target 为 11.5 | 首版以现有 TextKit 1 能力为基线；不为本功能擅自升级系统最低版本 |
+| [Mdown-AppStore.entitlements](../../Mdown-AppStore.entitlements) 已有用户选择文件读写和网络客户端权限 | 保存走原生系统面板，不扩展成任意文件访问，不放宽 ATS |
 | [Views/MPreviewView.swift](../../Views/MPreviewView.swift) 的 `willOpenMenu` 只过滤部分系统项，contextmenu 桥目前只处理选中文本 | 没有已确认的自定义单个渲染块导出；图表命中和 JS/菜单时序需先做 D0 验证 |
 | [Extensions/MPreviewView+Export.swift](../../Extensions/MPreviewView+Export.swift) 的 `exportImage()` 导出整篇 PNG；Mermaid 渲染为内联 SVG | 必须新增单 Mermaid 导出；不能调用整篇截图，也不能把普通图片保存当作替代交付 |
 | [Resources/DownView.bundle/js/diagram-handler.js](../../Resources/DownView.bundle/js/diagram-handler.js) 将 Mermaid 写为内联 SVG，PlantUML 写为远程 SVG `<img>` | 按渲染来源识别图表，而非只认 `<img>`/`src`；PlantUML 的内部 `<img>` 不等于用户的普通图片 |

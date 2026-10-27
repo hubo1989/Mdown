@@ -184,7 +184,7 @@ if [[ "$api_style" == "auto" ]]; then
 fi
 
 read -r -d '' prompt <<EOF || true
-你在为 MiaoYan（macOS Markdown 应用）生成发布内容。
+你在为 Mdown（macOS Markdown 应用）生成发布内容。
 
 Version: ${VERSION}
 Current tag: ${TAG}

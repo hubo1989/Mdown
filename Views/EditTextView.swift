@@ -910,6 +910,7 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         var length = range.lowerBound
         let data = Data(bytes: &length, count: MemoryLayout.size(ofValue: length))
         try? note.url.setExtendedAttribute(data: data, forName: AppIdentifier.cursorKey)
+        try? note.url.setExtendedAttribute(data: data, forName: AppIdentifier.legacyCursorKey)
     }
 
     // MARK: - Link Highlighting Performance Optimization
@@ -936,7 +937,7 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         }
 
         let paragraph = storage.mutableString.substring(with: paragraphRange)
-        let candidates = ["://", "www.", "miaoyan://", "/i/", "/files/", "[[", "]("]
+        let candidates = ["://", "www.", "mdown://", "miaoyan://", "/i/", "/files/", "[[", "]("]
         return candidates.contains(where: { paragraph.contains($0) })
     }
 
@@ -999,7 +1000,7 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         // target note's entire content with another file's text (#543).
         guard let owner = storageNote, owner.isEqualURL(url: note.url) else {
             let mismatch = NSError(
-                domain: "com.tw93.miaoyan.race",
+                domain: "com.mdown.app.race",
                 code: 3,
                 userInfo: [
                     NSLocalizedDescriptionKey:

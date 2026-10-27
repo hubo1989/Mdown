@@ -1,5 +1,5 @@
 #!/bin/bash
-# MiaoYan Release Build Script - Build unsigned version
+# Mdown Release Build Script - Build unsigned version
 
 set -e
 
@@ -14,7 +14,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Auto-detect version from project.pbxproj
-VERSION=$(grep "MARKETING_VERSION" MiaoYan.xcodeproj/project.pbxproj | head -1 | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
+VERSION=$(grep "MARKETING_VERSION" Mdown.xcodeproj/project.pbxproj | head -1 | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
 [ -n "$1" ] && VERSION="$1"
 KEY_PATH="${SPARKLE_PRIVATE_KEY:-$HOME/.config/miaoyan/sparkle_private_key}"
 
@@ -30,34 +30,25 @@ echo "======================================"
 # 1. Clean
 echo "[1/6] Cleaning..."
 rm -rf ./build
-xcodebuild clean -scheme MiaoYan -configuration Release 2>/dev/null || true
+xcodebuild clean -scheme Mdown -configuration Release 2>/dev/null || true
 
 # 2. Archive
 echo "[2/6] Archiving..."
 xcodebuild archive \
-	-scheme MiaoYan \
+	-scheme Mdown \
 	-configuration Release \
-	-archivePath "./build/MiaoYan.xcarchive" \
+	-archivePath "./build/Mdown.xcarchive" \
 	CODE_SIGN_IDENTITY="" \
 	CODE_SIGNING_REQUIRED=NO \
 	CODE_SIGNING_ALLOWED=NO \
 	2>&1 | grep -E "(error:|ARCHIVE)" || true
 
-[ ! -d "./build/MiaoYan.xcarchive" ] && echo -e "${RED}ERROR: Archive failed${NC}" && exit 1
+[ ! -d "./build/Mdown.xcarchive" ] && echo -e "${RED}ERROR: Archive failed${NC}" && exit 1
 
 # 3. Export
 echo "[3/6] Exporting..."
 mkdir -p "./build/Release"
-cp -R "./build/MiaoYan.xcarchive/Products/Applications/MiaoYan.app" "./build/Release/Mdown.app"
-
-# Ensure binary, CFBundleExecutable, and display names are Mdown
-if [ -f "./build/Release/Mdown.app/Contents/MacOS/MiaoYan" ]; then
-	mv "./build/Release/Mdown.app/Contents/MacOS/MiaoYan" "./build/Release/Mdown.app/Contents/MacOS/Mdown"
-	/usr/libexec/PlistBuddy -c "Set :CFBundleExecutable Mdown" "./build/Release/Mdown.app/Contents/Info.plist"
-fi
-/usr/libexec/PlistBuddy -c "Set :CFBundleName Mdown" "./build/Release/Mdown.app/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Mdown" "./build/Release/Mdown.app/Contents/Info.plist"
-ln -sfn Mdown.app "./build/Release/MiaoYan.app"
+cp -R "./build/Mdown.xcarchive/Products/Applications/Mdown.app" "./build/Release/Mdown.app"
 
 # 4. Ad-hoc sign & package
 echo "[4/6] Signing & packaging..."
@@ -229,7 +220,7 @@ xattr -cr "./build/$DMG_NAME" "./build/$ZIP_NAME"
 
 # 5. Sparkle signature
 echo "[5/6] Signing..."
-SIGN_UPDATE=$(ls -t ~/Library/Developer/Xcode/DerivedData/MiaoYan-*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update 2>/dev/null | head -1)
+SIGN_UPDATE=$(ls -t ~/Library/Developer/Xcode/DerivedData/Mdown-*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update 2>/dev/null | head -1)
 
 if [ -n "$SIGN_UPDATE" ] && [ -x "$SIGN_UPDATE" ]; then
 	if [ -n "$KEY_PATH" ] && [ -f "$KEY_PATH" ]; then

@@ -24,8 +24,8 @@ class StorageView: NSVisualEffectView {
         super.draw(dirtyRect)
         configureSidebarMaterial()
 
-        fillMiaoYanPaneBackground(dirtyRect)
-        applyMiaoYanPaneBackground()
+        fillMdownPaneBackground(dirtyRect)
+        applyMdownPaneBackground()
     }
 
     private func configureSidebarMaterial() {
@@ -33,6 +33,6 @@ class StorageView: NSVisualEffectView {
         blendingMode = .withinWindow
         state = .inactive
         isEmphasized = false
-        applyMiaoYanPaneBackground()
+        applyMdownPaneBackground()
     }
 }

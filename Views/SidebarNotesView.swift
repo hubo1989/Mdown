@@ -5,13 +5,13 @@ class SidebarNotesView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
 
-        fillMiaoYanPaneBackground(dirtyRect)
+        fillMdownPaneBackground(dirtyRect)
     }
 
     override func awakeFromNib() {
         super.awakeFromNib()
         MainActor.assumeIsolated { [self] in
-            applyMiaoYanPaneBackground()
+            applyMdownPaneBackground()
         }
     }
 }

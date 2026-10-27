@@ -25,7 +25,7 @@ class AboutViewController: NSViewController {
 
         for case let label as NSTextField in view.subviews {
             label.textColor =
-                (label.stringValue == "Mdown" || label.stringValue == "MiaoYan")
+                label.stringValue == "Mdown"
                 ? Theme.textColor : Theme.secondaryTextColor
         }
     }

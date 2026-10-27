@@ -113,7 +113,7 @@ class HtmlManager {
                     border-bottom: 1px solid var(--pdf-hairline) !important;
                 }
                 pre, table, figure, blockquote,
-                .miaoyan-mermaid, .md-diagram-panel {
+                .mdown-mermaid, .md-diagram-panel {
                     page-break-inside: avoid;
                 }
                 p {
@@ -223,7 +223,7 @@ class HtmlManager {
             ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         return
             baseURL
-            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "MiaoYan", isDirectory: true)
+            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "Mdown", isDirectory: true)
             .appendingPathComponent("wkPreview", isDirectory: true)
     }()
     private static let previewHealthCheckPaths = [

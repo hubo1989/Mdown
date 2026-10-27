@@ -15,7 +15,7 @@ extension MPreviewView {
         let currentBlockId = preflight.identity.blockId
         let currentRevision = preflight.identity.renderRevision
 
-        evaluateJavaScript("window.__miaoyanGetActiveDiagramSnapshot()") { [weak self] rawResult, error in
+        evaluateJavaScript("window.__mdownGetActiveDiagramSnapshot()") { [weak self] rawResult, error in
             guard let self = self else { return }
 
             if let error = error {

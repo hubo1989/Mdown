@@ -1,8 +1,8 @@
 /**
- * MiaoYan Common Utilities
+ * Mdown Common Utilities
  */
 
-const MiaoYanCommon = {
+const MdownCommon = {
   isDarkMode() {
     // Delegate to ThemeConfig for consistent dark mode detection
     return window.ThemeConfig?.isDarkMode?.() || 'CUSTOM_CSS' === 'darkmode';
@@ -88,7 +88,7 @@ const MiaoYanCommon = {
             naturalWidth: Math.max(10, width),
             naturalHeight: Math.max(10, height)
           };
-          window.__miaoyanActiveDiagram = activeInfo;
+          window.__mdownActiveDiagram = activeInfo;
           if (window.webkit?.messageHandlers?.diagramContextMenu) {
             window.webkit.messageHandlers.diagramContextMenu.postMessage(activeInfo);
           }
@@ -96,7 +96,7 @@ const MiaoYanCommon = {
         }
       }
 
-      window.__miaoyanActiveDiagram = null;
+      window.__mdownActiveDiagram = null;
       if (window.webkit?.messageHandlers?.diagramContextMenu) {
         window.webkit.messageHandlers.diagramContextMenu.postMessage(null);
       }
@@ -197,7 +197,7 @@ const MiaoYanCommon = {
               if (window.Lightense && (img.closest('#write') || img.parentElement?.tagName === 'P' || img.closest('table'))) {
                 img.addEventListener('load', () => {
                   window.Lightense([img], {
-                    background: MiaoYanCommon.isDarkMode() ? 'rgba(33, 38, 43, .8)' : 'rgba(255, 255, 255, .8)',
+                    background: MdownCommon.isDarkMode() ? 'rgba(33, 38, 43, .8)' : 'rgba(255, 255, 255, .8)',
                   });
                 }, { once: true });
               }
@@ -429,7 +429,7 @@ const TOC_CONFIG = {
 (function() {
   // Default no-op so a menu/shortcut trigger never hits an undefined call
   // before initTOC runs (or when there are too few headings to build a TOC).
-  window.MiaoYanTOC = { toggle: function() {} };
+  window.MdownTOC = { toggle: function() {} };
 
   function initTOC() {
     const nav = document.querySelector('.toc-nav');
@@ -507,7 +507,7 @@ const TOC_CONFIG = {
         show();
       }
     };
-    window.MiaoYanTOC = { toggle: menuToggle };
+    window.MdownTOC = { toggle: menuToggle };
 
     // Auto-scroll active link into view within TOC panel
     const scrollToActive = () => {
@@ -590,7 +590,7 @@ const TOC_CONFIG = {
   }
 
   // Wait for tocbot to be available and render TOC
-  MiaoYanCommon.onDOMReady(() => {
+  MdownCommon.onDOMReady(() => {
     setTimeout(() => {
       if (window.tocbot && document.querySelector('.toc-nav')) {
         initTOC();
@@ -599,10 +599,10 @@ const TOC_CONFIG = {
   });
 })();
 
-window.MiaoYanCommon = MiaoYanCommon;
+window.MdownCommon = MdownCommon;
 
-window.__miaoyanGetActiveDiagramSnapshot = function() {
-  const active = window.__miaoyanActiveDiagram;
+window.__mdownGetActiveDiagramSnapshot = function() {
+  const active = window.__mdownActiveDiagram;
   if (!active || !active.blockId) return null;
 
   const container = document.querySelector(`[data-block-id="${active.blockId}"]`);

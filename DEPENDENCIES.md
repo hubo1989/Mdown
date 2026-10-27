@@ -1,4 +1,4 @@
-# MiaoYan Dependencies
+# Mdown Dependencies
 
 This document is the source of truth for runtime dependencies. It is verified
 against `Package.swift` in CI (see `.github/workflows/ci.yml`); divergence
@@ -26,7 +26,7 @@ of declared versions only).
 
 ## Bundled Frontend Assets
 
-MiaoYan renders previews inside a `WKWebView` that loads bundled HTML/CSS/JS
+Mdown renders previews inside a `WKWebView` that loads bundled HTML/CSS/JS
 from `Resources/DownView.bundle/`. These are vendored, not pulled by SPM, so
 they are documented in a separate manifest:
 
@@ -40,7 +40,7 @@ they are documented in a separate manifest:
 - macOS host target: 11.5+ (Big Sur)
 - iOS Mobile target: 18.0+
 - Swift toolchain: 6.0
-- Xcode: 16.0+ (matches the build setting in `MiaoYan.xcodeproj`)
+- Xcode: 16.0+ (matches the build setting in `Mdown.xcodeproj`)
 
 ## Working with Dependencies
 
@@ -52,7 +52,7 @@ Updating versions:
 
 ```bash
 # Resolve latest within the declared constraints
-xcodebuild -project MiaoYan.xcodeproj -scheme MiaoYan -resolvePackageDependencies
+xcodebuild -project Mdown.xcodeproj -scheme Mdown -resolvePackageDependencies
 
 # Show the resolved dependency tree
 swift package show-dependencies
