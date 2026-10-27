@@ -50,6 +50,23 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
     /// persists must validate against this owner, never against
     /// `EditTextView.note` alone (#543).
     private(set) var storageNote: Note?
+    /// T05: 源码会话（窗口编辑上下文的 source/revision/selection 权威）。
+    /// 与 storageNote 同生命周期：fill 装载 buffer 时同 URL 复用（replaceAll
+    /// 提升代际），URL 变化则新建。旧 session 由 ARC 回收，显式 retire
+    /// 由 T07/T08 的删除/关闭路径接入。写入只经 installEditingSession /
+    /// updateStorageRevision（EditTextView+EditingSession 调用）。
+    private(set) var editingSession: MarkdownEditingSession?
+    /// buffer 内容对应的会话 revision（publish 时标注）。落后于会话当前
+    /// revision 的 buffer 不得整篇写回（旧 v1 覆盖新 v2，T05 防护）。
+    private(set) var storageRevision: UInt64 = 0
+
+    func installEditingSession(_ session: MarkdownEditingSession?) {
+        editingSession = session
+    }
+
+    func updateStorageRevision(_ revision: UInt64) {
+        storageRevision = revision
+    }
     public static var shouldForceRescan: Bool = false
     public static var lastRemoved: String?
     public var viewDelegate: ViewController?
@@ -986,9 +1003,11 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
     /// Single point that replaces the storage bytes wholesale and records
     /// which note they belong to. Every full-storage assignment must go
     /// through here so `storageNote` can never drift from the actual bytes.
+    /// T05: 会话基线同步见 EditTextView+EditingSession.syncEditingSession。
     func publishStorage(_ content: NSAttributedString, owner: Note?) {
         textStorage?.setAttributedString(content)
         storageNote = owner
+        syncEditingSession(with: content, owner: owner)
     }
 
     func saveTextStorageContent(to note: Note) {
@@ -1008,6 +1027,9 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
             AppDelegate.trackError(mismatch, context: "EditTextView.saveTextStorageContent.ownerGuard")
             return
         }
+        // T05: 失效 buffer / 退役 note 的整篇写回拒绝（identity/revision
+        // 防护，见 EditTextView+EditingSession.editingSessionAllowsSave）。
+        guard editingSessionAllowsSave(to: note) else { return }
         let string = storage.attributedSubstring(from: NSRange(0..<storage.length))
         let cleaned = NSMutableAttributedString(attributedString: string)
             .unLoadImages()

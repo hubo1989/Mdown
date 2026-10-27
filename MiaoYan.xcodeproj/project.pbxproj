@@ -213,6 +213,9 @@
 		7BDCCA9B2766D8CC45D1A017 /* NativeFixtureLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0FA6085AE3E4CF16F573B66 /* NativeFixtureLoader.swift */; };
 		2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */; };
 		60A11954F965D4D5C735985B /* MarkdownEditorHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */; };
+		A5AF1EC1E3506C998ECE0C7A /* MarkdownEditingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494FFF60961549EA22C86A45 /* MarkdownEditingSession.swift */; };
+		109B149EC1A3DDE3E3CD248B /* EditTextView+EditingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D8B1EB80A29CD7BB2A3AA17 /* EditTextView+EditingSession.swift */; };
+		5287E2EC852C6B3430FB5872 /* MarkdownEditingSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B788393DA817D0A6AD2FE3 /* MarkdownEditingSessionTests.swift */; };
 		DEF7CFD7BDBFA56B6913D42B /* RichMarkdownEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC983E1A693D0ECDE33447B /* RichMarkdownEditingTests.swift */; };
 		51E95D8D4B21865372D42D48 /* MarkdownCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C7BA8C505C9D6F2A9562427 /* MarkdownCompositionTests.swift */; };
 /* End PBXBuildFile section */
@@ -458,6 +461,9 @@
 		B0FA6085AE3E4CF16F573B66 /* NativeFixtureLoader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeFixtureLoader.swift; sourceTree = "<group>"; };
 		C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RichMarkdownTextView.swift; sourceTree = "<group>"; };
 		EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditorHistory.swift; sourceTree = "<group>"; };
+		494FFF60961549EA22C86A45 /* MarkdownEditingSession.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditingSession.swift; sourceTree = "<group>"; };
+		6D8B1EB80A29CD7BB2A3AA17 /* EditTextView+EditingSession.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "EditTextView+EditingSession.swift"; sourceTree = "<group>"; };
+		B6B788393DA817D0A6AD2FE3 /* MarkdownEditingSessionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownEditingSessionTests.swift; sourceTree = "<group>"; };
 		FBC983E1A693D0ECDE33447B /* RichMarkdownEditingTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RichMarkdownEditingTests.swift; sourceTree = "<group>"; };
 		1C7BA8C505C9D6F2A9562427 /* MarkdownCompositionTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MarkdownCompositionTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -579,6 +585,7 @@
 				F9F19114CAB383B58F4A46B8 /* MarkdownProjectionTests.swift */,
 				B0FA6085AE3E4CF16F573B66 /* NativeFixtureLoader.swift */,
 				FBC983E1A693D0ECDE33447B /* RichMarkdownEditingTests.swift */,
+				B6B788393DA817D0A6AD2FE3 /* MarkdownEditingSessionTests.swift */,
 				1C7BA8C505C9D6F2A9562427 /* MarkdownCompositionTests.swift */,
 );
 			path = MiaoYanTests;
@@ -705,6 +712,7 @@
 				E38D0BC1B6A40BDD6D98E4F5 /* Business/AppEnvironment.swift */,
 							779BD6B8640449564912F3C8 /* MarkdownEditTransaction.swift */,
 				EE09F405C6EE532F8A9094B8 /* MarkdownEditorHistory.swift */,
+				494FFF60961549EA22C86A45 /* MarkdownEditingSession.swift */,
 );
 			path = Business;
 			sourceTree = "<group>";
@@ -805,6 +813,7 @@
 				BEE6142E8B5D4BB380FC2B38 /* MPreviewView+Search.swift */,
 				272D1B422E77E9AC00A95674 /* MPreviewView+DiagramExport.swift */,
 							C746C337E6DBB5F1B5CF98A9 /* RichMarkdownTextView.swift */,
+				6D8B1EB80A29CD7BB2A3AA17 /* EditTextView+EditingSession.swift */,
 );
 			path = Views;
 			sourceTree = "<group>";
@@ -1149,6 +1158,7 @@
 				113554312C3A51AD89992DF7 /* MarkdownProjectionTests.swift in Sources */,
 				7BDCCA9B2766D8CC45D1A017 /* NativeFixtureLoader.swift in Sources */,
 				DEF7CFD7BDBFA56B6913D42B /* RichMarkdownEditingTests.swift in Sources */,
+				5287E2EC852C6B3430FB5872 /* MarkdownEditingSessionTests.swift in Sources */,
 				51E95D8D4B21865372D42D48 /* MarkdownCompositionTests.swift in Sources */,
 );
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1272,6 +1282,8 @@
 				CB0CBCC5098271AD6C45CB42 /* MarkdownProjectionBuilder.swift in Sources */,
 				2ADF3001CA68A235D352D1E4 /* RichMarkdownTextView.swift in Sources */,
 				60A11954F965D4D5C735985B /* MarkdownEditorHistory.swift in Sources */,
+				A5AF1EC1E3506C998ECE0C7A /* MarkdownEditingSession.swift in Sources */,
+				109B149EC1A3DDE3E3CD248B /* EditTextView+EditingSession.swift in Sources */,
 );
 			runOnlyForDeploymentPostprocessing = 0;
 		};
