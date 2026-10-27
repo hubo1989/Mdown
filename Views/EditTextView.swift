@@ -1005,7 +1005,11 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
     /// through here so `storageNote` can never drift from the actual bytes.
     /// T05: 会话基线同步见 EditTextView+EditingSession.syncEditingSession。
     func publishStorage(_ content: NSAttributedString, owner: Note?) {
-        textStorage?.setAttributedString(content)
+        // T06：程序化装载（fill/版本恢复/外部重载）不登记 undo——view 刷新
+        // 不产生历史（SPEC §5.4）。用户后续输入从该基线开始新的 undo 链。
+        withoutUndoRegistration {
+            textStorage?.setAttributedString(content)
+        }
         storageNote = owner
         syncEditingSession(with: content, owner: owner)
     }
@@ -1978,20 +1982,4 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         return true
     }
 
-    // MARK: - Text Replacement Helper
-    private func replaceText(_ text: String, in range: NSRange) {
-        guard let textStorage = textStorage else { return }
-
-        // Preserve text attributes when replacing
-        let attributes = typingAttributes
-        let attributedText = NSAttributedString(string: text, attributes: attributes)
-
-        textStorage.replaceCharacters(in: range, with: attributedText)
-
-        // Trigger layout update and change notification
-        if let tc = textContainer {
-            layoutManager?.ensureLayout(for: tc)
-        }
-        didChangeText()
-    }
 }
