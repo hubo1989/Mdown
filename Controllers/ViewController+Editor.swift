@@ -109,9 +109,11 @@ extension ViewController {
             savedEditorScrollRatio = editorScrollRatio
             savedEditorNoteURL = EditTextView.note?.url
             savedLayoutModeBeforePreview = sessionLayoutMode
-            if sessionLayoutMode == .wysiwyg {
-                vditorEditView?.flushPendingSave()
-            }
+            // T08: 进 preview 是编辑器失焦但仍在上下文的转换点——经统一
+            // 入口采集活动后端 buffer（不读隐藏 buffer，wysiwyg 时 Vditor
+            // 是权威），清掉 debounce 队列；不打断进行中的 IME 组合输入。
+            _ = AppEnvironment.current.editingTransitions.finishActiveEditing(
+                in: self, forceCompositionFinish: false)
         }
 
         if !sessionMagicPPTMode {
@@ -1672,6 +1674,13 @@ extension ViewController {
 
         let currentName = note.getFileName()
         guard currentName != newTitle else { return }
+
+        // T08: rename 是硬保存点——dirty 草稿先经统一入口落盘再动文件
+        // 名；写失败可 Retry/Save Copy/Discard，取消则中止改名。
+        let transitions = AppEnvironment.current.editingTransitions
+        guard transitions.prepareCommandTargeting(note, in: self), transitions.flushOrResolve(note) else {
+            return
+        }
 
         let result = attemptSave(note: note, title: newTitle, current: currentName)
         if case .success = result {

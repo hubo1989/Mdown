@@ -293,11 +293,12 @@ extension NoteSaveDebounceTests {
         // 用户在 Vditor 输入（0.5s 外层 debounce 与 1.5s Note debounce 均未到）
         vditor.handleContentChanged("v2", token: vditor.currentLoadTokenValue)
 
-        // 硬保存点等价链：活动后端采集 + flushPendingSaves 的 drain
-        ActiveEditingBackend.captureBuffer(
-            for: note, sourceEditor: .init(frame: .zero),
-            vditorView: vditor, isWysiwygActive: true
-        )
+        // 硬保存点等价链：统一入口采集（活动后端）+ flushPendingSaves 的 drain
+        let context = BackendCaptureStubContext(
+            activeNote: note, sourceEditor: .init(frame: .zero),
+            vditorView: vditor, isWysiwygActive: true)
+        _ = EditingTransitionCoordinator().finishActiveEditing(
+            in: context, forceCompositionFinish: false)
         XCTAssertTrue(note.flushPendingSave(), "flush 必须成功")
         XCTAssertTrue(note.flushPendingSave(), "二次 flush 幂等")
 

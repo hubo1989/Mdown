@@ -315,3 +315,10 @@
 "Light" = "浅色";
 "Dark" = "深色";
 
+
+/* T08 EditingTransitionCoordinator */
+"Failed to save \"%@\"" = "保存「%@」失败";
+"Your changes could not be written to disk. Retry the save, keep a copy elsewhere, or discard this draft." = "修改内容无法写入磁盘。可以重试保存、将副本另存到其他位置，或放弃这份草稿。";
+"Retry" = "重试";
+"Save Copy…" = "另存副本…";
+"Discard Changes" = "放弃修改";

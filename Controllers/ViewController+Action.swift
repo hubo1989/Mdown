@@ -544,16 +544,19 @@ extension ViewController {
                 }
 
                 // Make sure note.content actually reflects what is on disk
-                // before we copy it. Two failure modes the next two lines
-                // defend against:
+                // before we copy it. Two failure modes the next lines defend
+                // against:
                 //   1. The note was never opened in this session, so
                 //      isContentLoaded is false and note.content is an
                 //      empty NSMutableAttributedString.
                 //   2. The active note has unsaved edits sitting in the
                 //      1.5s debounce queue; without flushing, the duplicate
                 //      contains the previous on-disk version.
-                if note === EditTextView.note {
-                    editArea.saveTextStorageContent(to: note)
+                // T08: 采集走统一入口——组合输入先提交、只从活动后端采
+                // buffer（wysiwyg 时 Vditor 是权威）；组合无法提交时中止
+                // 本次 duplicate，不复制半截草稿。
+                guard AppEnvironment.current.editingTransitions.prepareCommandTargeting(note, in: self) else {
+                    continue
                 }
                 note.flushPendingSave()
                 if !note.isContentLoaded {
@@ -788,6 +791,14 @@ extension ViewController {
         let selectedRow = notesTableView.selectedRowIndexes.min()
         for note in notes {
             if note.project == project {
+                continue
+            }
+
+            // T08: move 是硬保存点——dirty 草稿先落盘再移动文件；写失败
+            // 可 Retry/Save Copy/Discard，取消则跳过该笔记，不让草稿在
+            // 移动后写到旧位置（内容分裂在两个文件）。
+            let transitions = AppEnvironment.current.editingTransitions
+            guard transitions.prepareCommandTargeting(note, in: self), transitions.flushOrResolve(note) else {
                 continue
             }
 
@@ -1615,19 +1626,11 @@ extension ViewController {
             // Toast only when something was actually flushed; otherwise a
             // user spamming Cmd+S sees a constant stream of "Saved~" toasts
             // even when there is nothing pending.
-            // T01: 硬保存点从活动编辑后端采集（wysiwyg 时 Vditor 是权威，
-            // source textStorage 停留在旧内容，owner 匹配也会覆盖新输入）。
-            let wysiwygActive = sessionLayoutMode == .wysiwyg
-            if let activeNote = ActiveEditingBackend.activeNote(
-                sourceNote: EditTextView.note, vditorView: vditorEditView, isWysiwygActive: wysiwygActive
-            ) {
-                ActiveEditingBackend.captureBuffer(
-                    for: activeNote, sourceEditor: editArea,
-                    vditorView: vditorEditView, isWysiwygActive: wysiwygActive
-                )
-            }
+            // T08: 统一入口——先提交活动后端的组合输入并从活动后端采集
+            // buffer（不读隐藏 buffer），失败时走 Retry/Save Copy/Discard/
+            // Cancel；Cancel 只保留 dirty，不阻止停留。
             let hadUnsavedChanges = storage.noteList.contains { $0.needsSave }
-            let allSaved = storage.flushPendingSaves()
+            let allSaved = AppEnvironment.current.editingTransitions.saveAllNow(in: self)
             if hadUnsavedChanges, allSaved {
                 toast(message: I18n.str("Saved~"), style: .success)
             }
