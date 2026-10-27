@@ -1,0 +1,113 @@
+name: Release build
+
+# Maintainer-triggered signed + notarized build (direct-download channel).
+# Opt-in: workflow_dispatch from Actions tab. Never runs on push/PR/tag —
+# publishing stays a deliberate act (AGENTS.md: release builds are not
+# driven by a tracked push workflow; this job only packages, it does NOT
+# publish: no GitHub Release, no appcast update, no reactions ritual —
+# those stay with the maintainer's local scripts).
+#
+# Required secrets (repo → Settings → Secrets and variables → Actions):
+#   MAC_SIGNING_P12         base64 of the PKCS#12 export of the
+#                           "Developer ID Application: ..." identity
+#                           (cert + private key), export password in
+#                           MAC_SIGNING_P12_PASSWORD
+#   MAC_SIGNING_P12_PASSWORD  password used when creating the .p12
+#   ASC_KEY_ID              App Store Connect API key id (10 chars)
+#   ASC_ISSUER_ID           App Store Connect API issuer id (UUID)
+#   ASC_API_KEY_P8          base64 of the .p8 private key file
+#
+# Creating the ASC API key: appstoreconnect.apple.com → Users and Access
+# → Integrations → App Store Connect API → Team Keys → Generate
+# (minimum role: Developer; notarytool only needs submission access).
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch / tag to build (default: current branch)"
+        required: false
+        default: ""
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  signed-notarized-build:
+    name: Sign + notarize (direct download)
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.3.app/Contents/Developer
+      SIGN_IDENTITY: "Developer ID Application: Chengdu Chunfenshijie Technology Co.,Ltd. (27LU47J28S)"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Fail fast on missing secrets
+        run: |
+          missing=0
+          for s in MAC_SIGNING_P12 MAC_SIGNING_P12_PASSWORD ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8; do
+            if [ -z "${!s}" ]; then echo "::error::$s secret not set (see workflow header)"; missing=1; fi
+          done
+          [ "$missing" -eq 0 ]
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      - name: Import signing identity
+        env:
+          MAC_SIGNING_P12: ${{ secrets.MAC_SIGNING_P12 }}
+          MAC_SIGNING_P12_PASSWORD: ${{ secrets.MAC_SIGNING_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$MAC_SIGNING_P12" | base64 --decode > signing.p12
+          # Temporary keychain: created, used, destroyed within this job.
+          security create-keychain -p build build.keychain-db
+          security set-keychain-settings -lut 21600 build.keychain-db
+          security unlock-keychain -p build build.keychain-db
+          security import signing.p12 -k build.keychain-db \
+            -P "$MAC_SIGNING_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k build build.keychain-db
+          security list-keychains -d user -s build.keychain-db \
+            $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning build.keychain-db
+          rm -f signing.p12
+
+      - name: Build, sign and notarize
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          # notarytool on CI uses the ASC API key (.p8) instead of a
+          # keychain profile; store-credentials validates it right here.
+          echo "$ASC_API_KEY_P8" | base64 --decode > "AuthKey_${ASC_KEY_ID}.p8"
+          xcrun notarytool store-credentials mdown-notary-ci \
+            --key "AuthKey_${ASC_KEY_ID}.p8" \
+            --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID"
+          rm -f "AuthKey_${ASC_KEY_ID}.p8"
+          # build.sh defaults to the same Developer ID identity; point its
+          # notary step at the CI profile and keep everything else intact.
+          MDOWN_NOTARY_PROFILE=mdown-notary-ci bash scripts/build.sh
+
+      - name: Verify stapled ticket
+        run: |
+          set -euo pipefail
+          xcrun stapler validate "./build/Release/Mdown.app"
+          spctl -a -t exec -vv "./build/Release/Mdown.app"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdown-signed-notarized
+          path: |
+            build/Release/Mdown_V*.zip
+            build/Mdown.dmg
+          retention-days: 14
+          if-no-files-found: error
