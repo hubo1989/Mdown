@@ -1338,6 +1338,22 @@ extension ViewController {
     }
 
     // MARK: - Keyboard Event Handling
+    /// True when the WYSIWYG editor (WKWebView) or its own first responder
+    /// (a private WebKit content view) owns the keyboard. The type-to-search
+    /// branch below only recognizes EditTextView / NSTextView, so without this
+    /// check a letter typed in WYSIWYG mode jumps focus to the search field
+    /// and never reaches the note — while Delete keeps working, which is the
+    /// reported "cannot type, only delete" symptom.
+    func isWysiwygTypingTarget(_ responder: NSResponder) -> Bool {
+        guard let editor = vditorEditView, !editor.isHidden else { return false }
+        var current = responder as? NSView
+        while let view = current {
+            if view === editor { return true }
+            current = view.superview
+        }
+        return false
+    }
+
     // swiftlint:disable:next cyclomatic_complexity
     public func handleKeyDown(with event: NSEvent) -> Bool {
         guard let mw = MainWindowController.shared() else {
@@ -1634,7 +1650,8 @@ extension ViewController {
             return false
         }
 
-        if let fr = mw.firstResponder, !fr.isKind(of: EditTextView.self), !fr.isKind(of: NSTextView.self), !event.modifierFlags.contains(.command),
+        if let fr = mw.firstResponder, !fr.isKind(of: EditTextView.self), !fr.isKind(of: NSTextView.self), !isWysiwygTypingTarget(fr),
+            !event.modifierFlags.contains(.command),
             !event.modifierFlags.contains(.control)
         {
             if let char = event.characters {
