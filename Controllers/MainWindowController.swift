@@ -270,8 +270,15 @@ class MainWindowController: NSWindowController, NSWindowDelegate, NSWindowRestor
         NotificationCenter.default.removeObserver(self, name: .alwaysOnTopChanged, object: nil)
         if let vc = AppContext.shared.viewController {
             vc.persistCurrentViewState()
-            if let activeNote = EditTextView.note {
-                vc.editArea.saveTextStorageContent(to: activeNote)
+            // T01: 硬保存点从活动编辑后端采集（wysiwyg 时 Vditor 是权威）。
+            let wysiwygActive = vc.sessionLayoutMode == .wysiwyg
+            if let activeNote = ActiveEditingBackend.activeNote(
+                sourceNote: EditTextView.note, vditorView: vc.vditorEditView, isWysiwygActive: wysiwygActive
+            ) {
+                ActiveEditingBackend.captureBuffer(
+                    for: activeNote, sourceEditor: vc.editArea,
+                    vditorView: vc.vditorEditView, isWysiwygActive: wysiwygActive
+                )
             }
             vc.storage.flushPendingSaves()
         }

@@ -142,7 +142,7 @@ final class VditorIntegrationTests: XCTestCase {
         // Wait for async ensureContentLoadedAsync task to complete
         for _ in 0..<50 {
             if note.isContentLoaded { break }
-            try? await Task.sleep(nanoseconds: 20_000_000) // 20ms
+            try? await Task.sleep(nanoseconds: 20_000_000)  // 20ms
         }
 
         XCTAssertTrue(note.isContentLoaded)
