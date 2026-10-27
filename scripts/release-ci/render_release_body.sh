@@ -26,9 +26,6 @@ format_item() {
 
 cat <<EOF
 <p align="center">
-  <a href="https://github.com/hubo1989/Mdown" target="_blank">
-    <img src="https://gw.alipayobjects.com/zos/k/t0/43.png" width="110" />
-  </a>
   <h1 align="center">Mdown ${TITLE}</h1>
   <div align="center">A native Markdown editor for engineers.</div>
 </p>
