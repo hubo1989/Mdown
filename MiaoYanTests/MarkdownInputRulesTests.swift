@@ -73,42 +73,50 @@ final class MarkdownInputRulesTests: XCTestCase {
     // MARK: 不触发矩阵（NE-13 组合输入由 view 层排除；此处为文本形态）
 
     func testSpaceNotAtLineEndDoesNotMatch() {
-        XCTAssertNil(MarkdownInputRules.matchPrefixInsertion(
-            source: "- x\n", insertedOffset: 1, protectedRanges: []),
+        XCTAssertNil(
+            MarkdownInputRules.matchPrefixInsertion(
+                source: "- x\n", insertedOffset: 1, protectedRanges: []),
             "前缀后有内容：合法前缀未完成，不转换")
-        XCTAssertNil(MarkdownInputRules.matchPrefixInsertion(
-            source: "# 中 间\n", insertedOffset: 4, protectedRanges: []),
+        XCTAssertNil(
+            MarkdownInputRules.matchPrefixInsertion(
+                source: "# 中 间\n", insertedOffset: 4, protectedRanges: []),
             "行中空格不是前缀完成")
     }
 
     func testInsertedCharacterMustBeSpace() {
-        XCTAssertNil(MarkdownInputRules.matchPrefixInsertion(
-            source: "-\n", insertedOffset: 1, protectedRanges: []),
+        XCTAssertNil(
+            MarkdownInputRules.matchPrefixInsertion(
+                source: "-\n", insertedOffset: 1, protectedRanges: []),
             "非空格字符不构成前缀完成")
     }
 
     func testBareSymbolWithoutSpaceDoesNotMatch() {
-        XCTAssertNil(MarkdownInputRules.matchPrefixInsertion(
-            source: "-\n", insertedOffset: 1, protectedRanges: []))
+        XCTAssertNil(
+            MarkdownInputRules.matchPrefixInsertion(
+                source: "-\n", insertedOffset: 1, protectedRanges: []))
     }
 
     func testProtectedBlocksDoNotMatch() {
         // fence 内一行 "# "（0`..3`\n 4# 5␠ 6\n）：空格在 5
         let fence = "```\n# \n```\n" as NSString
         let inner = NSRange(location: 4, length: 3)
-        XCTAssertNil(MarkdownInputRules.matchPrefixInsertion(
-            source: fence as String, insertedOffset: 5, protectedRanges: [inner]))
+        XCTAssertNil(
+            MarkdownInputRules.matchPrefixInsertion(
+                source: fence as String, insertedOffset: 5, protectedRanges: [inner]))
         // 同一位置无保护信息时本应匹配（对照：排除是保护块造成的）
-        XCTAssertNotNil(MarkdownInputRules.matchPrefixInsertion(
-            source: fence as String, insertedOffset: 5, protectedRanges: []))
+        XCTAssertNotNil(
+            MarkdownInputRules.matchPrefixInsertion(
+                source: fence as String, insertedOffset: 5, protectedRanges: []))
     }
 
     func testSymbolRunsBeyondLimitsDoNotMatch() {
-        XCTAssertNil(MarkdownInputRules.matchPrefixInsertion(
-            source: "####### \n", insertedOffset: 7, protectedRanges: []),
+        XCTAssertNil(
+            MarkdownInputRules.matchPrefixInsertion(
+                source: "####### \n", insertedOffset: 7, protectedRanges: []),
             "7 个 # 不是合法 heading")
-        XCTAssertNil(MarkdownInputRules.matchPrefixInsertion(
-            source: ">>>> \n", insertedOffset: 4, protectedRanges: []),
+        XCTAssertNil(
+            MarkdownInputRules.matchPrefixInsertion(
+                source: ">>>> \n", insertedOffset: 4, protectedRanges: []),
             "4 层引用手输超出认定范围")
     }
 
@@ -131,10 +139,11 @@ final class MarkdownInputRulesTests: XCTestCase {
         insertEntry(&history, " ", at: 1, base: "#\n")
         XCTAssertEqual(history.undoStack.count, 2)
 
-        XCTAssertTrue(history.collapseTypingPrefix(
-            prefixRange: NSRange(location: 0, length: 2),
-            selectionAfter: MarkdownSelection(anchorUTF16: 2, focusUTF16: 2, affinity: .downstream),
-            name: "input-rule-heading"))
+        XCTAssertTrue(
+            history.collapseTypingPrefix(
+                prefixRange: NSRange(location: 0, length: 2),
+                selectionAfter: MarkdownSelection(anchorUTF16: 2, focusUTF16: 2, affinity: .downstream),
+                name: "input-rule-heading"))
         XCTAssertEqual(history.undoStack.count, 1, "前缀输入合并为单条 undo 记录")
 
         let undo = history.undo(currentSource: "# \n")
@@ -152,10 +161,11 @@ final class MarkdownInputRulesTests: XCTestCase {
         clock.current = Date()  // 5 秒后
         insertEntry(&history, " ", at: 1, base: "-\n")
         XCTAssertEqual(history.undoStack.count, 2, "跨合并窗的 typing 不被自动合并")
-        XCTAssertTrue(history.collapseTypingPrefix(
-            prefixRange: NSRange(location: 0, length: 2),
-            selectionAfter: MarkdownSelection(anchorUTF16: 2, focusUTF16: 2, affinity: .downstream),
-            name: "input-rule-bulletList"))
+        XCTAssertTrue(
+            history.collapseTypingPrefix(
+                prefixRange: NSRange(location: 0, length: 2),
+                selectionAfter: MarkdownSelection(anchorUTF16: 2, focusUTF16: 2, affinity: .downstream),
+                name: "input-rule-bulletList"))
         XCTAssertEqual(history.undo(currentSource: "- \n")?.source, "\n")
     }
 
@@ -172,10 +182,11 @@ final class MarkdownInputRulesTests: XCTestCase {
                 origin: .delete, name: "delete"))
         insertEntry(&history, " ", at: 1, base: "#\n")
         // 此时栈顶链只覆盖 [1,2)，与前缀 [0,2) 不匹配：不重组
-        XCTAssertFalse(history.collapseTypingPrefix(
-            prefixRange: NSRange(location: 0, length: 2),
-            selectionAfter: MarkdownSelection(anchorUTF16: 2, focusUTF16: 2, affinity: .downstream),
-            name: "input-rule-heading"))
+        XCTAssertFalse(
+            history.collapseTypingPrefix(
+                prefixRange: NSRange(location: 0, length: 2),
+                selectionAfter: MarkdownSelection(anchorUTF16: 2, focusUTF16: 2, affinity: .downstream),
+                name: "input-rule-heading"))
         XCTAssertEqual(history.undoStack.count, 3, "链不完整时保持既有粒度（不吞字）")
     }
 
@@ -189,10 +200,11 @@ final class MarkdownInputRulesTests: XCTestCase {
                 selectionBefore: MarkdownSelection(anchorUTF16: 1, focusUTF16: 1, affinity: .downstream),
                 selectionAfter: MarkdownSelection(anchorUTF16: 2, focusUTF16: 2, affinity: .downstream),
                 origin: .structure, name: "indent"))
-        XCTAssertFalse(history.collapseTypingPrefix(
-            prefixRange: NSRange(location: 0, length: 2),
-            selectionAfter: MarkdownSelection(anchorUTF16: 2, focusUTF16: 2, affinity: .downstream),
-            name: "input-rule-heading"),
+        XCTAssertFalse(
+            history.collapseTypingPrefix(
+                prefixRange: NSRange(location: 0, length: 2),
+                selectionAfter: MarkdownSelection(anchorUTF16: 2, focusUTF16: 2, affinity: .downstream),
+                name: "input-rule-heading"),
             "结构命令打断链：空格不属于前缀 typing，不合并")
     }
 }

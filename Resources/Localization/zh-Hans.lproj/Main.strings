@@ -612,3 +612,19 @@
 
 /* Class = "NSMenuItem"; title = "Reload Note"; ObjectID = "Rld-Nt-7Xm"; */
 "Rld-Nt-7Xm.title" = "重新加载";
+
+/* Class = "NSMenuItem"; ObjectID = "CdB-Blk-Mnu"; */
+"CdB-Blk-Mnu.title" = "代码块";
+
+/* Class = "NSMenuItem"; ObjectID = "InC-Cd-Mnu"; */
+"InC-Cd-Mnu.title" = "行内代码";
+
+/* Class = "NSMenuItem"; ObjectID = "Ge6-vi-x3q"; */
+"Ge6-vi-x3q.title" = "HTML";
+
+/* Class = "NSMenuItem"; ObjectID = "UcZ-Ne-qv1"; */
+"UcZ-Ne-qv1.title" = "PDF";
+
+/* Class = "NSMenuItem"; ObjectID = "pEY-cr-bnn"; */
+"pEY-cr-bnn.title" = "格式";
+

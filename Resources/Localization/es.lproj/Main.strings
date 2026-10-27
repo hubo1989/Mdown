@@ -697,3 +697,19 @@
 
 /* Class = "NSMenuItem"; title = "Reload Note"; ObjectID = "Rld-Nt-7Xm"; */
 "Rld-Nt-7Xm.title" = "Recargar Nota";
+
+/* Class = "NSMenuItem"; ObjectID = "CdB-Blk-Mnu"; */
+"CdB-Blk-Mnu.title" = "Bloque de código";
+
+/* Class = "NSMenuItem"; ObjectID = "CpP-01-iTm"; */
+"CpP-01-iTm.title" = "Copiar ruta";
+
+/* Class = "NSMenuItem"; ObjectID = "InC-Cd-Mnu"; */
+"InC-Cd-Mnu.title" = "Código en línea";
+
+/* Class = "NSMenuItem"; ObjectID = "OiT-01-iTm"; */
+"OiT-01-iTm.title" = "Abrir en Terminal";
+
+/* Class = "NSMenuItem"; ObjectID = "OiT-03-mnu"; */
+"OiT-03-mnu.title" = "Abrir en Terminal";
+

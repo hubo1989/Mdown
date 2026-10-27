@@ -70,6 +70,16 @@ public class Note: NSObject {
     private(set) var committedRevision = 0
     private var inFlightWrite: NotePendingWriteIdentity?
 
+    var saveErrorPresenter: (Error) -> Void = { error in
+        Task { @MainActor in
+            MiaoYanAlert.show(
+                message: I18n.str("Save Failed"),
+                informativeText: I18n.str(error.localizedDescription),
+                style: .warning
+            )
+        }
+    }
+
     public var hasPendingSave: Bool {
         guard !isRetired else { return false }
         return saveWorkItem.map { !$0.isCancelled } == true
@@ -844,13 +854,7 @@ public class Note: NSObject {
             AppDelegate.trackError(error, context: "Note.writeError")
             AppDelegate.trackError(error, context: "Note.write")
 
-            Task { @MainActor in
-                MiaoYanAlert.show(
-                    message: I18n.str("Save Failed"),
-                    informativeText: I18n.str(error.localizedDescription),
-                    style: .warning
-                )
-            }
+            saveErrorPresenter(error)
             return false
         }
 

@@ -420,7 +420,8 @@ final class MarkdownListEditingTests: XCTestCase {
         board.clearContents()
         board.setString("# ", forType: .string)
         view.paste(nil)
-        XCTAssertEqual(view.source, "# \n", "粘贴内容字面落 source")
+        XCTAssertEqual(view.source, "\\# \n", "普通粘贴转义结构标记")
+        XCTAssertEqual(view.displayText, "# \n")
         XCTAssertNil(view.lastInputRuleTriggered, "粘贴不触发 typing rule（NE-21）")
         // 粘贴单条历史：一次 undo 回空
         XCTAssertTrue(view.performUndo())

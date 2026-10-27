@@ -12,8 +12,8 @@ private let nestedUnderbraceFormula =
 
 final class HtmlManagerTests: XCTestCase {
     func testPreviewCurrencyGuardPreservesNumericMath() throws {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        let source = try String(contentsOf: root.appendingPathComponent("Resources/DownView.bundle/js/common.js"), encoding: .utf8)
+        let bundleURL = try XCTUnwrap(Bundle.main.url(forResource: "DownView", withExtension: "bundle"))
+        let source = try String(contentsOf: bundleURL.appendingPathComponent("js/common.js"), encoding: .utf8)
         let declaration = try XCTUnwrap(
             source.components(separatedBy: .newlines).first {
                 $0.trimmingCharacters(in: .whitespaces).hasPrefix("const currencyRegex = ")
@@ -237,10 +237,18 @@ final class MathRenderingRuntimeTests: XCTestCase {
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
         downViewBundleURL = try XCTUnwrap(
             Bundle.main.url(forResource: "DownView", withExtension: "bundle"))
-        for directory in ["css", "js", "ppt", "themes"] {
-            try FileManager.default.createSymbolicLink(
-                at: tempDirectory.appendingPathComponent(directory),
-                withDestinationURL: downViewBundleURL.appendingPathComponent(directory))
+        // 与 MermaidExportTests 同因:指向构建产物卷的 symlink/绝对 file URL
+        // 会让 WebContent 拿不到 file-url sandbox 扩展,页面脚本整体加载
+        // 失败。把渲染资源实拷到本地临时目录,页面只用相对路径。
+        for directory in ["css", "js", "ppt"] {
+            let source = downViewBundleURL.appendingPathComponent(directory)
+            guard FileManager.default.fileExists(atPath: source.path) else {
+                throw NSError(
+                    domain: "MathRenderingRuntimeTests", code: 2,
+                    userInfo: [NSLocalizedDescriptionKey: "DownView.bundle/\(directory) missing"])
+            }
+            try FileManager.default.copyItem(
+                at: source, to: tempDirectory.appendingPathComponent(directory))
         }
     }
 
@@ -258,23 +266,31 @@ final class MathRenderingRuntimeTests: XCTestCase {
     }
 
     private func writePreviewPage(markdownHTML: String) throws -> URL {
-        let jsDirectory = downViewBundleURL.appendingPathComponent("js", isDirectory: true)
         let page = """
             <!doctype html><html><head><meta charset="utf-8">
-            <script src="\(jsDirectory.appendingPathComponent("katex.min.js").absoluteString)"></script>
-            <script src="\(jsDirectory.appendingPathComponent("auto-render.min.js").absoluteString)"></script>
+            <script src="js/katex.min.js"></script>
+            <script src="js/auto-render.min.js"></script>
             </head><body><div id="write">\(markdownHTML)</div><script>
             window.__miaoyanMathDone = false;
+            window.__miaoyanMathError = null;
             window.addEventListener('load', function () {
-              renderMathInElement(document.getElementById('write'), {
-                delimiters: [
-                  {left: '$$', right: '$$', display: true},
-                  {left: '$', right: '$', display: false},
-                  {left: '\\\\(', right: '\\\\)', display: false},
-                  {left: '\\\\[', right: '\\\\]', display: true}
-                ], throwOnError: false
-              });
-              window.__miaoyanMathDone = true;
+              try {
+                if (typeof katex === 'undefined' || typeof renderMathInElement === 'undefined') {
+                  throw new Error('js/katex.min.js or js/auto-render.min.js failed to load');
+                }
+                renderMathInElement(document.getElementById('write'), {
+                  delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\\\(', right: '\\\\)', display: false},
+                    {left: '\\\\[', right: '\\\\]', display: true}
+                  ], throwOnError: false
+                });
+              } catch (error) {
+                window.__miaoyanMathError = String(error);
+              } finally {
+                window.__miaoyanMathDone = true;
+              }
             });
             </script></body></html>
             """
@@ -298,8 +314,13 @@ final class MathRenderingRuntimeTests: XCTestCase {
         let readinessProbe = """
             <script>
             window.__miaoyanMathDone = false;
+            window.__miaoyanMathError = null;
             const miaoyanMathReadyTimer = setInterval(function () {
-              if (typeof Reveal !== 'undefined' && Reveal.isReady()) {
+              if (typeof Reveal === 'undefined') {
+                window.__miaoyanMathError = 'ppt/dist/reveal.js failed to load';
+                window.__miaoyanMathDone = true;
+                clearInterval(miaoyanMathReadyTimer);
+              } else if (Reveal.isReady()) {
                 window.__miaoyanMathDone = true;
                 clearInterval(miaoyanMathReadyTimer);
               }
@@ -323,7 +344,7 @@ final class MathRenderingRuntimeTests: XCTestCase {
         let webView = WKWebView(
             frame: CGRect(x: 0, y: 0, width: 900, height: 700),
             configuration: configuration)
-        webView.loadFileURL(page, allowingReadAccessTo: URL(fileURLWithPath: "/"))
+        webView.loadFileURL(page, allowingReadAccessTo: tempDirectory)
 
         let deadline = Date().addingTimeInterval(10)
         var lastState: [String: Any]?
@@ -332,6 +353,11 @@ final class MathRenderingRuntimeTests: XCTestCase {
                 "document.readyState === 'complete' && window.__miaoyanMathDone === true") as? Bool,
                 done
             {
+                let rawError = try await webView.evaluateJavaScript("window.__miaoyanMathError")
+                if let message = rawError as? String {
+                    XCTFail("Math setup failed for \(page.lastPathComponent): \(message)")
+                    return
+                }
                 let raw = try await webView.evaluateJavaScript(
                     "({katex: document.querySelectorAll('.katex').length, em: document.querySelectorAll('em').length, raw: document.body.innerText.includes('\\\\underbrace')})")
                 let state = try XCTUnwrap(raw as? [String: Any])

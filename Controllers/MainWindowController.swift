@@ -76,7 +76,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate, NSWindowRestor
         if let vc = AppContext.shared.viewController {
             vc.editArea.applySystemAppearance()
             vc.editArea.markdownView?.updateAppearance()
-            vc.vditorEditView?.updateAppearance()
             vc.nativeRichHost?.updateAppearance()
             vc.applyModernChromeStyling()
             vc.updateToolbarButtonTints()

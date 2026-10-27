@@ -209,3 +209,21 @@ extension EditTextView {
         return true
     }
 }
+
+// MARK: - T14 查找路由（NE-23：命令只作用活动会话面）
+
+extension EditTextView {
+    /// native rich 是活动正文面时，查找归活动会话面所有——本 view（隐藏的
+    /// source 编辑器）不得再创建自己的查找条，⌘F/⌘G 由菜单 textFinder →
+    /// rich host 处理。
+    func richHostOwnsFind() -> Bool {
+        guard
+            let vc = window?.contentViewController as? ViewController
+                ?? AppContext.shared.viewController,
+            vc.sessionLayoutMode == .wysiwyg,
+            let host = vc.activeWysiwygBackend as? NativeRichEditorHostView,
+            !host.isHidden
+        else { return false }
+        return true
+    }
+}

@@ -1,6 +1,5 @@
 import Carbon.HIToolbox
 import Cocoa
-import Highlightr
 
 // Configuration options for EditTextView fill operations
 struct FillOptions {
@@ -454,6 +453,8 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
 
     private func insertShortcutText(_ shortcut: String) {
         guard EditTextView.note != nil else { return }
+        // T14：rich 活动面优先,不踢回 source（NE-24）。复用 adapter 的路由前提。
+        if MarkdownEditorCommandAdapter.richShortcutInsertTarget(for: self, shortcut: shortcut) { return }
         if let vc = getViewController(), vc.sessionLayoutMode == .wysiwyg {
             vc.sessionLayoutMode = .source
             UserDefaultsManagement.editorLayoutMode = .source
@@ -1165,7 +1166,6 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
             UserDataService.instance.isDark = effectiveAppearance.isDark
         }
 
-        NotesTextProcessor.hl = nil
         NotesTextProcessor.highlight(note: note)
 
         // Don't toggle preview mode on theme change - just refresh the preview content
@@ -1439,6 +1439,7 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
     }
 
     private func handleFindCommands(characters: String, isShiftPressed: Bool) -> Bool {
+        if richHostOwnsFind() { return false }
         if shouldRouteFindToPreview(), let web = markdownView {
             return handlePreviewFindCommands(characters: characters, isShiftPressed: isShiftPressed, webView: web)
         } else {
@@ -1481,6 +1482,7 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
 
     private func ensureSearchBarVisibleAfterAppKit(handled: Bool, characters: String, modifiers: KeyModifiers) {
         guard handled && modifiers.commandOnly else { return }
+        if richHostOwnsFind() { return }  // T14：rich 活动时查找条归 rich host
         switch characters.lowercased() {
         case "f":
             if !isSearchBarVisible {

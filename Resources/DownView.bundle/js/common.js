@@ -143,7 +143,19 @@ const MiaoYanCommon = {
 
     const id = element.dataset.checkbox;
     if (window.webkit?.messageHandlers.checkbox) {
-      window.webkit.messageHandlers.checkbox.postMessage(id);
+      // T14: 有限 intent 载荷 —— 第 n 个 checkbox、渲染时勾选态、页面渲染代。
+      // checked 必须报"点击前"(渲染时)的状态:点击会先翻转 checked property,
+      // 读 property 拿到的是新态,会让原生的 expectedChecked 语义整体反转。
+      // hasAttribute('checked') 反映解析时的标记(与本函数末尾的 DOM 重建
+      // defaultChecked 维护一致),不受点击时序影响。
+      const index = Number.isInteger(Number(id)) ? Number(id) : -1;
+      window.webkit.messageHandlers.checkbox.postMessage({
+        index: index,
+        checked: element.hasAttribute('checked'),
+        generation: (typeof window.miaoyanRenderGeneration === 'number')
+          ? window.miaoyanRenderGeneration
+          : null
+      });
     }
 
     const input = document.createElement('input');

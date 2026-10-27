@@ -89,6 +89,21 @@ final class NativeEditorModeMigrationTests: XCTestCase {
     // MARK: - 迁移语义（NE-01）
 
     @MainActor
+    func testNativeTextSurfaceReceivesMouseAcrossViewportAfterResize() throws {
+        let host = makeHost()
+        host.loadNote(makeNote(body: String(repeating: "正文 **text** ", count: 80)))
+        for size in [NSSize(width: 400, height: 300), NSSize(width: 600, height: 450)] {
+            host.setFrameSize(size)
+            host.layoutSubtreeIfNeeded()
+            let clip = try XCTUnwrap(host.textView.enclosingScrollView?.contentView)
+            let point = host.convert(NSPoint(x: clip.bounds.midX, y: clip.bounds.midY), from: clip)
+            XCTAssertTrue(host.hitTest(point) === host.textView)
+            XCTAssertEqual(host.textView.frame.width, clip.bounds.width, accuracy: 1)
+            XCTAssertGreaterThanOrEqual(host.textView.frame.height, clip.bounds.height)
+        }
+    }
+
+    @MainActor
     func testFreshDefaultsMigrateToSourceMode() {
         withIsolatedLayoutDefaults {
             XCTAssertEqual(
@@ -161,14 +176,36 @@ final class NativeEditorModeMigrationTests: XCTestCase {
 
     // MARK: - backend 协议面
 
-    @MainActor
-    func testVditorEditViewConformsToWysiwygBackend() {
-        // 纯 Swift 协议无 ObjC 运行时 conformance 检查；经泛型约束在
-        // 编译期证明 VditorEditView 实现协议面（缺实现即编译失败）。
-        func requireBackend<B: WysiwygEditingBackend>(_ type: B.Type) -> Bool { true }
+    /// T22:legacy `useNativeWysiwyg=false` 值兼容迁移为 native——
+    /// activeWysiwygBackend 不再按该开关分流(源码体断言)。
+    func testLegacyBackendValueMigratesToNative() throws {
+        let vc = try source("Controllers/ViewController.swift")
+        let marker = try XCTUnwrap(vc.range(of: "var activeWysiwygBackend"))
+        let end = try XCTUnwrap(
+            vc.range(of: "\n    }", range: marker.upperBound..<vc.endIndex))
+        let body = String(vc[marker.lowerBound..<end.lowerBound])
+        XCTAssertTrue(body.contains("nativeRichHost"), "activeWysiwygBackend 必须返回 native")
+        XCTAssertNil(
+            body.range(of: "useNativeWysiwyg"),
+            "legacy 开关不得再分流 backend(值一律兼容迁移为 native)")
+    }
+
+    /// T22/T10 (AC-16)：legacy `useNativeWysiwyg=false` 存量值同样不得
+    /// 拦截 selection 锚点保存——native 是唯一 backend，否则存量用户每次
+    /// wysiwyg→preview/presentation/切布局都丢 caret(源码体断言)。
+    func testSelectionAnchorSaveNotGatedByLegacyBackendPreference() throws {
+        let editor = try source("Controllers/ViewController+Editor.swift")
+        let marker = try XCTUnwrap(
+            editor.range(of: "func saveNativeRichSelectionAnchorIfNeeded"))
+        let end = try XCTUnwrap(
+            editor.range(of: "\n    }", range: marker.upperBound..<editor.endIndex))
+        let body = String(editor[marker.lowerBound..<end.lowerBound])
         XCTAssertTrue(
-            requireBackend(VditorEditView.self),
-            "legacy Vditor 必须经同一协议面路由，不得单独接线")
+            body.contains("saveSelectionAnchor()"),
+            "wysiwyg 会话必须实际把锚点落到 host")
+        XCTAssertNil(
+            body.range(of: "useNativeWysiwyg"),
+            "legacy 开关不得拦截锚点保存(存量 false 用户会丢 caret)")
     }
 
     // MARK: - native host：装载与投影
@@ -333,5 +370,41 @@ final class NativeEditorModeMigrationTests: XCTestCase {
                 body.contains("activeWysiwygBackend"),
                 "\(marker) 必须经 activeWysiwygBackend 路由 backend")
         }
+    }
+
+    /// source 面排版必须恢复排版前捕获的 caret——整篇 insertText 会把
+    /// selection 推到文末，事后读 selectedRange 只会得到 EOF 位置
+    /// （旧 formatter 的 cursorOffset 语义，源码体断言）。
+    func testSourceFormatRestoresCaretCapturedBeforeReplacement() throws {
+        let editor = try source("Controllers/ViewController+Editor.swift")
+        let start = try XCTUnwrap(editor.range(of: "func formatText() {"))
+        let dispatchMarker = try XCTUnwrap(
+            editor.range(of: "private func applyFormattingResult", range: start.upperBound..<editor.endIndex))
+        let formatBody = String(editor[start.lowerBound..<dispatchMarker.lowerBound])
+
+        // 捕获必须发生在派发排版任务之前（replace 前 selection 才是用户位置）
+        let capture = try XCTUnwrap(
+            formatBody.range(of: "let caret = editArea.selectedRanges[0].rangeValue.location"),
+            "formatText 必须在派发排版任务前捕获 source caret")
+        let dispatch = try XCTUnwrap(
+            formatBody.range(of: "applyFormattingResult("),
+            "source 分支必须把 caret 穿进结果应用")
+        XCTAssertLessThan(
+            capture.lowerBound, dispatch.lowerBound,
+            "caret 捕获必须先于异步排版任务派发")
+
+        // 应用端不得读整篇替换后的 selection（那是 EOF 位置）
+        let applyEnd = try XCTUnwrap(
+            editor.range(of: "\n    private func ", range: dispatchMarker.upperBound..<editor.endIndex))
+        let applyBody = String(editor[dispatchMarker.lowerBound..<applyEnd.lowerBound])
+        XCTAssertTrue(
+            applyBody.contains("caret: Int"),
+            "排版结果应用必须接收排版前捕获的 caret")
+        XCTAssertNil(
+            applyBody.range(of: "editArea.selectedRange"),
+            "不得读整篇替换后的 selection 恢复 caret")
+        XCTAssertTrue(
+            applyBody.contains("min(max(caret"),
+            "caret 必须 clamp 到新文档长度")
     }
 }

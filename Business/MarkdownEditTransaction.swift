@@ -154,9 +154,29 @@ public struct InlineLinkSpan: Equatable {
     public let label: String
     public let target: String
     public let isImage: Bool
+    public let title: String?
 }
 
 enum InlineLinkScanner {
+    static func unescape(_ text: String) -> String {
+        let punctuation = CharacterSet.punctuationCharacters.union(.symbols)
+        var result = ""
+        var escaped = false
+        for scalar in text.unicodeScalars {
+            if escaped {
+                if !scalar.isASCII || !punctuation.contains(scalar) { result.append("\\") }
+                result.unicodeScalars.append(scalar)
+                escaped = false
+            } else if scalar == "\\" {
+                escaped = true
+            } else {
+                result.unicodeScalars.append(scalar)
+            }
+        }
+        if escaped { result.append("\\") }
+        return result
+    }
+
     /// 扫出 source 中全部 inline link（按出现顺序）。未配对/转义/`][`/
     /// `]:` 定义一律跳过，原文不动。
     static func scan(_ source: String) -> [InlineLinkSpan] {
@@ -201,18 +221,74 @@ enum InlineLinkScanner {
         guard let labelEnd = findUnescaped("]", from: openBracket + 1, in: ns),
             labelEnd + 1 < ns.length,
             ns.character(at: labelEnd + 1) == ascii16("("),
-            let closeParen = findUnescaped(")", from: labelEnd + 2, in: ns)
+            let closeParen = closingDestination(from: labelEnd + 2, in: ns)
         else { return nil }
         let labelStart = openBracket + 1
         let targetStart = labelEnd + 2
+        let destinationRange = NSRange(location: targetStart, length: closeParen - targetStart)
+        let destination = ns.substring(with: destinationRange) as NSString
+        var lower = 0
+        while lower < destination.length, CharacterSet.whitespaces.contains(UnicodeScalar(destination.character(at: lower)) ?? " ") { lower += 1 }
+        var upper = lower
+        if lower < destination.length, destination.character(at: lower) == ascii16("<") {
+            lower += 1
+            upper = lower
+            while upper < destination.length, destination.character(at: upper) != ascii16(">") { upper += 1 }
+            guard upper < destination.length else { return nil }
+        } else {
+            while upper < destination.length, !CharacterSet.whitespaces.contains(UnicodeScalar(destination.character(at: upper)) ?? " ") {
+                if destination.character(at: upper) == ascii16("\\"), upper + 1 < destination.length { upper += 1 }
+                upper += 1
+            }
+        }
+        let targetRange = NSRange(location: targetStart + lower, length: upper - lower)
+        let suffixStart = upper < destination.length && destination.character(at: upper) == ascii16(">") ? upper + 1 : upper
+        let suffix = destination.substring(from: suffixStart).trimmingCharacters(in: .whitespacesAndNewlines)
+        let title: String?
+        if suffix.isEmpty {
+            title = nil
+        } else if suffix.count >= 2, let first = suffix.first, first == "\"" || first == "'", suffix.last == first {
+            title = unescape(String(suffix.dropFirst().dropLast()))
+        } else {
+            return nil
+        }
         return InlineLinkSpan(
             fullRangeUTF16: NSRange(location: i, length: closeParen + 1 - i),
             labelRangeUTF16: NSRange(location: labelStart, length: labelEnd - labelStart),
-            targetRangeUTF16: NSRange(location: targetStart, length: closeParen - targetStart),
+            targetRangeUTF16: targetRange,
             label: ns.substring(with: NSRange(location: labelStart, length: labelEnd - labelStart)),
-            target: ns.substring(with: NSRange(location: targetStart, length: closeParen - targetStart)),
-            isImage: isImage
+            target: ns.substring(with: targetRange),
+            isImage: isImage, title: title
         )
+    }
+
+    private static func closingDestination(from start: Int, in text: NSString) -> Int? {
+        var cursor = start
+        var depth = 0
+        var quote: unichar?
+        var angled = false
+        while cursor < text.length {
+            let unit = text.character(at: cursor)
+            if unit == ascii16("\\") { cursor += 2; continue }
+            if let delimiter = quote {
+                if unit == delimiter { quote = nil }
+            } else if angled {
+                if unit == ascii16(">") { angled = false }
+            } else if unit == ascii16("<") {
+                angled = true
+            } else if unit == ascii16("\"") || unit == ascii16("'"),
+                cursor > start, text.character(at: cursor - 1) == ascii16(" ")
+            {
+                quote = unit
+            } else if unit == ascii16("(") {
+                depth += 1
+            } else if unit == ascii16(")") {
+                if depth == 0 { return cursor }
+                depth -= 1
+            }
+            cursor += 1
+        }
+        return nil
     }
 
     private static func findUnescaped(_ target: String, from: Int, in ns: NSString) -> Int? {

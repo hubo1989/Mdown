@@ -110,12 +110,13 @@ final class MarkdownEditingSessionTests: XCTestCase {
         guard case .rejected(.invalidRange) = half else {
             return XCTFail("半代理 range 必须拒绝，实际：\(half)")
         }
-        guard case .accepted(let accepted) = session.apply(
-            makeTransaction(
-                identity: identity,
-                patches: [
-                    SourcePatch(rangeUTF16: NSRange(location: 1, length: 2), expectedText: "🙂", replacement: "😀")
-                ]))
+        guard
+            case .accepted(let accepted) = session.apply(
+                makeTransaction(
+                    identity: identity,
+                    patches: [
+                        SourcePatch(rangeUTF16: NSRange(location: 1, length: 2), expectedText: "🙂", replacement: "😀")
+                    ]))
         else {
             return XCTFail("完整 emoji range 必须成功")
         }
@@ -255,10 +256,11 @@ final class MarkdownEditingSessionTests: XCTestCase {
         let identity = makeIdentity()
         let session = makeSession(identity: identity, markdown: "AB")
 
-        guard case .accepted(let first) = session.apply(
-            makeTransaction(
-                identity: identity,
-                patches: [SourcePatch(rangeUTF16: NSRange(location: 1, length: 1), expectedText: "B", replacement: "C")]))
+        guard
+            case .accepted(let first) = session.apply(
+                makeTransaction(
+                    identity: identity,
+                    patches: [SourcePatch(rangeUTF16: NSRange(location: 1, length: 1), expectedText: "B", replacement: "C")]))
         else {
             return XCTFail("编辑必须成功")
         }
@@ -267,10 +269,11 @@ final class MarkdownEditingSessionTests: XCTestCase {
             generation: identity.generation, revision: first.revision
         )
 
-        guard case .accepted = session.apply(
-            makeTransaction(
-                identity: identity, revision: first.revision,
-                patches: [SourcePatch(rangeUTF16: NSRange(location: 0, length: 1), expectedText: "A", replacement: "Z")]))
+        guard
+            case .accepted = session.apply(
+                makeTransaction(
+                    identity: identity, revision: first.revision,
+                    patches: [SourcePatch(rangeUTF16: NSRange(location: 0, length: 1), expectedText: "A", replacement: "Z")]))
         else {
             return XCTFail("后续编辑必须成功")
         }

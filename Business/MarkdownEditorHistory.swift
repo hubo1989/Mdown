@@ -52,6 +52,9 @@ struct MarkdownEditorHistory {
     var canUndo: Bool { !undoStack.isEmpty }
     var canRedo: Bool { !redoStack.isEmpty }
 
+    /// 诊断观察口:当前历史栈深度(测试断言 view-state 不入历史用)。
+    var debugDepth: Int { undoStack.count + redoStack.count }
+
     /// 最近一次 entry 是否还能被一次紧随其后的 typing 合并。
     /// 规则见头部注释；任一条件失败即新开 entry。redo 栈在 record 时
     /// 已清空，所以合并只可能发生在 undoStack 顶。
@@ -220,9 +223,11 @@ struct MarkdownEditorHistory {
     /// 静默覆盖。
     mutating func redo(currentSource: String) -> Result? {
         guard let entry = redoStack.popLast() else { return nil }
-        guard case .success(let redone) = MarkdownPatchApplier.applyPatches(
-            entry.patches, to: entry.sourceBefore
-        ) else {
+        guard
+            case .success(let redone) = MarkdownPatchApplier.applyPatches(
+                entry.patches, to: entry.sourceBefore
+            )
+        else {
             // patch 无法在其记录的 base 上重放：entry 弃用（不回栈），
             // source 是权威，绝不以旧 base 静默覆盖当前内容。
             return nil

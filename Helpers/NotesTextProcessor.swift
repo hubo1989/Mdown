@@ -1,5 +1,4 @@
 import Cocoa
-import Highlightr
 
 @MainActor
 public class NotesTextProcessor {
@@ -118,31 +117,6 @@ public class NotesTextProcessor {
         return codeSpan
     }
 
-    @MainActor public static var hl: Highlightr?
-    @MainActor private static var cachedTheme: String?
-
-    @MainActor public static func getHighlighter() -> Highlightr? {
-        let codeTheme = UserDataService.instance.isDark ? "tomorrow-night-blue" : "atom-one-light"
-
-        if let instance = hl, cachedTheme == codeTheme {
-            return instance
-        }
-
-        if let instance = hl {
-            instance.setTheme(to: codeTheme)
-            cachedTheme = codeTheme
-            return instance
-        }
-
-        guard let highlightr = Highlightr() else { return nil }
-        highlightr.setTheme(to: codeTheme)
-        highlightr.ignoreIllegals = true
-
-        hl = highlightr
-        cachedTheme = codeTheme
-        return highlightr
-    }
-
     @MainActor public static func getCodeBlockRegex() -> NSRegularExpression? {
         CodeBlockHighlighter.getCodeBlockRegex(pattern: _codeQuoteBlockPattern)
     }
@@ -151,7 +125,10 @@ public class NotesTextProcessor {
         CodeBlockHighlighter.highlightCode(attributedString: attributedString, range: range, language: language)
     }
 
-    @MainActor public static var languages: [String]?
+    /// T15:受支持语言集 = NativeCodeHighlighter 别名表(不再问 Highlightr)。
+    @MainActor public static var languages: [String]? {
+        Array(NativeCodeHighlighter.languageAliases.keys).sorted()
+    }
 
     @MainActor public static func getLanguage(_ code: String) -> String? {
         guard code.starts(with: "```") else { return nil }
@@ -162,16 +139,7 @@ public class NotesTextProcessor {
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        languages = getHighlighter()?.supportedLanguages()
-
-        guard let supportedLanguages = languages,
-            supportedLanguages.contains(detectedLang),
-            detectedLang != "go"
-        else {
-            return nil
-        }
-
-        return detectedLang
+        return NativeCodeHighlighter.languageFamily(detectedLang) != nil ? detectedLang : nil
     }
 
     public static func convertAppLinks(in content: NSMutableAttributedString) -> NSMutableAttributedString {

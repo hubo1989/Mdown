@@ -40,7 +40,9 @@ class ViewController:
     var isFormatting: Bool = false
     var formatTask: Task<Void, Never>?
     var formatRequestID: Int = 0
-    let markdownFormatWorker = MarkdownFormatWorker()
+    /// T18:最近一次 format 发起的令牌;旧快照应用前必须与它一致。
+    var formatOwnerToken = UUID()
+    // T18:NativeMarkdownFormatter 接管排版;Prettier worker 随 T22 退依赖。
     var needRestorePreview: Bool = false
     var shouldRestorePreviewAfterExport: Bool = false
     var shouldDisablePPTAfterExport: Bool = false
@@ -90,17 +92,15 @@ class ViewController:
         set { sessionState.wysiwygMode = newValue }
     }
 
-    var vditorEditView: VditorEditView?
     var nativeRichHost: NativeRichEditorHostView?
     var savedLayoutModeBeforePreview: EditorLayoutMode?
     var previousSingleLayoutMode: EditorLayoutMode = .source
 
-    /// T10 (SPEC NE-01)：wysiwyg 布局的正文后端。native rich 是默认，
-    /// legacy Vditor 是开发期回退（defaults `useNativeWysiwyg=false`）。
-    /// 同一时刻只有一个 backend 被 loadNote/focus——布局层/采集面只经
-    /// 本路由触达后端，禁止两个 backend 并行发布正文（SPEC §13）。
+    /// T10/T22 (SPEC NE-01)：wysiwyg 布局的正文后端。native rich 是唯一
+    /// 实现——legacy Vditor 随 T22 退依赖，旧 `useNativeWysiwyg` 值一律
+    /// 兼容迁移为 native。同一时刻只有一个 backend 被 loadNote/focus。
     var activeWysiwygBackend: (WysiwygEditingBackend & NSView)? {
-        UserDefaultsManagement.useNativeWysiwyg ? nativeRichHost : vditorEditView
+        nativeRichHost
     }
 
     /// T10 (SPEC NE-36)：native 装载失败的笔记在本次会话内回 source
@@ -220,10 +220,12 @@ class ViewController:
 
     @IBOutlet var toggleListButton: NSButton!
     @IBOutlet var toggleSplitButton: NSButton!
+    /// T10/T22:工具栏 WYSIWYG 切换按钮(代码创建,同 split 按钮模式)。
+    var wysiwygButton: NSButton?
     @IBOutlet var formatButton: NSButton!
     @IBOutlet var previewButton: NSButton! {
         didSet {
-            applyToolbarButtonState(previewButton, isActive: sessionLayoutMode == .wysiwyg || sessionPreviewMode || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
+            applyToolbarButtonState(previewButton, isActive: sessionPreviewMode || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
         }
     }
 
@@ -427,7 +429,16 @@ class ViewController:
         let inactive = Theme.inactiveIconColor
 
         // Toolbar Buttons (Unified Grey in all modes unless active)
-        applyToolbarButtonState(previewButton, isActive: sessionLayoutMode == .wysiwyg || sessionPreviewMode || sessionMagicPPTMode, activeTint: accent, inactiveTint: inactive)
+        applyToolbarButtonState(previewButton, isActive: sessionPreviewMode || sessionMagicPPTMode, activeTint: accent, inactiveTint: inactive)
+
+        // WYSIWYG(active only in wysiwyg layout)
+        wysiwygButton?.image?.isTemplate = true
+        // 预览 ⇄ 所见即所得互斥:预览期间 wysiwyg 布局仍在底层,
+        // 但按钮只亮当前展示的那个模式。
+        applyToolbarButtonState(
+            wysiwygButton,
+            isActive: sessionLayoutMode == .wysiwyg && !sessionPreviewMode,
+            activeTint: accent, inactiveTint: inactive)
 
         // Presentation
         applyToolbarButtonState(presentationButton, isActive: sessionPresentationMode || sessionMagicPPTMode, activeTint: accent, inactiveTint: inactive)
@@ -786,7 +797,7 @@ class ViewController:
         presentationButton.toolTip = I18n.str("Presentation")
 
         // Unify button sizes and let newer systems render their own chrome.
-        let toolbarButtons = [formatButton, previewButton, presentationButton, toggleListButton, toggleSplitButton].compactMap { $0 }
+        let toolbarButtons = [formatButton, previewButton, presentationButton, toggleListButton, toggleSplitButton, wysiwygButton].compactMap { $0 }
         for btn in toolbarButtons {
             btn.contentTintColor = .secondaryLabelColor
             Theme.configureChromeIconButton(btn)
@@ -808,7 +819,7 @@ class ViewController:
         if let image = NSImage(named: "icon_preview") {
             image.isTemplate = true
             previewButton.image = image
-            applyToolbarButtonState(previewButton, isActive: sessionLayoutMode == .wysiwyg || sessionPreviewMode || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
+            applyToolbarButtonState(previewButton, isActive: sessionPreviewMode || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
         }
         if let image = NSImage(named: "icon_presentation") {
             image.isTemplate = true
@@ -836,6 +847,28 @@ class ViewController:
             Theme.configureChromeIconButton(button)
 
             toggleSplitButton = button
+        }
+
+        // T22:WYSIWYG 切换按钮(native rich 唯一后端的显式入口)
+        if wysiwygButton == nil {
+            let wysButton = NSButton()
+            wysButton.translatesAutoresizingMaskIntoConstraints = false
+            wysButton.bezelStyle = .texturedRounded
+            wysButton.isBordered = false
+            wysButton.imagePosition = .imageOnly
+            if let image = NSImage(
+                systemSymbolName: "doc.richtext",
+                accessibilityDescription: I18n.str("Toggle WYSIWYG"))
+            {
+                image.isTemplate = true
+                wysButton.image = image
+            }
+            wysButton.target = self
+            wysButton.action = #selector(toggleWysiwygMode(_:))
+            wysButton.contentTintColor = .secondaryLabelColor
+            wysButton.toolTip = I18n.str("Toggle WYSIWYG")
+            Theme.configureChromeIconButton(wysButton)
+            wysiwygButton = wysButton
         }
 
         // Create toggleListButton first (leftmost position)
@@ -875,6 +908,10 @@ class ViewController:
         // Setup constraints for toggleSplitButton after both buttons are created
         if let splitButton = toggleSplitButton, let listButton = toggleListButton {
             parent.addSubview(splitButton)
+            // 先入层级再激活引用它的约束(跨层级约束会废掉整窗布局)
+            if let wysButton = wysiwygButton {
+                parent.addSubview(wysButton)
+            }
 
             // Ensure splitButton also has 20x20 constraints if they weren't set in the loop above
             // (The loop above might have run before toggleSplitButton was assigned to the property)
@@ -886,7 +923,7 @@ class ViewController:
             // Recommended Order: List -> Format -> Split -> Preview -> Presentation
 
             // Clear existing horizontal constraints for all buttons
-            let allButtons = [listButton, formatButton, splitButton, previewButton, presentationButton]
+            let allButtons = [listButton, formatButton, splitButton, wysiwygButton, previewButton, presentationButton]
             for btn in allButtons {
                 guard let btn = btn else { continue }
                 for constraint in parent.constraints {
@@ -924,10 +961,20 @@ class ViewController:
             // 3. Split
             NSLayoutConstraint.activate([
                 splitButton.centerYAnchor.constraint(equalTo: formatButton.centerYAnchor),
-                splitButton.trailingAnchor.constraint(equalTo: previewButton.leadingAnchor, constant: -8),
+                splitButton.trailingAnchor.constraint(equalTo: (wysiwygButton ?? previewButton).leadingAnchor, constant: -8),
                 splitButton.widthAnchor.constraint(equalToConstant: 20),
                 splitButton.heightAnchor.constraint(equalToConstant: 20),
             ])
+
+            // 3.5 WYSIWYG(Split 与 Preview 之间;已提前 addSubview)
+            if let wysButton = wysiwygButton {
+                NSLayoutConstraint.activate([
+                    wysButton.centerYAnchor.constraint(equalTo: formatButton.centerYAnchor),
+                    wysButton.trailingAnchor.constraint(equalTo: previewButton.leadingAnchor, constant: -8),
+                    wysButton.widthAnchor.constraint(equalToConstant: 20),
+                    wysButton.heightAnchor.constraint(equalToConstant: 20),
+                ])
+            }
 
             // 2. Format
             NSLayoutConstraint.activate([
@@ -1113,22 +1160,8 @@ class ViewController:
             editAreaScroll.bottomAnchor.constraint(equalTo: editorContainer.bottomAnchor),
         ])
 
-        // Setup VditorEditView and its container with Auto Layout constraints
-        let vditorView = VditorEditView()
-        vditorView.translatesAutoresizingMaskIntoConstraints = false
-        vditorView.isHidden = true
-        editorContainer.addSubview(vditorView)
-        NSLayoutConstraint.activate([
-            vditorView.leadingAnchor.constraint(equalTo: editorContainer.leadingAnchor),
-            vditorView.trailingAnchor.constraint(equalTo: editorContainer.trailingAnchor),
-            vditorView.topAnchor.constraint(equalTo: editorContainer.topAnchor),
-            vditorView.bottomAnchor.constraint(equalTo: editorContainer.bottomAnchor),
-        ])
-        self.vditorEditView = vditorView
-
-        // T10：native rich backend 与 Vditor 同位宿主（editorContainer 全幅）。
-        // 两者都常驻创建、默认隐藏；activeWysiwygBackend 按 pref 路由，同一
-        // 时刻只有一个可见/被装载（禁止并行两个 backend 发布正文）。
+        // T10/T22：native rich backend 宿主（editorContainer 全幅）。
+        // Vditor 已随 T22 退依赖；activeWysiwygBackend 恒返回本宿主。
         let richHost = NativeRichEditorHostView(frame: .zero)
         richHost.translatesAutoresizingMaskIntoConstraints = false
         richHost.isHidden = true

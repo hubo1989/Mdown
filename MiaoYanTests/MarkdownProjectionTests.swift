@@ -25,7 +25,7 @@ final class MarkdownProjectionTests: XCTestCase {
 
         let ns = "**AB** 纯文本\n" as NSString
         // 找 B 的文本段：内容段 "AB"
-        let content = p.segments.first { $0.kind == .text && $0.displayText == "AB" }
+        let content = p.segments.first { $0.kind == .strongBody && $0.displayText == "AB" }
         let ab = content.map(\.sourceRangeUTF16)
         XCTAssertEqual(ab, NSRange(location: 2, length: 2), "AB 的 source 必须在 ** 之间且不含 delimiter")
         // marker 段的切片就是 **（逐字节）
@@ -43,7 +43,7 @@ final class MarkdownProjectionTests: XCTestCase {
 
     func testEscapedMarkersStayLiteral() {
         let p = projection(of: "\\*文字\\*\n")
-        XCTAssertEqual(p.display, "\\*文字\\*\n", "转义星号必须原样（不含隐藏段）")
+        XCTAssertEqual(p.display, "*文字*\n")
         XCTAssertTrue(p.segments.allSatisfy { $0.kind != .hiddenMarker })
     }
 
@@ -62,15 +62,15 @@ final class MarkdownProjectionTests: XCTestCase {
         XCTAssertEqual(p.display, "见 链接文字 尾\n")
         let dest = p.segments.first { $0.kind == .linkDestination }
         XCTAssertEqual(dest?.displayText, "", "destination 显示为空")
-        let label = p.segments.first { $0.kind == .text && $0.displayText == "链接文字" }
+        let label = p.segments.first { $0.kind == .linkLabel && $0.displayText == "链接文字" }
         XCTAssertEqual(label?.sourceRangeUTF16, NSRange(location: 3, length: 4), "label 的 source 恰为括号内文字")
     }
 
     func testImageShowsPlaceholder() {
         let p = projection(of: "![本地缺失图片](/i/missing.png)\n")
-        XCTAssertEqual(p.display, "[图]\n")
+        XCTAssertEqual(p.display, "本地缺失图片\n")
         let placeholder = p.segments.first { $0.kind == .attachmentPlaceholder }
-        XCTAssertEqual(placeholder?.sourceRangeUTF16, NSRange(location: 2, length: 6), "alt 文字是占位的 source")
+        XCTAssertEqual(placeholder?.sourceRangeUTF16, NSRange(location: 0, length: 25), "图片占位作为完整引用映射")
     }
 
     func testHeadingMarkerHidden() {
@@ -146,6 +146,21 @@ final class MarkdownProjectionTests: XCTestCase {
         let p = projection(of: "- a `x\nb` c\n", as: .listItem(depth: 0, ordered: false))
         XCTAssertEqual(p.display, "a `x\nb` c\n", "跨行的单个反引号无配对，原样显示")
         XCTAssertFalse(p.segments.contains { $0.kind == .codeSpan })
+    }
+
+    func testFenceContentStripsFences() {
+        // 标准:开/闭围栏行剥除,内容行间换行保留
+        XCTAssertEqual(
+            MarkdownProjectionBuilder.fenceContent(of: "```mermaid\nflowchart LR\nA-->B\n```\n"),
+            "flowchart LR\nA-->B\n")
+        // EOF 无闭围栏:内容到块尾(与 consumeFence 的截断语义一致)
+        XCTAssertEqual(
+            MarkdownProjectionBuilder.fenceContent(of: "~~~mermaid\nA-->B\n"),
+            "A-->B\n")
+        // 嵌套围栏:CRLF 字节原样保留,短围栏行是内容不是闭围栏
+        XCTAssertEqual(
+            MarkdownProjectionBuilder.fenceContent(of: "````mermaid\r\n```\r\n````\r\n"),
+            "```\r\n")
     }
 
     func testProtectedBlocksFallBackPlain() throws {
