@@ -1,6 +1,6 @@
 ---
 name: appstore
-description: Prepare and validate a MiaoYan Mac App Store build. Not for GitHub Releases.
+description: Prepare and validate a Mdown Mac App Store build. Not for GitHub Releases.
 version: 1.1.0
 allowed-tools:
   - Bash
@@ -8,7 +8,7 @@ allowed-tools:
 disable-model-invocation: true
 ---
 
-# MiaoYan App Store Workflow
+# Mdown App Store Workflow
 
 Use this skill only when the maintainer explicitly asks for App Store build or submission work.
 
@@ -25,7 +25,7 @@ Use this skill only when the maintainer explicitly asks for App Store build or s
 
 ```bash
 bash scripts/build-appstore.sh
-xcrun altool --validate-app -f build/AppStore/Export/MiaoYan.app -t macos --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>
+xcrun altool --validate-app -f build/AppStore/Export/Mdown.app -t macos --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>
 ```
 
 Use Xcode Organizer for upload when that is safer than CLI upload.

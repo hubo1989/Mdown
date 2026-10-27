@@ -5,7 +5,7 @@
 /* Class = "NSTextFieldCell"; title = "Code FontName"; ObjectID = "0UJ-Ss-20u"; */
 "0UJ-Ss-20u.title" = "コードフォント";
 
-/* Class = "NSMenuItem"; title = "MiaoYan"; ObjectID = "1Xt-HY-uBw"; */
+/* Class = "NSMenuItem"; title = "Mdown"; ObjectID = "1Xt-HY-uBw"; */
 "1Xt-HY-uBw.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Bold"; ObjectID = "1Yd-6R-e7Y"; */
@@ -83,7 +83,7 @@
 /* Class = "NSMenuItem"; title = "Enter Full Screen"; ObjectID = "4J7-dP-txa"; */
 "4J7-dP-txa.title" = "Enter Full Screen";
 
-/* Class = "NSMenuItem"; title = "Quit MiaoYan"; ObjectID = "4sb-4s-VLi"; */
+/* Class = "NSMenuItem"; title = "Quit Mdown"; ObjectID = "4sb-4s-VLi"; */
 "4sb-4s-VLi.title" = "Mdownを閉じる";
 
 /* Class = "NSMenuItem"; title = "Edit"; ObjectID = "5QF-Oa-p0T"; */
@@ -182,7 +182,7 @@
 /* Class = "NSMenuItem"; title = "16"; ObjectID = "DTe-57-Kqf"; */
 "DTe-57-Kqf.title" = "16";
 
-/* Class = "NSMenuItem"; title = "MiaoYan PPT PDF"; ObjectID = "DhD-mk-T1u"; */
+/* Class = "NSMenuItem"; title = "Mdown PPT PDF"; ObjectID = "DhD-mk-T1u"; */
 "DhD-mk-T1u.title" = "Mdown スライド PDF";
 
 /* Class = "NSMenuItem"; title = "Toggle Split View"; ObjectID = "Tgl-Spl-View"; */
@@ -281,7 +281,7 @@
 /* Class = "NSMenuItem"; title = "15"; ObjectID = "IF0-dQ-WWn"; */
 "IF0-dQ-WWn.title" = "15";
 
-/* Class = "NSWindow"; title = "MiaoYan"; ObjectID = "IQv-IB-iLA"; */
+/* Class = "NSWindow"; title = "Mdown"; ObjectID = "IQv-IB-iLA"; */
 "IQv-IB-iLA.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Times New Roman"; ObjectID = "IUe-Hi-7b6"; */
@@ -440,7 +440,7 @@
 /* Class = "NSMenuItem"; title = "Find and Replace…"; ObjectID = "YEy-JH-Tfz"; */
 "YEy-JH-Tfz.title" = "検索と置換…";
 
-/* Class = "NSViewController"; title = "About MiaoYan"; ObjectID = "YNW-vn-A3h"; */
+/* Class = "NSViewController"; title = "About Mdown"; ObjectID = "YNW-vn-A3h"; */
 "YNW-vn-A3h.title" = "Mdown について";
 
 /* Class = "NSButton"; ibShadowedToolTip = "New Project"; ObjectID = "Yei-Or-qiI"; */
@@ -461,7 +461,7 @@
 /* Class = "NSMenuItem"; title = "Consolas"; ObjectID = "b5S-Qt-NKY"; */
 "b5S-Qt-NKY.title" = "Consolas";
 
-/* Class = "NSMenuItem"; title = "Hide MiaoYan"; ObjectID = "bxj-82-bcY"; */
+/* Class = "NSMenuItem"; title = "Hide Mdown"; ObjectID = "bxj-82-bcY"; */
 "bxj-82-bcY.title" = "Mdownを隠す";
 
 /* Class = "NSMenuItem"; title = "16"; ObjectID = "c1S-aB-edm"; */
@@ -524,7 +524,7 @@
 /* Class = "NSMenuItem"; title = "Paste"; ObjectID = "gVA-U4-sdL"; */
 "gVA-U4-sdL.title" = "ペーストする";
 
-/* Class = "NSMenuItem"; title = "About MiaoYan"; ObjectID = "gXN-Ca-moU"; */
+/* Class = "NSMenuItem"; title = "About Mdown"; ObjectID = "gXN-Ca-moU"; */
 "gXN-Ca-moU.title" = "Mdown について";
 
 /* Class = "NSMenuItem"; title = "Editing"; ObjectID = "gh6-SU-E0i"; */
@@ -584,7 +584,7 @@
 /* Class = "NSMenuItem"; title = "20"; ObjectID = "miK-8H-a4Z"; */
 "miK-8H-a4Z.title" = "20";
 
-/* Class = "NSTextFieldCell"; title = "MiaoYan"; ObjectID = "mj8-mU-0W4"; */
+/* Class = "NSTextFieldCell"; title = "Mdown"; ObjectID = "mj8-mU-0W4"; */
 "mj8-mU-0W4.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Times New Roman"; ObjectID = "n5K-Sw-Jli"; */
@@ -629,13 +629,13 @@
 /* Class = "NSMenu"; title = "File"; ObjectID = "uMZ-sI-7ja"; */
 "uMZ-sI-7ja.title" = "ファイル";
 
-/* Class = "NSMenu"; title = "MiaoYan"; ObjectID = "uQy-DD-JDr"; */
+/* Class = "NSMenu"; title = "Mdown"; ObjectID = "uQy-DD-JDr"; */
 "uQy-DD-JDr.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Cut"; ObjectID = "uRl-iY-unG"; */
 "uRl-iY-unG.title" = "切り取る";
 
-/* Class = "NSMenuItem"; title = "MiaoYan PPT"; ObjectID = "uUS-sg-zGt"; */
+/* Class = "NSMenuItem"; title = "Mdown PPT"; ObjectID = "uUS-sg-zGt"; */
 "uUS-sg-zGt.title" = "Mdown スライド";
 
 /* Class = "NSMenuItem"; title = "Times New Roman"; ObjectID = "uW5-RQ-wqF"; */
@@ -644,7 +644,7 @@
 /* Class = "NSMenuItem"; title = "Follow Twitter"; ObjectID = "uXW-Mt-L5y"; */
 "uXW-Mt-L5y.title" = "ツイッターをフォローする";
 
-/* Class = "NSTextFieldCell"; title = "MiaoYan"; ObjectID = "v9A-ZO-AAb"; */
+/* Class = "NSTextFieldCell"; title = "Mdown"; ObjectID = "v9A-ZO-AAb"; */
 "v9A-ZO-AAb.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "12"; ObjectID = "vYJ-nZ-Rkv"; */
@@ -656,7 +656,7 @@
 /* Class = "NSMenuItem"; title = "Telegram"; ObjectID = "vvp-aA-TcP"; */
 "vvp-aA-TcP.title" = "Telegram";
 
-/* Class = "NSMenuItem"; title = "MiaoYan"; ObjectID = "w6O-2c-LfY"; */
+/* Class = "NSMenuItem"; title = "Mdown"; ObjectID = "w6O-2c-LfY"; */
 "w6O-2c-LfY.title" = "Mdown";
 
 /* Class = "NSMenuItem"; title = "Copy"; ObjectID = "x3v-GG-iWU"; */

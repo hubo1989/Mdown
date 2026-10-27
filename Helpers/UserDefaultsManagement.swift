@@ -9,29 +9,38 @@ extension Notification.Name {
     static let alwaysOnTopChanged = Notification.Name("alwaysOnTopChanged")
 }
 // MARK: - App Identifier
+// 新应用身份 com.mdown.app / iCloud.com.mdown.app；保留 legacy 常量供非破坏迁移与回退读取。
 enum AppIdentifier {
-    static let bundleID: String = Bundle.main.bundleIdentifier ?? "com.tw93.miaoyan"
+    static let defaultBundleID: String = "com.mdown.app"
+    static let bundleID: String = Bundle.main.bundleIdentifier ?? defaultBundleID
     static let legacyBundleID: String = "com.tw93.miaoyan"
+    static let legacyUpperBundleID: String = "com.tw93.MiaoYan"
+    static let cloudContainerID: String = "iCloud.com.mdown.app"
+    static let legacyCloudContainerID: String = "iCloud.com.tw93.miaoyan"
+    static let sharedGroupSuiteName: String = "group.mdown-manager"
+    static let legacySharedGroupSuiteName: String = "group.miaoyan-manager"
 
-    // xattr keys (follow bundleID, with legacy fallback for reading)
+    // xattr keys (follow bundleID, with legacy fallback for reading and dual-write on mutation)
     static var pinKey: String { "\(bundleID).pin" }
     static var legacyPinKey: String { "\(legacyBundleID).pin" }
     static var cursorKey: String { "\(bundleID).cursor" }
     static var legacyCursorKey: String { "\(legacyBundleID).cursor" }
-    static let removedFromTrashKey = "\(legacyBundleID).removedFromTrash"
+    static var removedFromTrashKey: String { "\(bundleID).removedFromTrash" }
+    static var legacyRemovedFromTrashKey: String { "\(legacyBundleID).removedFromTrash" }
 
     // NSAttributedString.Key (image metadata in attributed strings)
     static var imagePathKey: String { "\(bundleID).image.path" }
     static var imageURLKey: String { "\(bundleID).image.url" }
     static var imageTitleKey: String { "\(bundleID).image.title" }
 
-    // NSAttributedString.Key (internal, fixed identifiers)
-    static let todoKey = "\(legacyBundleID).image.todo"
-    static let codeBlockKey = "\(legacyBundleID).code.block"
-    static let codeLanguageKey = "\(legacyBundleID).code.language"
+    // NSAttributedString.Key (internal identifiers)
+    static var todoKey: String { "\(bundleID).image.todo" }
+    static var codeBlockKey: String { "\(bundleID).code.block" }
+    static var codeLanguageKey: String { "\(bundleID).code.language" }
 
-    // CloudKit sync key (fixed, shared across devices)
-    static let cloudPinsKey = "\(legacyBundleID).pins.shared"
+    // CloudKit sync key
+    static var cloudPinsKey: String { "\(bundleID).pins.shared" }
+    static var legacyCloudPinsKey: String { "\(legacyBundleID).pins.shared" }
 }
 
 enum StorageLocationValidator {
@@ -52,9 +61,9 @@ enum StorageLocationValidator {
             throw StorageLocationValidationError.cannotRead
         }
 
-        let checkURL = url.appendingPathComponent(".miaoyan-folder-check-\(UUID().uuidString)", isDirectory: false)
+        let checkURL = url.appendingPathComponent(".mdown-folder-check-\(UUID().uuidString)", isDirectory: false)
         do {
-            try Data("MiaoYan folder check\n".utf8).write(to: checkURL, options: .atomic)
+            try Data("Mdown folder check\n".utf8).write(to: checkURL, options: .atomic)
             try fm.removeItem(at: checkURL)
         } catch {
             try? fm.removeItem(at: checkURL)
@@ -74,9 +83,9 @@ enum StorageLocationValidationError: Error {
         case .notDirectory:
             return I18n.str("Selected storage folder is not a folder.")
         case .cannotRead:
-            return I18n.str("MiaoYan cannot read this folder. If this is a cloud drive, open the provider app and make sure the folder is exposed in Finder.")
+            return I18n.str("Mdown cannot read this folder. If this is a cloud drive, open the provider app and make sure the folder is exposed in Finder.")
         case .cannotWrite:
-            return I18n.str("MiaoYan cannot write to this folder. Choose a writable folder or enable offline access in the cloud drive app.")
+            return I18n.str("Mdown cannot write to this folder. Choose a writable folder or enable offline access in the cloud drive app.")
         }
     }
 }
@@ -699,11 +708,20 @@ public enum UserDefaultsManagement {
         _localDocumentsChecked = true
 
         if let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first {
-            let miaoyanPath: String = path + "/MiaoYan"
+            let mdownPath = path + "/Mdown"
+            let legacyPath = path + "/MiaoYan"
+            let libraryPath: String
+            if FileManager.default.fileExists(atPath: mdownPath) {
+                libraryPath = mdownPath
+            } else if FileManager.default.fileExists(atPath: legacyPath) {
+                libraryPath = legacyPath
+            } else {
+                libraryPath = mdownPath
+            }
             try? FileManager.default.createDirectory(
-                atPath: miaoyanPath,
+                atPath: libraryPath,
                 withIntermediateDirectories: true, attributes: nil)
-            _cachedLocalDocumentsURL = URL(fileURLWithPath: miaoyanPath)
+            _cachedLocalDocumentsURL = URL(fileURLWithPath: libraryPath)
             return _cachedLocalDocumentsURL
         }
         return nil
@@ -991,16 +1009,19 @@ public enum UserDefaultsManagement {
 
     static var projects: [URL] {
         get {
-            guard let defaults = UserDefaults(suiteName: "group.miaoyan-manager") else {
-                return []
-            }
-            if let result = defaults.object(forKey: Constants.ProjectsKey) as? Data, let urls = try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSArray.self, NSURL.self], from: result) as? [URL] {
-                return urls
+            for suite in [AppIdentifier.sharedGroupSuiteName, AppIdentifier.legacySharedGroupSuiteName] {
+                guard let defaults = UserDefaults(suiteName: suite) else { continue }
+                if let result = defaults.object(forKey: Constants.ProjectsKey) as? Data,
+                    let urls = try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSArray.self, NSURL.self], from: result) as? [URL],
+                    !urls.isEmpty
+                {
+                    return urls
+                }
             }
             return []
         }
         set {
-            guard let defaults = UserDefaults(suiteName: "group.miaoyan-manager") else {
+            guard let defaults = UserDefaults(suiteName: AppIdentifier.sharedGroupSuiteName) else {
                 return
             }
             let data = try? NSKeyedArchiver.archivedData(withRootObject: newValue, requiringSecureCoding: false)
@@ -1009,24 +1030,134 @@ public enum UserDefaultsManagement {
     }
     static var importURLs: [URL] {
         get {
-            guard let defaults = UserDefaults(suiteName: "group.miaoyan-manager") else {
-                return []
-            }
-            if let result = defaults.object(forKey: Constants.ImportURLsKey) as? Data,
-                let urls = try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSArray.self, NSURL.self], from: result) as? [URL]
-            {
-                return urls
+            for suite in [AppIdentifier.sharedGroupSuiteName, AppIdentifier.legacySharedGroupSuiteName] {
+                guard let defaults = UserDefaults(suiteName: suite) else { continue }
+                if let result = defaults.object(forKey: Constants.ImportURLsKey) as? Data,
+                    let urls = try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSArray.self, NSURL.self], from: result) as? [URL],
+                    !urls.isEmpty
+                {
+                    return urls
+                }
             }
             return []
         }
         set {
-            guard let defaults = UserDefaults(suiteName: "group.miaoyan-manager") else {
+            guard let defaults = UserDefaults(suiteName: AppIdentifier.sharedGroupSuiteName) else {
                 return
             }
             if let data = try? NSKeyedArchiver.archivedData(withRootObject: newValue, requiringSecureCoding: false) {
                 defaults.set(data, forKey: Constants.ImportURLsKey)
             }
         }
+    }
+
+    static func migrateLegacyPreferences(
+        into targetDefaults: UserDefaults = .standard,
+        fromSuiteNames suiteNames: [String] = [AppIdentifier.legacyBundleID, AppIdentifier.legacyUpperBundleID],
+        markerKey: String = "HasMigratedMiaoYanToMdown_v1"
+    ) {
+        guard !targetDefaults.bool(forKey: markerKey) else { return }
+
+        for suiteName in suiteNames where suiteName != Bundle.main.bundleIdentifier {
+            guard let legacyDefaults = UserDefaults(suiteName: suiteName) else { continue }
+            let legacyDict = legacyDefaults.dictionaryRepresentation()
+            for (key, value) in legacyDict where targetDefaults.object(forKey: key) == nil {
+                targetDefaults.set(value, forKey: key)
+            }
+        }
+
+        targetDefaults.set(true, forKey: markerKey)
+        targetDefaults.synchronize()
+    }
+
+    static func rebindLibraryPaths(
+        in defaults: UserDefaults = .standard,
+        from oldLibraryURL: URL,
+        to newLibraryURL: URL,
+        legacyVersionsRoot: URL? = nil,
+        versionsRoot: URL? = nil
+    ) {
+        let oldStandard = oldLibraryURL.standardizedFileURL.path
+        let newStandard = newLibraryURL.standardizedFileURL.path
+        let oldResolved = oldLibraryURL.resolvingSymlinksInPath().standardizedFileURL.path
+        let newResolved = newLibraryURL.resolvingSymlinksInPath().standardizedFileURL.path
+
+        func mapPath(_ path: String) -> String? {
+            if path == oldStandard { return newStandard }
+            if path.hasPrefix(oldStandard + "/") {
+                return newStandard + String(path.dropFirst(oldStandard.count))
+            }
+            if path == oldResolved { return newResolved }
+            if path.hasPrefix(oldResolved + "/") {
+                return newResolved + String(path.dropFirst(oldResolved.count))
+            }
+            return nil
+        }
+
+        func relativeSubpath(_ path: String) -> String? {
+            if path.hasPrefix(oldStandard + "/") {
+                return String(path.dropFirst(oldStandard.count + 1))
+            }
+            if path.hasPrefix(oldResolved + "/") {
+                return String(path.dropFirst(oldResolved.count + 1))
+            }
+            return nil
+        }
+
+        var candidateRelativePaths = Set<String>()
+        let snapshot = defaults.dictionaryRepresentation()
+        for (key, value) in snapshot {
+            if let rel = relativeSubpath(key) {
+                candidateRelativePaths.insert(rel)
+            }
+            if let mappedKey = mapPath(key), defaults.object(forKey: mappedKey) == nil {
+                defaults.set(value, forKey: mappedKey)
+            }
+        }
+
+        if let lastSelected = defaults.string(forKey: Constants.LastSelectedPath) {
+            if let rel = relativeSubpath(lastSelected) {
+                candidateRelativePaths.insert(rel)
+            }
+            if let mapped = mapPath(lastSelected) {
+                defaults.set(mapped, forKey: Constants.LastSelectedPath)
+            }
+        }
+
+        if let storedPath = defaults.string(forKey: Constants.StoragePathKey),
+            let mapped = mapPath(storedPath)
+        {
+            defaults.set(mapped, forKey: Constants.StoragePathKey)
+        }
+
+        if var scrollDict = defaults.dictionary(forKey: Constants.NotesTableScrollPosition) as? [String: Double] {
+            for (key, value) in scrollDict {
+                if let mapped = mapPath(key), scrollDict[mapped] == nil {
+                    scrollDict[mapped] = value
+                }
+            }
+            defaults.set(scrollDict, forKey: Constants.NotesTableScrollPosition)
+        }
+
+        let fm = FileManager.default
+        for rootURL in [oldLibraryURL, newLibraryURL] {
+            let rootPath = rootURL.standardizedFileURL.path
+            if let enumerator = fm.enumerator(atPath: rootPath) {
+                for case let rel as String in enumerator {
+                    candidateRelativePaths.insert(rel)
+                }
+            }
+        }
+
+        let sourceVersions = legacyVersionsRoot ?? NoteVersionManager.defaultLegacyVersionsRoot
+        let targetVersions = versionsRoot ?? NoteVersionManager.defaultVersionsRoot
+        NoteVersionManager.rebindVersions(
+            relativePaths: candidateRelativePaths,
+            fromLibrary: oldLibraryURL,
+            toLibrary: newLibraryURL,
+            sourceVersionsRoot: sourceVersions,
+            targetVersionsRoot: targetVersions
+        )
     }
     static var markdownPreviewCSS: URL? {
         get {

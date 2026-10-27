@@ -49,8 +49,8 @@ class MPreviewView: WKWebView, WKUIDelegate {
     /// ones.
     private var postReadyCallbacks: [() -> Void] = []
     /// Whether this preview is currently rendered as the right pane of
-    /// MiaoYan's split editor. Tracked locally so we can re-apply the
-    /// `body.miaoyan-split-mode` class on every webView(_:didFinish:),
+    /// Mdown's split editor. Tracked locally so we can re-apply the
+    /// `body.mdown-split-mode` class on every webView(_:didFinish:),
     /// because each `load(note:)` rebuilds the bundled HTML and the body
     /// element starts out without our class. Driven by setSplitChrome.
     private var splitChromeEnabled = false
@@ -231,7 +231,7 @@ class MPreviewView: WKWebView, WKUIDelegate {
         // and builds a {line, top} index for binary-search interpolation (VS Code algorithm).
         let script = """
                 (function() {
-                    if (window.__miaoyanSync) { return; }
+                    if (window.__mdownSync) { return; }
                     var anchors = [];
                     var rebuildTimer = null;
                     var rafId = null;
@@ -294,7 +294,7 @@ class MPreviewView: WKWebView, WKUIDelegate {
                         }, 100);
                     }
 
-                    window.__miaoyanSync = {
+                    window.__mdownSync = {
                         rebuild: function() { rebuildAnchors(); },
                         lineForScroll: lineForScroll,
                         scrollToLine: scrollToLine
@@ -415,7 +415,7 @@ class MPreviewView: WKWebView, WKUIDelegate {
             if let vc = AppContext.shared.viewController {
                 if vc.sessionMagicPPTMode {
                     DispatchQueue.main.async {
-                        vc.disableMiaoYanPPT()
+                        vc.disableMdownPPT()
                     }
                     return true
                 } else if vc.sessionPresentationMode {
@@ -515,7 +515,7 @@ class MPreviewView: WKWebView, WKUIDelegate {
         // the cached state says we're still in split mode.
         if splitChromeEnabled {
             evaluateJavaScript(
-                "document.body.classList.add('miaoyan-split-mode');",
+                "document.body.classList.add('mdown-split-mode');",
                 completionHandler: nil)
         }
 
@@ -554,7 +554,7 @@ class MPreviewView: WKWebView, WKUIDelegate {
         }
     }
 
-    /// Toggle the `body.miaoyan-split-mode` class so base.css can hide the
+    /// Toggle the `body.mdown-split-mode` class so base.css can hide the
     /// WebKit-rendered scrollbar while the preview is the right pane of the
     /// split editor. The state is also persisted on `splitChromeEnabled` so
     /// `webView(_:didFinish:)` can re-apply it after every full template
@@ -563,21 +563,21 @@ class MPreviewView: WKWebView, WKUIDelegate {
         splitChromeEnabled = enabled
         let script =
             enabled
-            ? "document.body.classList.add('miaoyan-split-mode');"
-            : "document.body.classList.remove('miaoyan-split-mode');"
+            ? "document.body.classList.add('mdown-split-mode');"
+            : "document.body.classList.remove('mdown-split-mode');"
         runWhenPreviewReady { [weak self] in
             self?.evaluateJavaScript(script, completionHandler: nil)
         }
     }
 
     /// Toggle the in-preview table-of-contents panel. The TOC itself lives in
-    /// the preview's JavaScript (`window.MiaoYanTOC`, see common.js); this
+    /// the preview's JavaScript (`window.MdownTOC`, see common.js); this
     /// just drives it from the menu / keyboard. No-op in PPT mode where the
     /// reveal.js template has no TOC.
     public func toggleTOC() {
         runWhenPreviewReady { [weak self] in
             self?.evaluateJavaScript(
-                "window.MiaoYanTOC && window.MiaoYanTOC.toggle();", completionHandler: nil)
+                "window.MdownTOC && window.MdownTOC.toggle();", completionHandler: nil)
         }
     }
 
@@ -652,8 +652,8 @@ class MPreviewView: WKWebView, WKUIDelegate {
         // Always re-initialize lazy loading after content update
         initScripts.append(
             """
-                if (window.MiaoYanCommon && typeof window.MiaoYanCommon.optimizeImages === 'function') {
-                    window.MiaoYanCommon.optimizeImages();
+                if (window.MdownCommon && typeof window.MdownCommon.optimizeImages === 'function') {
+                    window.MdownCommon.optimizeImages();
                 }
             """)
 
@@ -668,8 +668,8 @@ class MPreviewView: WKWebView, WKUIDelegate {
                     let savedLine = 0;
                     let usedAnchorScroll = false;
 
-                    if (preserveScroll && window.__miaoyanSync) {
-                        savedLine = window.__miaoyanSync.lineForScroll(window.pageYOffset || 0);
+                    if (preserveScroll && window.__mdownSync) {
+                        savedLine = window.__mdownSync.lineForScroll(window.pageYOffset || 0);
                         usedAnchorScroll = true;
                     } else if (preserveScroll) {
                         // Fallback: ratio-based save when anchor index not yet built
@@ -683,9 +683,9 @@ class MPreviewView: WKWebView, WKUIDelegate {
 
                     if (preserveScroll) {
                         requestAnimationFrame(() => {
-                            if (usedAnchorScroll && window.__miaoyanSync) {
-                                window.__miaoyanSync.rebuild();
-                                window.__miaoyanSync.scrollToLine(savedLine);
+                            if (usedAnchorScroll && window.__mdownSync) {
+                                window.__mdownSync.rebuild();
+                                window.__mdownSync.scrollToLine(savedLine);
                             } else if (!usedAnchorScroll) {
                                 // Ratio fallback
                                 const newDoc = document.scrollingElement || document.documentElement || document.body;
@@ -744,8 +744,8 @@ class MPreviewView: WKWebView, WKUIDelegate {
         let script = """
                 (function() {
                     const fallbackRatio = \(fallback);
-                    const canUseLineSync = window.__miaoyanSync && typeof window.__miaoyanSync.scrollToLine === 'function';
-                    const didScroll = canUseLineSync ? window.__miaoyanSync.scrollToLine(\(line)) : false;
+                    const canUseLineSync = window.__mdownSync && typeof window.__mdownSync.scrollToLine === 'function';
+                    const didScroll = canUseLineSync ? window.__mdownSync.scrollToLine(\(line)) : false;
                     if (!didScroll && fallbackRatio !== null) {
                         const doc = document.scrollingElement || document.documentElement || document.body;
                         const maxScroll = Math.max(0, (doc.scrollHeight || document.body.scrollHeight) - window.innerHeight);
@@ -1043,7 +1043,7 @@ class MPreviewView: WKWebView, WKUIDelegate {
                         img.removeAttribute('data-src');
                     }
                 });
-                if (window.MiaoYanCommon) window.MiaoYanCommon.optimizeImages();
+                if (window.MdownCommon) window.MdownCommon.optimizeImages();
             })();
             """
     }

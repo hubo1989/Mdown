@@ -1,23 +1,23 @@
 /**
- * MiaoYan App Main Entry
+ * Mdown App Main Entry
  */
 
-class MiaoYanApp {
+class MdownApp {
   constructor() {
     this.initialize();
   }
 
   initialize() {
     // Use common module for interactive checkboxes
-    if (window.MiaoYanCommon) {
-      MiaoYanCommon.setupInteractiveCheckboxes();
-      MiaoYanCommon.setupDiagramExport();
+    if (window.MdownCommon) {
+      MdownCommon.setupInteractiveCheckboxes();
+      MdownCommon.setupDiagramExport();
     }
   }
 }
 
-MiaoYanCommon.onDOMReady(() => {
-  new MiaoYanApp();
+MdownCommon.onDOMReady(() => {
+  new MdownApp();
 });
 
-window.MiaoYanApp = MiaoYanApp;
+window.MdownApp = MdownApp;

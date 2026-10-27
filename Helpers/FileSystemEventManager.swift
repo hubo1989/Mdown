@@ -172,7 +172,7 @@ class FileSystemEventManager {
             self?.updateUIForNewNote(note)
         }
 
-        if note.name == "MiaoYan - Readme.md" {
+        if ["Mdown - Readme.md", "MiaoYan - Readme.md"].contains(note.name) {
             Task { @MainActor [weak self] in
                 self?.handleReadmeFile(note)
             }
@@ -288,7 +288,7 @@ class FileSystemEventManager {
 
         note.content = NSMutableAttributedString(attributedString: fsContent)
         // The per-note UndoManager (Views/EditTextView.swift undo policy) is
-        // tied to textStorage edits made within MiaoYan. After we replace
+        // tied to textStorage edits made within Mdown. After we replace
         // note.content with the disk version, any action still on that
         // manager points at pre-external-change state. Cmd-Z would happily
         // pop that state back into the editor, and the next debounced save
@@ -312,14 +312,14 @@ class FileSystemEventManager {
         // project and therefore never observed.
         guard let storageRoot = UserDefaultsManagement.storageUrl else {
             let err = NSError(
-                domain: "com.tw93.miaoyan.conflict",
+                domain: "com.mdown.app.conflict",
                 code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "storageUrl unavailable, conflict backup skipped"])
             AppDelegate.trackError(err, context: "FileSystemEventManager.writeConflictBackup")
             return
         }
 
-        let conflictsRoot = storageRoot.appendingPathComponent(".miaoyan-conflicts", isDirectory: true)
+        let conflictsRoot = storageRoot.appendingPathComponent(".mdown-conflicts", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: conflictsRoot, withIntermediateDirectories: true)
         } catch {

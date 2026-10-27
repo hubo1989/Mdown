@@ -1,6 +1,6 @@
 # T03 — lossless parse 与 display/source 原型
 
-日期：2026-10-14。新增（已注册 pbxproj）：`Helpers/LosslessMarkdownParser.swift`（含 `LosslessParseCoordinator`）、`Helpers/MarkdownProjectionBuilder.swift`、`MiaoYanTests/NativeFixtureLoader.swift`、三个测试文件。测试 28/28 绿；全套 240 tests 仅剩 BASELINE §1.1 既有环境性失败；swiftlint --strict 0 violations。
+日期：2026-10-14。新增（已注册 pbxproj）：`Helpers/LosslessMarkdownParser.swift`（含 `LosslessParseCoordinator`）、`Helpers/MarkdownProjectionBuilder.swift`、`MdownTests/NativeFixtureLoader.swift`、三个测试文件。测试 28/28 绿；全套 240 tests 仅剩 BASELINE §1.1 既有环境性失败；swiftlint --strict 0 violations。
 
 ## 设计决定
 

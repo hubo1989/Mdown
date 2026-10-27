@@ -6,9 +6,9 @@
 *.xcuserstate
 xcuserdata/
 *.xcworkspace/xcuserdata/
-MiaoYan.xcworkspace/xcuserdata/*
-MiaoYan.xcworkspace/xcshareddata/*
-MiaoYan.xcodeproj/xcuserdata/*
+Mdown.xcworkspace/xcuserdata/*
+Mdown.xcworkspace/xcshareddata/*
+Mdown.xcodeproj/xcuserdata/*
 
 # Build artifacts and derivatives
 DerivedData/
@@ -95,7 +95,10 @@ package-lock.json
 *.ipa
 
 # Documentation & Demo files
-docs/
+docs/*
+!docs/plans/
+docs/plans/*
+!docs/plans/2026-10-27-mdown-rename.md
 index.html
 Resources/DownView.bundle/demo.html
 

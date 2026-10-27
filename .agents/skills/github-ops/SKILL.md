@@ -1,15 +1,15 @@
 ---
 name: github-ops
-description: GitHub issues, PRs, releases, and workflow inspection for MiaoYan via gh CLI.
+description: GitHub issues, PRs, releases, and workflow inspection for Mdown via gh CLI.
 version: 1.1.0
 allowed-tools:
   - Bash
   - Read
 ---
 
-# MiaoYan GitHub Operations
+# Mdown GitHub Operations
 
-Use this skill when working with GitHub issues, pull requests, releases, or Actions runs for MiaoYan.
+Use this skill when working with GitHub issues, pull requests, releases, or Actions runs for Mdown.
 
 ## Golden Rule
 

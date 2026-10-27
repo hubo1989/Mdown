@@ -1,6 +1,6 @@
-## How to contribute to MiaoYan
+## How to contribute to Mdown
 
-**Thanks for helping MiaoYan grow!** Bug fixes, features, docs, localisation, performance tuning, accessibility, and any other improvements are welcome through [pull requests](https://github.com/tw93/MiaoYan/compare/).
+**Thanks for helping Mdown grow!** Bug fixes, features, docs, localisation, performance tuning, accessibility, and any other improvements are welcome through [pull requests](https://github.com/hubo1989/Mdown/compare/).
 
 ## Branch Workflow
 
@@ -23,20 +23,20 @@ dev         <--- Default branch for all PRs
 
 1. Clone the repository and check out the latest `dev` branch.
 2. Resolve Swift Package Manager dependencies once via Xcode (`File → Packages → Resolve Package Versions`) or `xcodebuild -resolvePackageDependencies`.
-3. Open `MiaoYan.xcodeproj` in Xcode **or** work from VS Code using the tracked `.vscode/launch.json` and `.vscode/tasks.json`.
+3. Open `Mdown.xcodeproj` in Xcode **or** work from VS Code using the tracked `.vscode/launch.json` and `.vscode/tasks.json`.
 
 ### Code Signing Setup (First Time)
 
 When you first open the project in Xcode, you'll see a signing error:
 
 ```
-Signing for "MiaoYan" requires a development team.
+Signing for "Mdown" requires a development team.
 Select a development team in the Signing & Capabilities editor.
 ```
 
 **To fix:**
 
-1. Select the `MiaoYan` target in Xcode
+1. Select the `Mdown` target in Xcode
 2. Go to the "Signing & Capabilities" tab
 3. Choose your Apple ID in the "Team" dropdown
    - If you don't have one, click "Add an Account..." to add your free Apple ID
@@ -49,8 +49,8 @@ To make the DMG easier for users to open (avoid strict macOS Gatekeeper blocking
 ## Build & Run
 
 - **Xcode**: Open the project and use `⌘B` / `⌘R` to build and run.
-- **Command line**: `xcodebuild -scheme MiaoYan -configuration Debug -destination "platform=macOS" build`
-- **VS Code**: Trigger `Run Build Task` to execute `.vscode/tasks.json`, then use the `Debug MiaoYan (LLDB DAP)` launch config.
+- **Command line**: `xcodebuild -scheme Mdown -configuration Debug -destination "platform=macOS" build`
+- **VS Code**: Trigger `Run Build Task` to execute `.vscode/tasks.json`, then use the `Debug Mdown (LLDB DAP)` launch config.
 
 Build artifacts land in `.vscode/DerivedData/` (VS Code) or your default DerivedData path (Xcode). Both are ignored by git.
 
@@ -76,7 +76,7 @@ Build artifacts land in `.vscode/DerivedData/` (VS Code) or your default Derived
 
 ## Release Build
 
-MiaoYan 4.0 ships on both distribution lanes: App Store/TestFlight and
+Mdown 4.0 ships on both distribution lanes: App Store/TestFlight and
 direct-download GitHub Releases. Keep the tag, release notes, DMG, ZIP, and
 Sparkle appcast aligned before announcing the release.
 
@@ -87,12 +87,12 @@ Sparkle appcast aligned before announcing the release.
 ```
 
 The version comes from `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in
-`MiaoYan.xcodeproj/project.pbxproj`. Submit the resulting archive via Xcode
+`Mdown.xcodeproj/project.pbxproj`. Submit the resulting archive via Xcode
 Organizer or Transporter.
 
 ### Release Checklist
 
-1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `MiaoYan.xcodeproj/project.pbxproj` across macOS and iOS configurations
+1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `Mdown.xcodeproj/project.pbxproj` across macOS and iOS configurations
 2. Confirm `.github/RELEASE_NOTES.md` matches the intended uppercase tag, for example `Vx.y.z`
 3. Create Git tag: `git tag V<version> && git push origin V<version>`
 4. Build and notarize the direct-download DMG and ZIP, then update the Sparkle appcast
@@ -101,4 +101,4 @@ Organizer or Transporter.
 
 > **Self-build path still works.** `scripts/build.sh` produces a runnable Release build for local use or CI. Sparkle integration remains active for direct-download users.
 
-Thank you for investing time in MiaoYan ❤️
+Thank you for investing time in Mdown ❤️

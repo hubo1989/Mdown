@@ -1,6 +1,6 @@
 ---
 name: lint
-description: Run SwiftLint and swift-format checks on MiaoYan. There is no auto-fix hook; run `swiftlint --fix` or `swift-format format --in-place` manually when fixes are needed.
+description: Run SwiftLint and swift-format checks on Mdown. There is no auto-fix hook; run `swiftlint --fix` or `swift-format format --in-place` manually when fixes are needed.
 version: 1.1.0
 allowed-tools:
   - Bash
@@ -8,7 +8,7 @@ allowed-tools:
 
 # Lint Skill
 
-Use this skill to check or fix code style in MiaoYan.
+Use this skill to check or fix code style in Mdown.
 
 ## SwiftLint
 

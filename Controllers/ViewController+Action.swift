@@ -245,7 +245,7 @@ extension ViewController {
         let isSoftRename = note.url.lastPathComponent.lowercased() == newName.lowercased()
 
         if note.project.fileExist(fileName: value, ext: note.url.pathExtension), !isSoftRename {
-            MiaoYanAlert.show(
+            MdownAlert.show(
                 message: I18n.str("Duplicate note name"),
                 informativeText: String(format: I18n.str("Note \"%@\" already exists"), value),
                 for: view.window
@@ -290,7 +290,7 @@ extension ViewController {
             note.parseURL()
             let originalTitle = note.getTitleWithoutLabel()
             updateTitleAndFinishImport(note: note, title: originalTitle)
-            MiaoYanAlert.show(
+            MdownAlert.show(
                 message: I18n.str("Save Failed"),
                 informativeText: I18n.str(error.localizedDescription),
                 for: view.window
@@ -356,7 +356,7 @@ extension ViewController {
     }
 
     private func showReloadConfirmation(note: Note) {
-        MiaoYanAlert.confirm(
+        MdownAlert.confirm(
             message: I18n.str("Reload Note"),
             informativeText: I18n.str("You have unsaved changes. Reload will discard them."),
             confirmTitle: I18n.str("Reload"),
@@ -492,7 +492,7 @@ extension ViewController {
                 return
             }
 
-            MiaoYanAlert.confirm(
+            MdownAlert.confirm(
                 message: I18n.str("Clean Orphan Attachments"),
                 informativeText: String(format: I18n.str("Detected %d unused attachment(s). Move them to Trash?"), orphanAttachments.count),
                 confirmTitle: I18n.str("Clean"),
@@ -508,7 +508,7 @@ extension ViewController {
                 }
 
                 if !result.failed.isEmpty {
-                    MiaoYanAlert.show(
+                    MdownAlert.show(
                         message: I18n.str("Some attachments could not be removed"),
                         informativeText: I18n.str("Please try again"),
                         style: .warning,
@@ -601,7 +601,7 @@ extension ViewController {
 
     @IBAction func copyURL(_ sender: Any) {
         if let note = notesTableView.getSelectedNote(), let title = note.title.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) {
-            let name = "miaoyan://goto/\(title)"
+            let name = "mdown://goto/\(title)"
             let pasteboard = NSPasteboard.general
             pasteboard.declareTypes([NSPasteboard.PasteboardType.string], owner: nil)
             pasteboard.setString(name, forType: NSPasteboard.PasteboardType.string)
@@ -681,13 +681,13 @@ extension ViewController {
         exportFile(type: "PDF")
     }
 
-    @IBAction func exportMiaoYanPPT(_ sender: Any) {
-        guard isMiaoYanPPT() else { return }
+    @IBAction func exportMdownPPT(_ sender: Any) {
+        guard isMdownPPT() else { return }
 
         // Only enable PPT mode if not already enabled
         let needsDisableAfterExport = !sessionMagicPPTMode
         if needsDisableAfterExport {
-            enableMiaoYanPPT()
+            enableMdownPPT()
         }
         shouldDisablePPTAfterExport = needsDisableAfterExport
 
@@ -884,7 +884,7 @@ extension ViewController {
         let retryDelay: TimeInterval
 
         if sessionMagicPPTMode {
-            disableMiaoYanPPT()
+            disableMdownPPT()
             retryDelay = 0.35
         } else if sessionPresentationMode {
             disablePresentation()
@@ -997,7 +997,7 @@ extension ViewController {
         // checkTitlebarTopConstraint() below stays as the actual fix.
         if titiebarHeight.constant == 0 && !sessionMagicPPTMode && !sessionPresentationMode {
             let leak = NSError(
-                domain: "com.tw93.miaoyan.layout",
+                domain: "com.mdown.app.layout",
                 code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "titiebarHeight stuck at 0 outside PPT/Presentation"])
             AppDelegate.trackError(leak, context: "prepareForNoteCreation.titlebarHeight")
@@ -1042,7 +1042,7 @@ extension ViewController {
         guard let notes = vc.notesTableView.getSelectedNotes() else { return }
         guard let window = MainWindowController.shared() else { return }
 
-        MiaoYanAlert.confirm(
+        MdownAlert.confirm(
             message: String(format: I18n.str("Are you sure you want to move %d note(s) to the system Trash?"), notes.count),
             informativeText: I18n.str("The note(s) will be moved to the system Trash and can be recovered."),
             confirmTitle: I18n.str("Move to Trash"),
@@ -1369,7 +1369,7 @@ extension ViewController {
 
         if event.keyCode == kVK_Escape {
             if sessionMagicPPTMode {
-                disableMiaoYanPPT()
+                disableMdownPPT()
                 return false
             } else if sessionPresentationMode {
                 disablePresentation()

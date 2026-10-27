@@ -1,25 +1,8 @@
-<h4 align="right">English | <strong><a href="https://github.com/tw93/MiaoYan/blob/main/README_CN.md">简体中文</a></strong></h4>
+<h4 align="right">English | <strong><a href="https://github.com/hubo1989/Mdown/blob/main/README_CN.md">简体中文</a></strong></h4>
 
-<p align="center">
-  <a href="https://miaoyan.app/" target="_blank"><img src="https://gw.alipayobjects.com/zos/k/t0/43.png" width="138" /></a>
-  <h1 align="center">Mdown</h1>
-  <div align="center">
-    <a href="https://twitter.com/HiTw93" target="_blank">
-      <img alt="Twitter Follow" src="https://img.shields.io/badge/follow-Tw93-red?style=flat-square&logo=Twitter"></a>
-    <a href="https://t.me/+9f9gf4ZrFSQ2OWVl" target="_blank">
-      <img alt="Telegram" src="https://img.shields.io/badge/chat-Telegram-blueviolet?style=flat-square&logo=Telegram"></a>
-    <a href="https://github.com/tw93/MiaoYan/releases" target="_blank">
-      <img alt="GitHub Downloads" src="https://img.shields.io/github/downloads/tw93/MiaoYan/total.svg?style=flat-square"></a>
-    <a href="https://github.com/tw93/MiaoYan/commits" target="_blank">
-      <img alt="GitHub Commit Activity" src="https://img.shields.io/github/commit-activity/m/tw93/MiaoYan?style=flat-square"></a>
-    <a href="https://github.com/tw93/MiaoYan/issues?q=is%3Aissue+is%3Aclosed" target="_blank">
-      <img alt="GitHub Closed Issues" src="https://img.shields.io/github/issues-closed/tw93/MiaoYan.svg?style=flat-square"></a>
-    <img alt="macOS 11.5+" src="https://img.shields.io/badge/macOS-11.5%2B-orange?style=flat-square">
-  </div>
-  <div align="center">Lightweight Markdown note-taking app for macOS</div>
-</p>
+<h1 align="center">Mdown</h1>
 
-<img src="https://raw.githubusercontent.com/tw93/static/main/miaoyan/miaoyan.gif" width="900px" />
+<p align="center">A lightweight, native, local-first Markdown editor</p>
 
 ## Features
 
@@ -30,18 +13,11 @@
 
 ## Installation
 
-1. **Mac App Store** (paid, automatic updates):
+Download Mdown from [Mdown Releases](https://github.com/hubo1989/Mdown/releases), or build from source using the [contribution guide](CONTRIBUTING.md).
 
-   <a href="https://apps.apple.com/cn/app/miaoyan/id6759252269"><img src="https://cdn.tw93.fun/uPic/C3Renh.png" width="160" alt="Download on the Mac App Store" /></a>
+After installing, create a `Mdown` folder in iCloud Drive, your desktop cloud-drive folder, or another location, then select it in Preferences (⌘,).
 
-2. **Homebrew**:
-   ```bash
-   brew install --cask miaoyan
-   ```
-
-3. **GitHub Releases**: download the latest DMG from [GitHub Releases](https://github.com/tw93/MiaoYan/releases/latest) (macOS 11.5+)
-
-All three options share the same codebase and receive the same updates. After installing, create a `Mdown` folder in iCloud Drive, a desktop cloud-drive folder, or your preferred location, open Preferences (⌘,), and set the storage path.
+Mdown is derived from [MiaoYan](https://github.com/tw93/MiaoYan). The upstream App Store and Homebrew listings distribute the original project.
 
 ## Sync with Nutstore or Other Cloud Drives
 
@@ -53,20 +29,22 @@ Mdown is local-first and does not sign in to WebDAV or cloud-drive accounts. It 
 
 ## CLI
 
-MiaoYan provides a command-line interface for quick note operations.
+Mdown provides a command-line interface for quick note operations.
 
 ```bash
 # Install
-curl -fsSL https://raw.githubusercontent.com/tw93/MiaoYan/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hubo1989/Mdown/main/scripts/install.sh | bash
 
 # Usage
-miao open <title|path>    # Open note or folder
-miao new <title> [text]   # Create new note
-miao search <query>       # Search notes in terminal
-miao list [folder]        # List top-level folders, or markdown in folder
-miao cat <title|path>     # Print note content
-miao update               # Update CLI
+mdown open <title|path>    # Open note or folder
+mdown new <title> [text]   # Create new note
+mdown search <query>       # Search notes in terminal
+mdown list [folder]        # List top-level folders, or markdown in folder
+mdown cat <title|path>     # Print note content
+mdown update               # Update CLI
 ```
+
+The legacy `miao` / `miaoyan` commands and `MIAOYAN_PATH` remain supported; prefer `mdown` and `MDOWN_PATH` in new scripts.
 
 ## Flexible Editing Modes
 
@@ -88,24 +66,17 @@ Right-click any rendered Mermaid diagram, PlantUML graph, or KaTeX math formula 
 
 - [Markdown Syntax Guide](Resources/Initial/Mdown%20Markdown%20Syntax%20Guide.md) - Complete syntax reference with advanced features
 - [PPT Presentation Mode](Resources/Initial/Mdown%20Slides.md) - Guide to creating presentations with `---` slide separators
-- [Mdown Agent Skill](skills/miaoyan) - Teach your agent Mdown syntax, attachments, PPT patterns, and CLI workflows
+- [Mdown Agent Skill](skills/mdown) - Teach your agent Mdown syntax, attachments, PPT patterns, and CLI workflows
 
-Install the official skill with `npx skills add tw93/MiaoYan/skills/miaoyan -g`.
+Install the official skill with `npx skills add hubo1989/Mdown/skills/mdown -g`.
 
 ## Support
 
-- The most direct way to support me is getting [Mole for Mac](https://mole.fit), my paid Mac cleanup app.
-- If Mdown helped you, give it a star, [share it](https://twitter.com/intent/tweet?url=https://github.com/tw93/MiaoYan&text=Mdown%20-%20A%20fast%2C%20elegant%20Markdown%20editor%20for%20Mac.), or open an issue or PR.
-- I have two cats, TangYuan and Coke. If you think Mdown delights your life, you can feed them <a href="https://cats.tw93.fun?name=Mdown" target="_blank">canned food 🥩</a>.
-
-<details>
-<summary>These lovely people already did 🐱</summary>
-<br/>
-<a href="https://cats.tw93.fun?name=MiaoYan"><img src="https://cdn.jsdelivr.net/gh/tw93/sponsors@main/assets/sponsors.svg" width="1000" loading="lazy" /></a>
-</details>
+Star Mdown, report problems through [Issues](https://github.com/hubo1989/Mdown/issues), or contribute a pull request.
 
 ## Acknowledgments
 
+- [tw93/MiaoYan](https://github.com/tw93/MiaoYan) - Original project; the MIT copyright notice is retained
 - [glushchenko/fsnotes](https://github.com/glushchenko/fsnotes) - Initial project structure reference
 - [stackotter/swift-cmark-gfm](https://github.com/stackotter/swift-cmark-gfm) - Swift Markdown parser
 - [simonbs/Prettier](https://github.com/simonbs/Prettier) - Markdown formatting utilities

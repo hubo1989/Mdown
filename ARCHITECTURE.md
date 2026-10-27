@@ -1,7 +1,7 @@
-# MiaoYan Architecture
+# Mdown Architecture
 
 > This document describes the current implementation. Target membership in
-> `MiaoYan.xcodeproj/project.pbxproj` is authoritative when the code changes.
+> `Mdown.xcodeproj/project.pbxproj` is authoritative when the code changes.
 
 ## Top-Level Map
 
@@ -13,8 +13,8 @@
 ├── Helpers/         # Utilities and services (highlighting, formatting, theming, diagnostics)
 ├── Extensions/      # Swift extensions on Foundation / AppKit types
 ├── Resources/       # Bundled assets, including DownView.bundle (HTML/CSS/JS for preview)
-├── MiaoYanMobile/   # iOS SwiftUI target (App/Services/Views/Resources)
-├── MiaoYanTests/    # Unit tests for pure-logic surfaces
+├── MdownMobile/   # iOS SwiftUI target (App/Services/Views/Resources)
+├── MdownTests/    # Unit tests for pure-logic surfaces
 └── scripts/         # Local build, App Store, release helpers, target wiring (Ruby + bash)
 ```
 
@@ -30,8 +30,8 @@ A single macOS application process owns:
 - One `WKWebView` instance per editor pane that loads
   `Resources/DownView.bundle/index.html` for live preview.
 
-The iOS target (`MiaoYanMobile/`) is a separate executable with its own models,
-storage services, renderer, and SwiftUI entry point (`MiaoYanMobileApp.swift`).
+The iOS target (`MdownMobile/`) is a separate executable with its own models,
+storage services, renderer, and SwiftUI entry point (`MdownMobileApp.swift`).
 The apps share filesystem conventions, not the macOS `Business/` compile pool.
 
 ## Singleton & Facade Inventory
@@ -133,17 +133,17 @@ Bundled JS used by the preview is vendored under
   OS-level trash via `FileManager.default.trashItem(...)`.
 - Symlinked directories: supported but indexed in a way that avoids recursion
   loops (`Business/Storage.swift::checkSub`).
-- Version history: `Library/Application Support/MiaoYan/Versions/<note-id>/`
+- Version history: `Library/Application Support/com.mdown.app/Versions/<note-id>/ (with non-destructive fallback to com.tw93.miaoyan/Versions)`
   managed by `NoteVersionManager`.
-- Diagnostics log: `~/Library/Logs/MiaoYan/diagnostics.log` (ring buffer,
+- Diagnostics log: `~/Library/Logs/Mdown/diagnostics.log` (ring buffer,
   50 lines, JSON per line). See `Helpers/Diagnostics.swift`.
 
 ## iOS Target Boundary
 
-`MiaoYanMobile/` builds as a separate target in `MiaoYan.xcodeproj`. Its
-models and services live inside `MiaoYanMobile/`. SwiftUI lives there; AppKit
+`MdownMobile/` builds as a separate target in `Mdown.xcodeproj`. Its
+models and services live inside `MdownMobile/`. SwiftUI lives there; AppKit
 lives only outside. There is no shared UI layer. The iOS target reads notes
-through `MiaoYanMobile/Services/FileReader.swift`, which is a parallel
+through `MdownMobile/Services/FileReader.swift`, which is a parallel
 implementation to the macOS storage flow. `NoteSearchReader` reads complete
 local bodies in cancellable chunks and is also compiled into the macOS test
 bundle for platform-independent regression tests.
@@ -165,7 +165,7 @@ bundle for platform-independent regression tests.
 - `Business/AppEnvironment.swift` is in the app target and is the preferred
   facade for new singleton access.
 - `Helpers/UIDelay.swift` is in the app target for semantic async delay names.
-- `MiaoYanTests/` is wired into `MiaoYan.xcodeproj`, and CI runs the macOS unit
+- `MdownTests/` is wired into `Mdown.xcodeproj`, and CI runs the macOS unit
   test step together with the Debug app build.
 
 ## See Also

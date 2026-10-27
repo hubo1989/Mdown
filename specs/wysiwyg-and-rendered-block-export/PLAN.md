@@ -1,4 +1,4 @@
-# MiaoYan 所见即所得编辑与渲染块单独导出 — 实施 Plan
+# Mdown 所见即所得编辑与渲染块单独导出 — 实施 Plan
 
 状态：方案待评审，尚未开始开发。需求和验收以 [SPEC.md](SPEC.md) 为准；本轮用户已明确“Mermaid 等渲染内容单张保存最重要，普通图片另存不是需求”，以此修正优先级与范围。
 
@@ -53,7 +53,7 @@ D0/D1 与 W0 可独立推进；涉及 `ViewController`、`MPreviewView` 或 `pro
 
 同时将 SVG 脱离笔记独立打开，检查 defs、marker、clipPath、样式、字体与 HTML label；只复制 `outerHTML` 成功不代表独立文件有效。导出宿主若必须附着原生窗口才能 snapshot，验证不抢焦点/不闪窗的公开 AppKit 实现并记录限制。
 
-**拟工作范围：** 最小测试宿主与 `MiaoYanTests/RenderedBlockExportTests.swift`；必要时加入独立实验 helper。不要先重构整篇 `exportImage()`，也不要搭通用远程图片下载器。
+**拟工作范围：** 最小测试宿主与 `MdownTests/RenderedBlockExportTests.swift`；必要时加入独立实验 helper。不要先重构整篇 `exportImage()`，也不要搭通用远程图片下载器。
 
 **退出门：** 同页多图/同内容双图正确命中，至少一份含中文和 HTML label 的 PNG 及一张超视口图完整导出，2× 像素尺寸正确，主预览不被滚动/重排。SVG 限定支持范围有证据。PNG 失败必须在此解决，不能用“仅 SVG”或“截图整页再手工裁切”替代交付。
 
@@ -71,7 +71,7 @@ D0/D1 与 W0 可独立推进；涉及 `ViewController`、`MPreviewView` 或 `pro
 
 导出宿主仅访问 app 管理的导出目录及明确允许的资源，不继承主预览的 `/` 读取范围。冻结/桥接前检查大小与身份，阻止任意原生路径、外部脚本、iframe、新远程访问；所有结果/错误经过有限的导出 API。
 
-**拟新增/修改范围：** `Helpers/RenderedBlockExportController.swift`、必要的 `Helpers/RenderedBlockSnapshot.swift`；`Resources/DownView.bundle/js/rendered-block-export.js` 与受控导出模板；`MiaoYanTests/RenderedBlockSnapshotTests.swift`、`MiaoYanTests/RenderedBlockExportTests.swift`。新 JS 的加载方式按 D0 确定，修改自有入口，不改 vendored minified 库。
+**拟新增/修改范围：** `Helpers/RenderedBlockExportController.swift`、必要的 `Helpers/RenderedBlockSnapshot.swift`；`Resources/DownView.bundle/js/rendered-block-export.js` 与受控导出模板；`MdownTests/RenderedBlockSnapshotTests.swift`、`MdownTests/RenderedBlockExportTests.swift`。新 JS 的加载方式按 D0 确定，修改自有入口，不改 vendored minified 库。
 
 **退出条件：** A-11–A-14 的数据/渲染/文件安全部分通过；PNG 可重新解码且尺寸和透明度正确，SVG 独立可用；零尺寸、超限、磁盘满、取消和权限失败不写坏文件或误报成功。
 
@@ -143,7 +143,7 @@ KaTeX 导出整个 `.katex-display` 根，包括公式编号和必要 CSS/字体
 
 同笔记内语义 undo/redo 由会话统一管理，保留切换前后源码选区；定义被隐藏标记两侧的光标 affinity、空块和 attachment 删除行为。点击正文不展开源码是必须的端到端验收，不以快照样式测试替代。
 
-**拟新增/修改范围：** `Views/RichMarkdownTextView.swift`、`Helpers/MarkdownSourceMap.swift`，必要时从 W0 收敛单独的 lossless parser；`MiaoYanTests/MarkdownSourceMapTests.swift`、`MiaoYanTests/RichMarkdownEditingTests.swift`。仅在需要时共享 `Business/Markdown.swift` 的解析选项，不改变既有渲染输出语义。
+**拟新增/修改范围：** `Views/RichMarkdownTextView.swift`、`Helpers/MarkdownSourceMap.swift`，必要时从 W0 收敛单独的 lossless parser；`MdownTests/MarkdownSourceMapTests.swift`、`MdownTests/RichMarkdownEditingTests.swift`。仅在需要时共享 `Business/Markdown.swift` 的解析选项，不改变既有渲染输出语义。
 
 **退出条件：** A-01–A-05 的基础语法通过；样本 round-trip/未修改片段测试通过；超限/不支持语法能无损回源码。使用真实 AppKit 编辑操作补足纯逻辑测试，不能只测预先拼好的 Markdown。
 
@@ -169,7 +169,7 @@ Prettier 保持显式命令，不增加 format-on-save；从会话取得原文�
 
 执行 A-01–A-15；D3 已交付时追加 A-16，未交付时不能声称 PlantUML/公式完成；记录机型、系统、构建配置与 p95。检查大图异步加载、暗亮主题、字体/缩放、键盘焦点、VoiceOver、长标题、列表对齐与空态；不借此更换整个侧栏材质或图标体系。触及 renderer 时一起回归 Mermaid、图片、PDF 分页、等待就绪和 `max-width: 100%`。
 
-更新中英文 README 的产品定位、真实功能边界和快捷方式说明；检查 `skills/miaoyan/` 对编辑模式/导出的产品说明是否需要同步。若修改项目 agent skills，只改 `.agents/skills/` canonical source 并执行同步检查。发布说明只在功能通过后更新，且不能把“已有本地 build”写成已发布。
+更新中英文 README 的产品定位、真实功能边界和快捷方式说明；检查 `skills/mdown/` 对编辑模式/导出的产品说明是否需要同步。若修改项目 agent skills，只改 `.agents/skills/` canonical source 并执行同步检查。发布说明只在功能通过后更新，且不能把“已有本地 build”写成已发布。
 
 **退出条件：** 需求到测试的覆盖无空项；macOS Debug build、单测、SwiftLint strict、swift-format strict 全部通过，必要 iOS 回归通过；实机流程有证据；没有未处置的 owner/保存、IME 或 undo 阻断项。正式发布另走各自渠道流程，本计划不授权打 tag、上传或送审。
 
@@ -210,26 +210,26 @@ git rev-parse HEAD
 git status --short
 
 # 示例：本地验证新增会话测试；测试类加入后再运行
-xcodebuild test -project MiaoYan.xcodeproj -scheme MiaoYan \
+xcodebuild test -project Mdown.xcodeproj -scheme Mdown \
   -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO \
-  -only-testing:MiaoYanTests/MarkdownEditingSessionTests
+  -only-testing:MdownTests/MarkdownEditingSessionTests
 
 # macOS 全量验证
-xcodebuild -project MiaoYan.xcodeproj -scheme MiaoYan \
+xcodebuild -project Mdown.xcodeproj -scheme Mdown \
   -configuration Debug CODE_SIGNING_ALLOWED=NO build
-xcodebuild test -project MiaoYan.xcodeproj -scheme MiaoYan \
+xcodebuild test -project Mdown.xcodeproj -scheme Mdown \
   -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
 swiftlint lint --strict
 swift-format lint --recursive . --strict
 
 # 共享 Markdown、资源或 target membership 变更时回归 iOS
-xcodebuild -project MiaoYan.xcodeproj -scheme MiaoYanMobile \
+xcodebuild -project Mdown.xcodeproj -scheme MdownMobile \
   -configuration Debug -destination 'generic/platform=iOS' \
   CODE_SIGNING_ALLOWED=NO build
 
 # 改 public release notes 后运行对应 renderer smoke
-bash scripts/release-ci/notes_to_html.sh .github/RELEASE_NOTES.md > /tmp/miaoyan-notes.html
-bash scripts/release-ci/render_release_body.sh .github/RELEASE_NOTES.md > /tmp/miaoyan-release-body.html
+bash scripts/release-ci/notes_to_html.sh .github/RELEASE_NOTES.md > /tmp/mdown-notes.html
+bash scripts/release-ci/render_release_body.sh .github/RELEASE_NOTES.md > /tmp/mdown-release-body.html
 ```
 
 本机测试禁用签名是既有测试 Team ID 问题的标准处理，不代表 App Store 沙盒验证完成。App Store 打包脚本含清理、archive 和 export，不能为验证此文档而顺手执行；准备渠道产物时使用项目现有 appstore/release skill。

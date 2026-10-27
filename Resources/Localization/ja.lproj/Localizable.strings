@@ -30,7 +30,7 @@
 
 
 /* No comment provided by engineer. */
-"MiaoYan [preview]" = "Mdownを「プレビュー」";
+"Mdown [preview]" = "Mdownを「プレビュー」";
 
 /* No comment provided by engineer. */
 "Link" = "リンク";
@@ -97,7 +97,7 @@
 "Editing" = "編集";
 "Full Width" = "全幅";
 "Line Break:" = "改行:";
-"MiaoYan" = "Mdown";
+"Mdown" = "Mdown";
 "Auto" = "自動";
 
 /* No comment provided by engineer. */
@@ -131,7 +131,7 @@
 "Preferences" = "環境設定";
 
 /* No comment provided by engineer. */
-"Quit MiaoYan" = "Mdownを終了する";
+"Quit Mdown" = "Mdownを終了する";
 
 /* Delete menu */
 "Remove" = "削除";
@@ -181,7 +181,7 @@
 
 
 
-"%d MiaoYan" = "%d つMdown";
+"%d Mdown" = "%d つMdown";
 
 "PDF export failed, please try again~" = "PDFエクスポートに失敗しました。もう一度お試しください。";
 
@@ -205,7 +205,7 @@
 "Found that there are multiple titles of this~" = "複数のタイトルが見つかりました、検索を利用ください。";
 "URL is successfully copied, Use it anywhere~" = "URLがコピーされました。ご利用ください。";
 "Path is successfully copied~" = "パスがコピーされました。";
-"No delimiter --- identification, Cannot use MiaoYan PPT~" = "区切り「---」がなければ、Mdown PPT使えません。";
+"No delimiter --- identification, Cannot use Mdown PPT~" = "区切り「---」がなければ、Mdown PPT使えません。";
 "Formatting failed, please try again" = "フォーマットに失敗しました。もう一度お試しください";
 "Formatting cancelled" = "フォーマットをキャンセルしました";
 
@@ -215,7 +215,7 @@
 "Edit Link…" = "リンクを編集";
 "Remove Link" = "リンクを削除";
 
-"Restart to MiaoYan to take effect" = "Mdownを再起動して有効にします。";
+"Restart to Mdown to take effect" = "Mdownを再起動して有効にします。";
 "Confirm" = "確認";
 
 /* Font Names */
@@ -280,8 +280,8 @@
 "No importable Markdown files found~" = "読み込める Markdown ファイルが見つかりませんでした。";
 "Could not use this folder" = "このフォルダを使用できません";
 "Selected storage folder is not a folder." = "選択した保存先はフォルダではありません。";
-"MiaoYan cannot read this folder. If this is a cloud drive, open the provider app and make sure the folder is exposed in Finder." = "Mdown はこのフォルダを読み取れません。クラウドドライブの場合は、提供元アプリを開き、Finder にフォルダが表示されていることを確認してください。";
-"MiaoYan cannot write to this folder. Choose a writable folder or enable offline access in the cloud drive app." = "Mdown はこのフォルダに書き込めません。書き込み可能なフォルダを選ぶか、クラウドドライブアプリでオフラインアクセスを有効にしてください。";
+"Mdown cannot read this folder. If this is a cloud drive, open the provider app and make sure the folder is exposed in Finder." = "Mdown はこのフォルダを読み取れません。クラウドドライブの場合は、提供元アプリを開き、Finder にフォルダが表示されていることを確認してください。";
+"Mdown cannot write to this folder. Choose a writable folder or enable offline access in the cloud drive app." = "Mdown はこのフォルダに書き込めません。書き込み可能なフォルダを選ぶか、クラウドドライブアプリでオフラインアクセスを有効にしてください。";
 
 /* Reload Note */
 "Reload Note" = "再読み込み";

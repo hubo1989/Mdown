@@ -159,7 +159,7 @@ class SidebarCellView: NSTableCellView {
 
         } catch {
             sender.stringValue = project.url.lastPathComponent
-            MiaoYanAlert.show(
+            MdownAlert.show(
                 message: error.localizedDescription,
                 style: .warning,
                 for: window

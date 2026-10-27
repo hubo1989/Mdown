@@ -322,7 +322,7 @@ enum MarkdownRuleHighlighter {
 
             let appLink = attributedString.mutableString.substring(with: _range)
 
-            attributedString.addAttribute(.link, value: "miaoyan://goto/" + appLink, range: _range)
+            attributedString.addAttribute(.link, value: "mdown://goto/" + appLink, range: _range)
             attributedString.addAttribute(.foregroundColor, value: NotesTextProcessor.linkColor, range: _range)
             if let range = result?.range(at: 0) {
                 attributedString.addAttribute(.foregroundColor, value: NotesTextProcessor.syntaxColor, range: range)

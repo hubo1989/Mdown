@@ -1,32 +1,22 @@
 #!/bin/bash
 #
-# MiaoYan CLI Installer
-# https://github.com/tw93/MiaoYan
+# Mdown CLI Installer
+# https://github.com/hubo1989/Mdown
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/tw93/MiaoYan/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/hubo1989/Mdown/main/scripts/install.sh | bash
 #
 
 set -e
 
-REPO="tw93/MiaoYan"
-INSTALL_DIR="${MIAOYAN_INSTALL_DIR:-$HOME/.local/bin}"
-SCRIPT_NAME="miao"
-ALIAS_NAME="miaoyan"
+REPO="hubo1989/Mdown"
+INSTALL_DIR="${MDOWN_INSTALL_DIR:-${MIAOYAN_INSTALL_DIR:-$HOME/.local/bin}}"
+SCRIPT_NAME="mdown"
 
-# Source ref for the `miao` script. Defaults to the latest GitHub release tag
-# so a bad push to main cannot break new installs. Set MIAOYAN_INSTALL_REF to
-# override (e.g. `MIAOYAN_INSTALL_REF=main` for local development).
-INSTALL_REF="${MIAOYAN_INSTALL_REF:-}"
-if [[ -z "$INSTALL_REF" ]]; then
-    INSTALL_REF=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
-        | grep -m1 '"tag_name"' \
-        | cut -d'"' -f4)
-    if [[ -z "$INSTALL_REF" ]]; then
-        warn "Could not resolve latest release tag, falling back to main"
-        INSTALL_REF="main"
-    fi
-fi
+# Source ref for the `mdown` script. Defaults to the latest GitHub release tag
+# so a bad push to main cannot break new installs. Set MDOWN_INSTALL_REF to
+# override (e.g. `MDOWN_INSTALL_REF=main` for local development).
+INSTALL_REF="${MDOWN_INSTALL_REF:-${MIAOYAN_INSTALL_REF:-}}"
 
 # Colors
 RED='\033[0;31m'
@@ -39,18 +29,30 @@ warn() { echo -e "${YELLOW}▸${NC} $1"; }
 error() { echo -e "${RED}▸${NC} $1" >&2; exit 1; }
 
 # Check macOS
-[[ "$(uname)" != "Darwin" ]] && error "MiaoYan CLI is macOS only."
+[[ "$(uname)" != "Darwin" ]] && error "Mdown CLI is macOS only."
+
+if [[ -z "$INSTALL_REF" ]]; then
+    INSTALL_REF=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
+        | grep -m1 '"tag_name"' \
+        | cut -d'"' -f4)
+    if [[ -z "$INSTALL_REF" ]]; then
+        warn "Could not resolve latest release tag, falling back to main"
+        INSTALL_REF="main"
+    fi
+fi
 
 # Create install directory
 mkdir -p "$INSTALL_DIR"
 
 # Download script
-info "Downloading miao CLI (ref: $INSTALL_REF)..."
-curl -fsSL "https://raw.githubusercontent.com/$REPO/$INSTALL_REF/scripts/miaoyan" -o "$INSTALL_DIR/$SCRIPT_NAME"
+info "Downloading mdown CLI (ref: $INSTALL_REF)..."
+curl -fsSL "https://raw.githubusercontent.com/$REPO/$INSTALL_REF/scripts/mdown" -o "$INSTALL_DIR/$SCRIPT_NAME"
 chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
 
 # Create alias symlink
-ln -sf "$INSTALL_DIR/$SCRIPT_NAME" "$INSTALL_DIR/$ALIAS_NAME"
+for alias_name in miao miaoyan; do
+    ln -sf "$INSTALL_DIR/$SCRIPT_NAME" "$INSTALL_DIR/$alias_name"
+done
 
 # Check PATH
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
@@ -77,14 +79,14 @@ if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
 fi
 
 echo ""
-info "Miao CLI installed successfully! 🎉"
+info "Mdown CLI installed successfully! 🎉"
 echo ""
 echo "  Usage:"
-echo "    miao open <title|path>    # Open note"
-echo "    miao new <title> [text]   # Create new note"
-echo "    miao search <query>       # Search notes in terminal"
-echo "    miao list [folder]        # List top-level folders, or markdown in folder"
-echo "    miao cat <title|path>     # Print note content"
+echo "    mdown open <title|path>    # Open note"
+echo "    mdown new <title> [text]   # Create new note"
+echo "    mdown search <query>       # Search notes in terminal"
+echo "    mdown list [folder]        # List top-level folders, or markdown in folder"
+echo "    mdown cat <title|path>     # Print note content"
 echo ""
-echo "  Run 'miao help' for more commands."
+echo "  Run 'mdown help' for more commands."
 echo ""

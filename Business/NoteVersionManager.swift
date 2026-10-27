@@ -3,16 +3,79 @@ import Foundation
 final class NoteVersionManager: @unchecked Sendable {
     static let shared = NoteVersionManager()
 
-    private let versionsRoot: URL
+    let versionsRoot: URL
+    let legacyVersionsRoot: URL
     private let maxVersions = 20
     private let minInterval: TimeInterval = 300
     private var lastSaved: [String: Date] = [:]
-    private let queue = DispatchQueue(label: "com.tw93.miaoyan.versions")
+    private let queue = DispatchQueue(label: "com.mdown.app.versions")
+
+    static var defaultVersionsRoot: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("\(AppIdentifier.bundleID)/Versions")
+    }
+
+    static var defaultLegacyVersionsRoot: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("\(AppIdentifier.legacyBundleID)/Versions")
+    }
 
     private init() {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        versionsRoot = base.appendingPathComponent("com.tw93.miaoyan/Versions")
+        versionsRoot = Self.defaultVersionsRoot
+        legacyVersionsRoot = Self.defaultLegacyVersionsRoot
         try? FileManager.default.createDirectory(at: versionsRoot, withIntermediateDirectories: true)
+        Self.copyMissingVersionDirectories(from: legacyVersionsRoot, to: versionsRoot)
+    }
+
+    static func storageKey(forNoteURL url: URL) -> String {
+        var hash: UInt64 = 5381
+        for byte in url.path.utf8 { hash = hash &* 31 &+ UInt64(byte) }
+        return "\(url.deletingPathExtension().lastPathComponent)-\(String(hash, radix: 16))"
+    }
+
+    static func copyMissingVersionDirectories(from sourceRoot: URL, to targetRoot: URL) {
+        let fm = FileManager.default
+        guard sourceRoot.standardizedFileURL != targetRoot.standardizedFileURL,
+            let dirs = try? fm.contentsOfDirectory(at: sourceRoot, includingPropertiesForKeys: nil)
+        else { return }
+        try? fm.createDirectory(at: targetRoot, withIntermediateDirectories: true)
+        for srcDir in dirs {
+            let dstDir = targetRoot.appendingPathComponent(srcDir.lastPathComponent, isDirectory: true)
+            copyMissingFiles(from: srcDir, to: dstDir)
+        }
+    }
+
+    static func rebindVersions(
+        relativePaths: Set<String>,
+        fromLibrary oldLibraryURL: URL,
+        toLibrary newLibraryURL: URL,
+        sourceVersionsRoot: URL,
+        targetVersionsRoot: URL
+    ) {
+        copyMissingVersionDirectories(from: sourceVersionsRoot, to: targetVersionsRoot)
+        for rel in relativePaths where !rel.isEmpty {
+            let oldURL = oldLibraryURL.appendingPathComponent(rel)
+            let newURL = newLibraryURL.appendingPathComponent(rel)
+            let oldKey = storageKey(forNoteURL: oldURL)
+            let newKey = storageKey(forNoteURL: newURL)
+            let srcDir = sourceVersionsRoot.appendingPathComponent(oldKey, isDirectory: true)
+            let dstDir = targetVersionsRoot.appendingPathComponent(newKey, isDirectory: true)
+            copyMissingFiles(from: srcDir, to: dstDir)
+        }
+    }
+
+    private static func copyMissingFiles(from srcDir: URL, to dstDir: URL) {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: srcDir, includingPropertiesForKeys: nil),
+            !files.isEmpty
+        else { return }
+        try? fm.createDirectory(at: dstDir, withIntermediateDirectories: true)
+        for file in files {
+            let dstFile = dstDir.appendingPathComponent(file.lastPathComponent)
+            if !fm.fileExists(atPath: dstFile.path) {
+                try? fm.copyItem(at: file, to: dstFile)
+            }
+        }
     }
 
     @MainActor
@@ -59,8 +122,14 @@ final class NoteVersionManager: @unchecked Sendable {
 
     @MainActor
     func versions(for note: Note) -> [(date: Date, url: URL)] {
-        let dir = versionsRoot.appendingPathComponent(versionKey(for: note.url))
-        return versionsInDir(dir)
+        let key = versionKey(for: note.url)
+        let primaryDir = versionsRoot.appendingPathComponent(key)
+        let primary = versionsInDir(primaryDir)
+        if !primary.isEmpty {
+            return primary
+        }
+        let legacyDir = legacyVersionsRoot.appendingPathComponent(key)
+        return versionsInDir(legacyDir)
     }
 
     private func versionsInDir(_ dir: URL) -> [(date: Date, url: URL)] {
@@ -78,22 +147,28 @@ final class NoteVersionManager: @unchecked Sendable {
 
     @MainActor
     func hasVersions(for note: Note) -> Bool {
-        let dir = versionsRoot.appendingPathComponent(versionKey(for: note.url))
-        return !((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).isEmpty
+        let key = versionKey(for: note.url)
+        let primaryDir = versionsRoot.appendingPathComponent(key)
+        if !((try? FileManager.default.contentsOfDirectory(atPath: primaryDir.path)) ?? []).isEmpty {
+            return true
+        }
+        let legacyDir = legacyVersionsRoot.appendingPathComponent(key)
+        return !((try? FileManager.default.contentsOfDirectory(atPath: legacyDir.path)) ?? []).isEmpty
     }
 
     @MainActor
     func removeVersions(for note: Note) {
-        let dir = versionsRoot.appendingPathComponent(versionKey(for: note.url))
+        let key = versionKey(for: note.url)
+        let dir = versionsRoot.appendingPathComponent(key)
+        let legacyDir = legacyVersionsRoot.appendingPathComponent(key)
         queue.async {
             try? FileManager.default.removeItem(at: dir)
+            try? FileManager.default.removeItem(at: legacyDir)
         }
     }
 
     private func versionKey(for url: URL) -> String {
-        var hash: UInt64 = 5381
-        for byte in url.path.utf8 { hash = hash &* 31 &+ UInt64(byte) }
-        return "\(url.deletingPathExtension().lastPathComponent)-\(String(hash, radix: 16))"
+        Self.storageKey(forNoteURL: url)
     }
 
     private func normalizeForComparison(_ text: String) -> String {

@@ -122,7 +122,7 @@ final class PdfExportController: NSObject {
         }
         let css = HtmlManager.paginatedPrintCSS()
         let safeTitle = escapeForJS(note.getExportTitle())
-        // Un-lazy: MiaoYan's preview keeps non-first images on a placeholder GIF + data-src
+        // Un-lazy: Mdown's preview keeps non-first images on a placeholder GIF + data-src
         // until the user scrolls them into view. The offscreen print webview never scrolls, so
         // those placeholders would render as blank boxes. Swap data-src back to src before print.
         // Also kick off an async Promise.all of img.decode() and park the completion flag on
@@ -130,7 +130,7 @@ final class PdfExportController: NSObject {
         let script = """
             (function() {
                 var s = document.createElement('style');
-                s.id = 'miaoyan-pdf-print-style';
+                s.id = 'mdown-pdf-print-style';
                 s.innerHTML = `\(css)`;
                 document.head.appendChild(s);
 
@@ -180,7 +180,7 @@ final class PdfExportController: NSObject {
         // img.decode() cuts a couple of seconds on note pages with many images.
         // The selectors we probe must match the markers DiagramHandler
         // actually sets (Resources/DownView.bundle/js/diagram-handler.js).
-        // Previously we also queried .miaoyan-mermaid:not(.rendered) and
+        // Previously we also queried .mdown-mermaid:not(.rendered) and
         // svg.mermaid-unrendered, neither of which exists in the bundle,
         // so they always passed and Mermaid pages could go to print before
         // the SVG was rendered.
@@ -238,7 +238,7 @@ final class PdfExportController: NSObject {
         }
 
         let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("miaoyan-pdf-\(UUID().uuidString).pdf")
+            .appendingPathComponent("mdown-pdf-\(UUID().uuidString).pdf")
         self.tempURL = tempURL
 
         let printInfo = NSPrintInfo()

@@ -7,24 +7,24 @@ DIST_DIR="${DIST_DIR:-$PROJECT_DIR/dist}"
 BUILD_DIR="${BUILD_DIR:-$PROJECT_DIR/build}"
 VERSION="${RELEASE_VERSION:-}"
 
-SIGNING_IDENTITY="${MIAOYAN_SIGNING_IDENTITY:-}"
-TEAM_ID="${MIAOYAN_TEAM_ID:-}"
+SIGNING_IDENTITY="${MDOWN_SIGNING_IDENTITY:-${MIAOYAN_SIGNING_IDENTITY:-}}"
+TEAM_ID="${MDOWN_TEAM_ID:-${MIAOYAN_TEAM_ID:-}}"
 
-NOTARY_KEY_ID="${MIAOYAN_NOTARY_KEY_ID:-}"
-NOTARY_ISSUER_ID="${MIAOYAN_NOTARY_ISSUER_ID:-}"
-NOTARY_API_KEY_P8="${MIAOYAN_NOTARY_API_KEY_P8:-}"
-NOTARY_APPLE_ID="${MIAOYAN_NOTARY_APPLE_ID:-}"
-NOTARY_PASSWORD="${MIAOYAN_NOTARY_PASSWORD:-}"
+NOTARY_KEY_ID="${MDOWN_NOTARY_KEY_ID:-${MIAOYAN_NOTARY_KEY_ID:-}}"
+NOTARY_ISSUER_ID="${MDOWN_NOTARY_ISSUER_ID:-${MIAOYAN_NOTARY_ISSUER_ID:-}}"
+NOTARY_API_KEY_P8="${MDOWN_NOTARY_API_KEY_P8:-${MIAOYAN_NOTARY_API_KEY_P8:-}}"
+NOTARY_APPLE_ID="${MDOWN_NOTARY_APPLE_ID:-${MIAOYAN_NOTARY_APPLE_ID:-}}"
+NOTARY_PASSWORD="${MDOWN_NOTARY_PASSWORD:-${MIAOYAN_NOTARY_PASSWORD:-}}"
 
-SPARKLE_PRIVATE_KEY_BASE64="${MIAOYAN_SPARKLE_PRIVATE_KEY_BASE64:-}"
-APP_NAME="MiaoYan"
+SPARKLE_PRIVATE_KEY_BASE64="${MDOWN_SPARKLE_PRIVATE_KEY_BASE64:-${MIAOYAN_SPARKLE_PRIVATE_KEY_BASE64:-}}"
+APP_NAME="Mdown"
 BACKGROUND_IMAGE_SOURCE="$PROJECT_DIR/Resources/dmg-background.png"
 BACKGROUND_IMAGE_NAME="$(basename "$BACKGROUND_IMAGE_SOURCE")"
 
 if [[ -z "$VERSION" ]]; then
   VERSION="$(
     awk -F'=|;' '/MARKETING_VERSION/ { gsub(/[[:space:]]/, "", $2); print $2; exit }' \
-      "$PROJECT_DIR/MiaoYan.xcodeproj/project.pbxproj"
+      "$PROJECT_DIR/Mdown.xcodeproj/project.pbxproj"
   )"
 fi
 
@@ -34,12 +34,12 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 if [[ -z "$SIGNING_IDENTITY" || -z "$TEAM_ID" ]]; then
-  echo "MIAOYAN_SIGNING_IDENTITY and MIAOYAN_TEAM_ID are required." >&2
+  echo "MDOWN_SIGNING_IDENTITY and MDOWN_TEAM_ID are required." >&2
   exit 1
 fi
 
 if [[ -z "$SPARKLE_PRIVATE_KEY_BASE64" ]]; then
-  echo "MIAOYAN_SPARKLE_PRIVATE_KEY_BASE64 is required." >&2
+  echo "MDOWN_SPARKLE_PRIVATE_KEY_BASE64 is required." >&2
   exit 1
 fi
 
@@ -149,16 +149,16 @@ cd "$PROJECT_DIR"
 rm -rf "$BUILD_DIR" "$DIST_DIR"
 mkdir -p "$BUILD_DIR" "$DIST_DIR"
 
-echo "Building MiaoYan v${VERSION}"
+echo "Building Mdown v${VERSION}"
 
 # Skip clean to preserve Asset Catalog cache
-# xcodebuild clean -scheme MiaoYan -configuration Release >/dev/null 2>&1 || true
+# xcodebuild clean -scheme Mdown -configuration Release >/dev/null 2>&1 || true
 
 xcodebuild archive \
-  -scheme MiaoYan \
+  -scheme Mdown \
   -configuration Release \
   -destination "generic/platform=macOS" \
-  -archivePath "$BUILD_DIR/MiaoYan.xcarchive" \
+  -archivePath "$BUILD_DIR/Mdown.xcarchive" \
   ARCHS="arm64 x86_64" \
   ONLY_ACTIVE_ARCH=NO \
   CODE_SIGN_STYLE=Manual \
@@ -166,9 +166,9 @@ xcodebuild archive \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime"
 
-APP_PATH="$BUILD_DIR/Release/MiaoYan.app"
+APP_PATH="$BUILD_DIR/Release/Mdown.app"
 mkdir -p "$BUILD_DIR/Release"
-cp -R "$BUILD_DIR/MiaoYan.xcarchive/Products/Applications/MiaoYan.app" "$APP_PATH"
+cp -R "$BUILD_DIR/Mdown.xcarchive/Products/Applications/Mdown.app" "$APP_PATH"
 
 SPARKLE_FRAMEWORK="$APP_PATH/Contents/Frameworks/Sparkle.framework"
 if [[ -d "$SPARKLE_FRAMEWORK" ]]; then
@@ -188,7 +188,7 @@ fi
 
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
-NOTARY_ZIP="$BUILD_DIR/MiaoYan_for_notary.zip"
+NOTARY_ZIP="$BUILD_DIR/Mdown_for_notary.zip"
 ditto -c -k --keepParent "$APP_PATH" "$NOTARY_ZIP"
 
 NOTARY_OUTPUT_FILE="$BUILD_DIR/notary-submit-app.log"
@@ -196,18 +196,18 @@ submit_notary "$NOTARY_ZIP" "$NOTARY_OUTPUT_FILE"
 
 xcrun stapler staple "$APP_PATH"
 
-ZIP_PATH="$DIST_DIR/MiaoYan_V${VERSION}.zip"
+ZIP_PATH="$DIST_DIR/Mdown_V${VERSION}.zip"
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
 
 STAGING_DIR="$BUILD_DIR/dmg_staging"
-TEMP_DMG_PATH="$BUILD_DIR/MiaoYan_temp.dmg"
-DMG_BASE_PATH="$DIST_DIR/MiaoYan_v${VERSION}"
+TEMP_DMG_PATH="$BUILD_DIR/Mdown_temp.dmg"
+DMG_BASE_PATH="$DIST_DIR/Mdown_v${VERSION}"
 DMG_PATH="${DMG_BASE_PATH}.dmg"
 
 cleanup_volumes
 rm -rf "$STAGING_DIR" "$TEMP_DMG_PATH" "$DMG_PATH"
 mkdir -p "$STAGING_DIR"
-cp -R "$APP_PATH" "$STAGING_DIR/MiaoYan.app"
+cp -R "$APP_PATH" "$STAGING_DIR/Mdown.app"
 ln -s /Applications "$STAGING_DIR/Applications"
 
 if [[ -f "$BACKGROUND_IMAGE_SOURCE" ]]; then

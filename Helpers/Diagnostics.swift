@@ -8,7 +8,7 @@ import os.log
 /// reported "my note vanished" there was no breadcrumb to follow. This sink
 /// fixes that without pulling in a third-party crash SDK: structured os_log
 /// for live `log show` inspection plus a JSON-line ring buffer at
-/// `~/Library/Logs/MiaoYan/diagnostics.log` that users can attach to feedback.
+/// `~/Library/Logs/Mdown/diagnostics.log` that users can attach to feedback.
 @MainActor
 enum Diagnostics {
 
@@ -23,7 +23,7 @@ enum Diagnostics {
         guard let library = fm.urls(for: .libraryDirectory, in: .userDomainMask).first else {
             return nil
         }
-        let dir = library.appendingPathComponent("Logs/MiaoYan")
+        let dir = library.appendingPathComponent("Logs/Mdown")
         guard (try? fm.createDirectory(at: dir, withIntermediateDirectories: true)) != nil else {
             return nil
         }

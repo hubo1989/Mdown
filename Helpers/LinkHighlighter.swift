@@ -15,7 +15,7 @@ enum LinkHighlighter {
         let pattern = [
             "((http[s]{0,1}|ftp)://\(host)(/\(chars))?)",
             "(www\\.\(host)(/\(chars))?)",
-            "(miaoyan://[a-zA-Z0-9]+\\/[a-zA-Z0-9|%]*)",
+            "((?:mdown|miaoyan)://[a-zA-Z0-9]+\\/[a-zA-Z0-9|%]*)",
             "(/(?:i|files)/[a-zA-Z0-9-]+\\.[a-zA-Z0-9]*)",
         ].joined(separator: "|")
 

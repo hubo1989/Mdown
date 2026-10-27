@@ -206,7 +206,7 @@ final class TypographyPrefsViewController: BasePrefsViewController {
         guard let vc = ViewController.shared() else { return }
         guard let item = sender.selectedItem else { return }
         settings.presentationFontSize = Int(item.title) ?? UserDefaultsManagement.DefaultPresentationFontSize
-        if !vc.isMiaoYanPPT(needToast: false) {
+        if !vc.isMdownPPT(needToast: false) {
             vc.disablePresentation()
             vc.enablePresentation()
         }

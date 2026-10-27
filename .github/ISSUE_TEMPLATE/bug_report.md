@@ -28,7 +28,7 @@ If applicable, add screenshots to help explain your problem.
 
 - Device: [e.g. MacBook Pro M1]
 - OS: [e.g. macOS 14.0]
-- MiaoYan Version: [e.g. 1.0.0]
+- Mdown Version: [e.g. 1.0.0]
 
 **Additional context**
 Add any other context about the problem here.

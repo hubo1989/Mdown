@@ -1,6 +1,6 @@
 {
-  "$schema": "https://raw.githubusercontent.com/tw93/MiaoYan/main/Resources/DownView.bundle/js/vendor/MANIFEST.schema.json",
-  "description": "Vendored third-party JavaScript that ships inside MiaoYan's preview bundle. Each entry records what file was downloaded, where from, when, and its SHA-256 so the next maintainer can audit and refresh without guessing.",
+  "$schema": "https://raw.githubusercontent.com/hubo1989/Mdown/main/Resources/DownView.bundle/js/vendor/MANIFEST.schema.json",
+  "description": "Vendored third-party JavaScript that ships inside Mdown's preview bundle. Each entry records what file was downloaded, where from, when, and its SHA-256 so the next maintainer can audit and refresh without guessing.",
   "verify_command": "shasum -a 256 Resources/DownView.bundle/js/<name>",
   "vendored": [
     {
@@ -131,7 +131,7 @@
     }
   ],
   "project_local": {
-    "description": "These files are written and maintained inside MiaoYan, not vendored from upstream. Listed here for completeness so any new file under js/ is either vendored or project-local.",
+    "description": "These files are written and maintained inside Mdown, not vendored from upstream. Listed here for completeness so any new file under js/ is either vendored or project-local.",
     "files": [
       "app.js",
       "common.js",
@@ -145,7 +145,7 @@
     "Replace the file in Resources/DownView.bundle/js/.",
     "Run `shasum -a 256 Resources/DownView.bundle/js/<file>` and update the sha256 here.",
     "Update the version field. If the upstream has no version banner, write the release tag you downloaded from.",
-    "Open the preview in MiaoYan locally and smoke test: code block highlight, KaTeX, Mermaid, Markmap, PlantUML, TOC.",
+    "Open the preview in Mdown locally and smoke test: code block highlight, KaTeX, Mermaid, Markmap, PlantUML, TOC.",
     "Commit the updated file + this manifest in one atomic commit so reviewers can verify the hash."
   ]
 }

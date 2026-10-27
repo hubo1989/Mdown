@@ -286,7 +286,7 @@ public class Note: NSObject {
 
     enum FileRemovalResult {
         case moved(destination: URL, original: URL)
-        case hiddenFromMiaoYanTrash
+        case hiddenFromMdownTrash
     }
 
     func removeFile(completely: Bool = false) -> FileRemovalResult? {
@@ -298,12 +298,15 @@ public class Note: NSObject {
                     // The app Trash is already the volume's system Trash.
                     // Calling trashItem again only renames the file in place
                     // ("note.md" -> "note 2.md"), so FSEvents imports it as
-                    // a new note. Mark it as removed from MiaoYan instead; it
+                    // a new note. Mark it as removed from Mdown instead; it
                     // stays recoverable in Finder's Trash and scans ignore the
                     // marker only while the file remains in a Trash project.
                     try url.setExtendedAttribute(
                         data: Data([1]),
                         forName: AppIdentifier.removedFromTrashKey)
+                    try? url.setExtendedAttribute(
+                        data: Data([1]),
+                        forName: AppIdentifier.legacyRemovedFromTrashKey)
                 } else {
                     try FileManager.default.trashItem(at: url, resultingItemURL: nil)
                 }
@@ -312,13 +315,14 @@ public class Note: NSObject {
                 AppDelegate.trackError(error, context: "Note.systemTrashError")
                 return nil
             }
-            return .hiddenFromMiaoYanTrash
+            return .hiddenFromMdownTrash
         }
 
         do {
             // A note restored from Finder keeps its xattrs. Clear the marker
-            // before a later soft delete so it appears in MiaoYan Trash again.
+            // before a later soft delete so it appears in Mdown Trash again.
             try? url.removeExtendedAttribute(forName: AppIdentifier.removedFromTrashKey)
+            try? url.removeExtendedAttribute(forName: AppIdentifier.legacyRemovedFromTrashKey)
 
             guard let dst = Storage.sharedInstance().trashItem(url: url) else {
                 var resultingItemUrl: NSURL?
@@ -458,6 +462,7 @@ public class Note: NSObject {
         var pin = true
         let data = Data(bytes: &pin, count: 1)
         try? url.setExtendedAttribute(data: data, forName: AppIdentifier.pinKey)
+        try? url.setExtendedAttribute(data: data, forName: AppIdentifier.legacyPinKey)
     }
 
     func removePin(cloudSave: Bool = true) {
@@ -467,6 +472,7 @@ public class Note: NSObject {
             var pin = false
             let data = Data(bytes: &pin, count: 1)
             try? url.setExtendedAttribute(data: data, forName: AppIdentifier.pinKey)
+            try? url.setExtendedAttribute(data: data, forName: AppIdentifier.legacyPinKey)
         }
     }
 
@@ -667,7 +673,7 @@ public class Note: NSObject {
             AppDelegate.trackError(error, context: "Note.write")
 
             Task { @MainActor in
-                MiaoYanAlert.show(
+                MdownAlert.show(
                     message: I18n.str("Save Failed"),
                     informativeText: I18n.str(error.localizedDescription),
                     style: .warning
@@ -698,7 +704,7 @@ public class Note: NSObject {
             destination
             .deletingLastPathComponent()
             .appendingPathComponent(
-                ".\(destination.lastPathComponent).miaoyan-save-\(UUID().uuidString)")
+                ".\(destination.lastPathComponent).mdown-save-\(UUID().uuidString)")
 
         defer {
             if FileManager.default.fileExists(atPath: replacement.path) {

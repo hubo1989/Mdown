@@ -85,8 +85,8 @@ jobs:
         # dispatch must not package a drifted tree (V3.5.1 / #524 incident).
         run: |
           set -euo pipefail
-          MARKETING=$(grep 'MARKETING_VERSION = ' MiaoYan.xcodeproj/project.pbxproj | sed -E 's/.*MARKETING_VERSION = ([^;]+);.*/\1/' | tr -d ' ' | sort -u)
-          PROJECT=$(grep 'CURRENT_PROJECT_VERSION = ' MiaoYan.xcodeproj/project.pbxproj | sed -E 's/.*CURRENT_PROJECT_VERSION = ([^;]+);.*/\1/' | tr -d ' ' | sort -u)
+          MARKETING=$(grep 'MARKETING_VERSION = ' Mdown.xcodeproj/project.pbxproj | sed -E 's/.*MARKETING_VERSION = ([^;]+);.*/\1/' | tr -d ' ' | sort -u)
+          PROJECT=$(grep 'CURRENT_PROJECT_VERSION = ' Mdown.xcodeproj/project.pbxproj | sed -E 's/.*CURRENT_PROJECT_VERSION = ([^;]+);.*/\1/' | tr -d ' ' | sort -u)
           printf 'MARKETING_VERSION values:\n%s\nCURRENT_PROJECT_VERSION values:\n%s\n' "$MARKETING" "$PROJECT"
           fail=0
           while IFS= read -r v; do

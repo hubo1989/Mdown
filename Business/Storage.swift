@@ -277,7 +277,8 @@ class Storage {
 
     static func shouldHideRemovedTrashItem(at url: URL, in project: Project) -> Bool {
         project.isTrash
-            && (try? url.extendedAttribute(forName: AppIdentifier.removedFromTrashKey)) != nil
+            && ((try? url.extendedAttribute(forName: AppIdentifier.removedFromTrashKey)) != nil
+                || (try? url.extendedAttribute(forName: AppIdentifier.legacyRemovedFromTrashKey)) != nil)
     }
 
     public func getBookmarks() -> [URL] {
@@ -929,7 +930,7 @@ class Storage {
         // it in the in-memory list and the sidebar so the user does not see
         // it disappear from the UI while the file is still on disk. Without
         // this ordering a denied permission, full Trash, or iCloud stall
-        // would silently make the note vanish from MiaoYan but persist as
+        // would silently make the note vanish from Mdown but persist as
         // an orphan file.
         var removed = [URL: URL]()
         var succeeded = [Note]()
@@ -972,7 +973,7 @@ class Storage {
 
         if failedCount > 0 {
             let warning = NSError(
-                domain: "com.tw93.miaoyan.delete",
+                domain: "com.mdown.app.delete",
                 code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "removeNotes: \(failedCount) of \(notes.count) failed"])
             AppDelegate.trackError(warning, context: "Storage.removeNotes.partialFailure")

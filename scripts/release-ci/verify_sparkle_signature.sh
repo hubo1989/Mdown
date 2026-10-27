@@ -5,11 +5,11 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 Usage:
-  verify_sparkle_signature.sh --zip MiaoYan_Vx.y.z.zip --signature SIGNATURE [--public-key SUPublicEDKey]
+  verify_sparkle_signature.sh --zip Mdown_Vx.y.z.zip --signature SIGNATURE [--public-key SUPublicEDKey]
 
 Verifies a Sparkle Ed25519 signature against the ZIP bytes and the app's
 embedded SUPublicEDKey. If --public-key is omitted, the key is read from the
-MiaoYan.app inside the ZIP.
+Mdown.app inside the ZIP.
 EOF
 }
 
@@ -21,7 +21,7 @@ die() {
 ZIP_PATH=""
 SIGNATURE=""
 PUBLIC_KEY=""
-APP_NAME="${APP_NAME:-MiaoYan}"
+APP_NAME="${APP_NAME:-Mdown}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

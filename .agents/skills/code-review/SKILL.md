@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: MiaoYan project adapter for Waza check/code-review. Use for Swift, AppKit, iOS target, and release-safety review.
+description: Mdown project adapter for Waza check/code-review. Use for Swift, AppKit, iOS target, and release-safety review.
 version: 1.1.0
 allowed-tools:
   - Bash
@@ -10,9 +10,9 @@ allowed-tools:
 disable-model-invocation: true
 ---
 
-# MiaoYan Code Review Adapter
+# Mdown Code Review Adapter
 
-Use Waza `/check` for the generic review method. This adapter adds MiaoYan-specific commands, hard stops, and target awareness.
+Use Waza `/check` for the generic review method. This adapter adds Mdown-specific commands, hard stops, and target awareness.
 
 ## Quick Commands
 
@@ -21,7 +21,7 @@ Use Waza `/check` for the generic review method. This adapter adds MiaoYan-speci
 gh pr diff 123
 
 # Build check
-xcodebuild -project MiaoYan.xcodeproj -scheme MiaoYan -configuration Debug build
+xcodebuild -project Mdown.xcodeproj -scheme Mdown -configuration Debug build
 
 # Lint
 swiftlint lint --strict
@@ -30,7 +30,7 @@ swiftlint lint --strict
 swift-format lint --recursive . --strict
 ```
 
-## MiaoYan-Specific Checks
+## Mdown-Specific Checks
 
 - [ ] No retain cycles (weak/unowned used correctly)
 - [ ] Main thread UI updates only
@@ -39,14 +39,14 @@ swift-format lint --recursive . --strict
 - [ ] Follows existing patterns in the codebase
 - [ ] No unnecessary class where struct suffices
 - [ ] Uses Swift concurrency correctly (async/await, actors)
-- [ ] Keep the macOS editor core, preview pipeline, and existing storyboard scenes on AppKit; new self-contained panels may host SwiftUI through `NSHostingView`. `MiaoYanMobile/` uses SwiftUI, without sharing UI layers across targets
+- [ ] Keep the macOS editor core, preview pipeline, and existing storyboard scenes on AppKit; new self-contained panels may host SwiftUI through `NSHostingView`. `MdownMobile/` uses SwiftUI, without sharing UI layers across targets
 - [ ] SwiftLint passes: `swiftlint lint --strict`
 - [ ] No dead code or commented-out blocks
 - [ ] Clear naming, no abbreviations
 - [ ] No new external network calls without user consent
 - [ ] File writes are scoped to user documents or app-controlled locations
 - [ ] No shell injection in CLI-related code
-- [ ] Changes under `MiaoYanMobile/` consider target membership, sync behavior, and mobile resource paths
+- [ ] Changes under `MdownMobile/` consider target membership, sync behavior, and mobile resource paths
 
 ## Review Output Format
 

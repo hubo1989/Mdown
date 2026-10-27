@@ -51,7 +51,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**无。**需求：**NE-03,NE-31,NE-35。**验收：**AC-02,AC-19,AC-21。
 
-**Files：**读 `AGENTS.md`、`ARCHITECTURE.md`、`Package.swift`、两个Package.resolved、pbxproj、scheme；新增 `MiaoYanTests/Fixtures/NativeEditor/` 与 `specs/native-typora-editor/validation/BASELINE.md`（执行时）。复用研究fixtures，保持原始hash不动。
+**Files：**读 `AGENTS.md`、`ARCHITECTURE.md`、`Package.swift`、两个Package.resolved、pbxproj、scheme；新增 `MdownTests/Fixtures/NativeEditor/` 与 `specs/native-typora-editor/validation/BASELINE.md`（执行时）。复用研究fixtures，保持原始hash不动。
 
 - 记录baseline macOS build/tests及已有失败，不顺手修无关项；既有源码/Vditor/preview模式均实际打开。
 - corpus涵盖UTF8 BOM、LF/CRLF/混合行尾、无末尾换行、tabs、组合重音/emoji、metadata/ref/footnote、三层list、table含pipe/code、nested fence、错误math/diagram、HTML/unknown、200KiB/2k行和1/10MiB压力样本。
@@ -65,7 +65,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T00。**需求：**NE-16,NE-17,NE-18,NE-36。**验收：**AC-07,AC-09。
 
-**Modify：**`Resources/DownView.bundle/editor.html:146`、`Views/VditorEditView.swift:108/164/188`；仅必要的 `Controllers/ViewController+Action.swift:1618`、`Controllers/MainWindowController.swift:265`、`Controllers/AppDelegate.swift:157`。**Test：**扩展 `MiaoYanTests/VditorIntegrationTests.swift`，新增 `MiaoYanTests/VditorBridgeContractTests.swift`；扩展 `MiaoYanTests/EditorStorageOwnershipTests.swift`、`MiaoYanTests/NoteSaveDebounceTests.swift`。
+**Modify：**`Resources/DownView.bundle/editor.html:146`、`Views/VditorEditView.swift:108/164/188`；仅必要的 `Controllers/ViewController+Action.swift:1618`、`Controllers/MainWindowController.swift:265`、`Controllers/AppDelegate.swift:157`。**Test：**扩展 `MdownTests/VditorIntegrationTests.swift`，新增 `MdownTests/VditorBridgeContractTests.swift`；扩展 `MdownTests/EditorStorageOwnershipTests.swift`、`MdownTests/NoteSaveDebounceTests.swift`。
 
 - 先运行setMarkdown→用户edit→vditorChange→Note.content→实际磁盘flush，证明setter callback错配；按随包clearStack boolean API修复，loading flag用有界真实完成逻辑，非固定长sleep。
 - 测A→B load/pending ready/晚消息，捕获owner/generation；早期补note identity字段，不能所有消息套currentNote。
@@ -79,7 +79,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T00，可与T01并行。**需求：**NE-02,NE-03,NE-04,NE-16。**验收：**AC-02,AC-04最小。
 
-**Create：**`Business/MarkdownEditTransaction.swift`、`Helpers/MarkdownSourceMap.swift` 的独立原型（不接Note）；必要测试宿主。**Test：**`MiaoYanTests/MarkdownEditTransactionTests.swift`、`MiaoYanTests/MarkdownSourceMapTests.swift`。
+**Create：**`Business/MarkdownEditTransaction.swift`、`Helpers/MarkdownSourceMap.swift` 的独立原型（不接Note）；必要测试宿主。**Test：**`MdownTests/MarkdownEditTransactionTests.swift`、`MdownTests/MarkdownSourceMapTests.swift`。
 
 - 依据SPEC值类型定义identity、source range、patch原子校验；多patch以同base、descending顺序应用。
 - red cases：越界/重叠/旧expectedText/staleRevision/不同generation/同位置多insert；全部拒绝且source/selection/history无变化。
@@ -92,7 +92,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T02。**需求：**NE-03,NE-04,NE-05,NE-12,NE-27。**验收：**AC-01,AC-02,AC-04最小。
 
-**Create：**`Helpers/LosslessMarkdownParser.swift`、`Helpers/MarkdownProjectionBuilder.swift`（原型）。**Test：**`MiaoYanTests/LosslessMarkdownParserTests.swift`、`MiaoYanTests/MarkdownProjectionTests.swift`、`MiaoYanTests/MarkdownRoundTripTests.swift`。
+**Create：**`Helpers/LosslessMarkdownParser.swift`、`Helpers/MarkdownProjectionBuilder.swift`（原型）。**Test：**`MdownTests/LosslessMarkdownParserTests.swift`、`MdownTests/MarkdownProjectionTests.swift`、`MdownTests/MarkdownRoundTripTests.swift`。
 
 - pinned cmark sourcepos/tab/end-column先用fixtures实测；原文未经preview stripping/protect替换，扩展保护必须同时生成逆映射。
 - 保存token/source slices和delimiter，语义AST只是派生；frontmatter/ref/footnote留原文，不抽走权威source。
@@ -106,7 +106,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T02,T03。**需求：**NE-05,NE-06,NE-08基础原语,NE-13,NE-14,NE-15,NE-27,NE-30；NE-31在此仅API兼容探针。**验收：**AC-01~AC-05原型、AC-06三层list拆合原型；AC-19仅200KiB/2k性能和11.5 API可用性，不含Sandbox/iOS集成。
 
-**Create：**`Views/RichMarkdownTextView.swift` 的隔离验证面；`Business/MarkdownEditorHistory.swift`最小原型。**Test：**`MiaoYanTests/RichMarkdownEditingTests.swift`、`MiaoYanTests/MarkdownCompositionTests.swift`；实机记录 `validation/G0/`。
+**Create：**`Views/RichMarkdownTextView.swift` 的隔离验证面；`Business/MarkdownEditorHistory.swift`最小原型。**Test：**`MdownTests/RichMarkdownEditingTests.swift`、`MdownTests/MarkdownCompositionTests.swift`；实机记录 `validation/G0/`。
 
 原型用纯内存source/transaction协调对象，不访问Note/Storage；类型可先位于test宿主或隔离实验target。T05通过G0后收敛到正式MarkdownEditingSession，删除一次性协调对象，不能让原型与正式会话并行拥有source。
 
@@ -123,7 +123,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**G0，T01。**需求：**NE-02,NE-16,NE-17,NE-22,NE-27。**验收：**AC-04,AC-07,AC-22。
 
-**Create：**`Business/MarkdownEditingSession.swift`（API见SPEC）。**Modify：**`Views/EditTextView.swift:52/989/994`、`Controllers/ViewController.swift:1308`；`Business/Types.swift`仅新增必要session引用。**Test：**`MiaoYanTests/MarkdownEditingSessionTests.swift`、扩展Owner tests。
+**Create：**`Business/MarkdownEditingSession.swift`（API见SPEC）。**Modify：**`Views/EditTextView.swift:52/989/994`、`Controllers/ViewController.swift:1308`；`Business/Types.swift`仅新增必要session引用。**Test：**`MdownTests/MarkdownEditingSessionTests.swift`、扩展Owner tests。
 
 - 先source模式接入，不显示rich；session保存raw source/revision/selection，Note仅commit snapshot。
 - 编辑apply/noChange/reject遵守SPEC，改revision但不回退；same-owner旧buffer加storageRevision，publish标明当前rev，失效buffer不能whole-save。
@@ -136,7 +136,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T05。**需求：**NE-13,NE-14,NE-15。**验收：**AC-03,AC-05。
 
-**Modify/Create：**正式 `Business/MarkdownEditorHistory.swift`；`Views/EditTextView.swift:552`、`Views/RichMarkdownTextView.swift`、`Controllers/MainWindowController.swift:151`。**Test：**`MiaoYanTests/MarkdownEditorHistoryTests.swift`、`MiaoYanTests/MarkdownCompositionTests.swift`。
+**Modify/Create：**正式 `Business/MarkdownEditorHistory.swift`；`Views/EditTextView.swift:552`、`Views/RichMarkdownTextView.swift`、`Controllers/MainWindowController.swift:151`。**Test：**`MdownTests/MarkdownEditorHistoryTests.swift`、`MdownTests/MarkdownCompositionTests.swift`。
 
 - source/rich/text subeditor路由同session Note.undoManager；view自动undo与session不得重复登记。
 - snapshot before/after、inverse patches、redo截断；composition一次group，format/paste/table单独group。
@@ -149,7 +149,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T05,T06。**需求：**NE-17,NE-18,NE-20。**验收：**AC-07,AC-08,AC-09,AC-22。
 
-**Modify：**`Business/Note.swift:557/565/592/602/626/683`、`Business/Storage.swift:1303`；即时save的 `Controllers/ViewController+Editor.swift:1047/1075`、`Helpers/ClipboardManager.swift:65/92/119` 一并接commit/outcome。**Test：**扩展 `MiaoYanTests/NoteSaveDebounceTests.swift`，新增 `MiaoYanTests/EditorCommitPersistenceTests.swift`。
+**Modify：**`Business/Note.swift:557/565/592/602/626/683`、`Business/Storage.swift:1303`；即时save的 `Controllers/ViewController+Editor.swift:1047/1075`、`Helpers/ClipboardManager.swift:65/92/119` 一并接commit/outcome。**Test：**扩展 `MdownTests/NoteSaveDebounceTests.swift`，新增 `MdownTests/EditorCommitPersistenceTests.swift`。
 
 - 最小新增save result/captured identity/generation/revision/digest与pendingWrite关联；只有当前完整三元组及正文摘要匹配的实际写成功才能清dirty。同URL重绑定后数字revision相同也必须拒绝旧完成。
 - 使用Note既有debounce1.5s与即时dirty登记；新增最小patch/COW commit接口，增量更新Note已提交文本镜像，不在每字调用中整篇unLoad/扫描/重新构造attributed buffer。完整编码/FileWrapper在定时或flush捕获source snapshot后生成；兼容save(content:)转发当前协调层，不能新增外层timer或等timer才标dirty。
@@ -164,7 +164,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T07。**需求：**NE-13,NE-18,NE-36。**验收：**AC-03,AC-07,AC-09。
 
-**Create：**`Controllers/EditingTransitionCoordinator.swift`。**Modify：**`Controllers/ViewController+Action.swift:1618/555/234/787`、`Controllers/ViewController+Editor.swift:1669/1692`、`Controllers/MainWindowController.swift:237/265`、`Controllers/AppDelegate.swift:157`、`Views/NotesTableView.swift:392/415`、`Controllers/ViewController+Data.swift:409/425`。**Test：**`MiaoYanTests/EditingTransitionTests.swift`、扩展Note save/Owner tests。
+**Create：**`Controllers/EditingTransitionCoordinator.swift`。**Modify：**`Controllers/ViewController+Action.swift:1618/555/234/787`、`Controllers/ViewController+Editor.swift:1669/1692`、`Controllers/MainWindowController.swift:237/265`、`Controllers/AppDelegate.swift:157`、`Views/NotesTableView.swift:392/415`、`Controllers/ViewController+Data.swift:409/425`。**Test：**`MdownTests/EditingTransitionTests.swift`、扩展Note save/Owner tests。
 
 - 抽active session finish-composition/commit/flush统一入口；Cmd+S/duplicate/失焦不采hidden buffer。
 - close/quit的可取消前置（windowShouldClose/applicationShouldTerminate或等价公开AppKit）处理pending；willClose/willTerminate只最后兜底，不等到无法取消才提示。
@@ -177,7 +177,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T08。**需求：**NE-16,NE-19,NE-20,NE-22。**验收：**AC-08,AC-09,AC-10。
 
-**Modify：**`Helpers/FileSystemEventManager.swift:246~302`、`Business/Storage.swift:682/915`、`Business/Note.swift:211/229/519`、`Controllers/ViewController+Action.swift:234/284/787/807/1285`、`Controllers/ViewController+Editor.swift:1669/1692`、`Views/EditTextView.swift:504/505`、`Business/NoteVersionManager.swift:19`、`Controllers/VersionHistoryViewController.swift:482`、`Helpers/ClipboardManager.swift:44/178/413~443`。**Test：**`MiaoYanTests/EditorFileConflictTests.swift`、`MiaoYanTests/EditorAttachmentTransactionTests.swift`、`MiaoYanTests/EditorVersionSnapshotTests.swift`；保留现有retire测试。
+**Modify：**`Helpers/FileSystemEventManager.swift:246~302`、`Business/Storage.swift:682/915`、`Business/Note.swift:211/229/519`、`Controllers/ViewController+Action.swift:234/284/787/807/1285`、`Controllers/ViewController+Editor.swift:1669/1692`、`Views/EditTextView.swift:504/505`、`Business/NoteVersionManager.swift:19`、`Controllers/VersionHistoryViewController.swift:482`、`Helpers/ClipboardManager.swift:44/178/413~443`。**Test：**`MdownTests/EditorFileConflictTests.swift`、`MdownTests/EditorAttachmentTransactionTests.swift`、`MdownTests/EditorVersionSnapshotTests.swift`；保留现有retire测试。
 
 - watcher备份取session source；无dirty reload更新base/generation，dirty保留磁盘外部和本地两份，不直接清history/refill覆盖。
 - rename/move/sameURLnewInstance重绑定身份；upload job保持request与source anchor，不按返回时currentNote/selection插。
@@ -191,7 +191,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T09。**需求：**NE-01,NE-18,NE-32,NE-33,NE-36。**验收：**AC-16,AC-17基本。
 
-**Modify：**`Controllers/ViewController.swift:93/1104/1279`、`Controllers/ViewController+Editor.swift:473/510/538/575/668/797/1470/1542`、`Controllers/ViewController+Layout.swift:269`、`Business/Types.swift:182/189`、`Helpers/UserDefaultsManagement.swift:855/893`、`Controllers/GeneralPrefsViewController.swift:313`、`Resources/Localization/Base.lproj/Main.storyboard`、四份 `Resources/Localization/{es,ja,zh-Hans,zh-Hant}.lproj/Main.strings` 与所需Localizable.strings。**Test：**`MiaoYanTests/NativeEditorModeMigrationTests.swift`。
+**Modify：**`Controllers/ViewController.swift:93/1104/1279`、`Controllers/ViewController+Editor.swift:473/510/538/575/668/797/1470/1542`、`Controllers/ViewController+Layout.swift:269`、`Business/Types.swift:182/189`、`Helpers/UserDefaultsManagement.swift:855/893`、`Controllers/GeneralPrefsViewController.swift:313`、`Resources/Localization/Base.lproj/Main.storyboard`、四份 `Resources/Localization/{es,ja,zh-Hans,zh-Hant}.lproj/Main.strings` 与所需Localizable.strings。**Test：**`MdownTests/NativeEditorModeMigrationTests.swift`。
 
 - native rich显式可选backend，共用layout source/split/wysiwyg；禁止并行两个backend publish正文。右侧split与纯preview明确保留 `Views/MPreviewView.swift`，接入 `Controllers/ViewController+Editor.swift:1131/1151` 的previewScrollView.documentView；只替换左侧Vditor编辑面，不新建平行预览类。
 - raw pref不变，新用户source默认、legacy split迁移；失败仅当前note回source不写全局pref。
@@ -204,7 +204,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T10。**需求：**NE-05,NE-06,NE-12,NE-14。**验收：**AC-01,AC-02,AC-05。
 
-**Modify：**`Views/RichMarkdownTextView.swift`、`Helpers/MarkdownProjectionBuilder.swift`、`Helpers/MarkdownSourceMap.swift`、`Business/MarkdownEditTransaction.swift`。**Test：**`MiaoYanTests/RichMarkdownEditingTests.swift`、`MiaoYanTests/MarkdownInlineEditingTests.swift`。
+**Modify：**`Views/RichMarkdownTextView.swift`、`Helpers/MarkdownProjectionBuilder.swift`、`Helpers/MarkdownSourceMap.swift`、`Business/MarkdownEditTransaction.swift`。**Test：**`MdownTests/RichMarkdownEditingTests.swift`、`MdownTests/MarkdownInlineEditingTests.swift`。
 
 - 段落/H1~H6/strong/em/del/code直接文字编辑；hidden marker affinity、未闭合/escape/softbreak的projection规则。
 - inline styles用sourcepatch创建/移除delimiter，保护未选范围；link label与target独立，target编辑安全scheme，modifier+open与click-edit区分。
@@ -216,7 +216,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T11。**需求：**NE-07,NE-08,NE-13,NE-21。**验收：**AC-03,AC-05,AC-06。
 
-**Create：**`Helpers/MarkdownInputRules.swift`；必要 `Business/MarkdownBlockModel.swift`（派生，不权威source）。**Modify：**rich/command adapter最小连接。**Test：**`MiaoYanTests/MarkdownInputRulesTests.swift`、`MiaoYanTests/MarkdownListEditingTests.swift`。
+**Create：**`Helpers/MarkdownInputRules.swift`；必要 `Business/MarkdownBlockModel.swift`（派生，不权威source）。**Modify：**rich/command adapter最小连接。**Test：**`MdownTests/MarkdownInputRulesTests.swift`、`MdownTests/MarkdownListEditingTests.swift`。
 
 - empty paragraph prefix转换、一键undo回literal；组合输入/粘贴/code/math不触发typingrule。
 - Enter拆item、空项退级、Tab/ShiftTab、quote mixed list三层、task精确span toggle。
@@ -228,7 +228,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T12,T09。**需求：**NE-10,NE-11,NE-21,NE-22。**验收：**AC-10,AC-12基本、AC-13。
 
-**Create：**按需求 `Views/MarkdownRawBlockEditor.swift`（NSTextView）、`Helpers/MarkdownClipboardAdapter.swift`。**Modify：**`Helpers/HtmlToMarkdown.swift`、`Helpers/ClipboardManager.swift`、rich。**Test：**`MiaoYanTests/MarkdownClipboardTests.swift`、`MiaoYanTests/MarkdownRawBlockEditingTests.swift`。
+**Create：**按需求 `Views/MarkdownRawBlockEditor.swift`（NSTextView）、`Helpers/MarkdownClipboardAdapter.swift`。**Modify：**`Helpers/HtmlToMarkdown.swift`、`Helpers/ClipboardManager.swift`、rich。**Test：**`MdownTests/MarkdownClipboardTests.swift`、`MdownTests/MarkdownRawBlockEditingTests.swift`。
 
 - Copy Visible / Copy Markdown / Paste Plain / Paste Markdown明确；rich HTML转换仅现有结构门槛，code字面保留。
 - picture placeholder/alt/title/paste drop sourceanchor与附件i/约定；failure不插空引用。
@@ -242,7 +242,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **Create：**`Helpers/MarkdownEditorCommandAdapter.swift`。**Modify：**`Helpers/EditorMenuManager.swift:11/20/157`、`Helpers/TextFormatter.swift:27`、`Controllers/ViewController+Action.swift`、`Controllers/ViewController+Editor.swift:1047/1075`、`Views/EditTextView.swift:438`、`Views/MPreviewHandlers.swift:17/32`、`Resources/DownView.bundle/js/common.js:121/145`；只动自有JS不改vendor。
 
-**Test：**`MiaoYanTests/MarkdownCommandRoutingTests.swift`、`MiaoYanTests/PreviewEditIntentTests.swift`。
+**Test：**`MdownTests/MarkdownCommandRoutingTests.swift`、`MdownTests/PreviewEditIntentTests.swift`。
 
 - 所有content命令列registry：作用active session或安全source定位；不同坐标不直接调用TextFormatter旧NSRange。
 - find/replace-all以source匹配并映射结果，一次可撤销事务；ref/metadata等不可见范围明确定位source。
@@ -257,7 +257,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **Create：**`Helpers/NativeCodeHighlighter.swift`；按模块拆可有native tokenizer。**Modify：**`Helpers/NotesTextProcessor.swift:121/150/165`、`Helpers/CodeBlockHighlighter.swift:46/54`、`Helpers/MarkdownRuleHighlighter.swift:377/383`、`Helpers/CustomTextStorage.swift:75/129/215`、`Views/EditTextView.swift:1140`、`Controllers/ViewController+Editor.swift:1034`。
 
-**Test：**`MiaoYanTests/NativeCodeHighlighterTests.swift`+各语言fixtures。
+**Test：**`MdownTests/NativeCodeHighlighterTests.swift`+各语言fixtures。
 
 - 首批语言依SPEC corpus；source string完全不变、ranges只在current snapshot；unknown plaintext code，不fake autodetection。
 - comments/strings/nested fence/escape/Unicode/verylongline容错；markedtext不attributes改组词区。等待结果时保留基础code font/background，只在精确patch映射且未词法失效区域暂留旧token；改动/映射不明区域用plaincode样式，绝不对新文字套旧offset或whole-reset导致闪烁。
@@ -270,7 +270,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**N1,T15的子编辑/命令边界。**需求：**NE-09,NE-14,NE-15。**验收：**AC-11。
 
-**Create：**`Business/MarkdownTableModel.swift`、`Views/MarkdownTableEditor.swift`（仅G0确认需要独立grid时）；parser/projection extensions。**Test：**`MiaoYanTests/MarkdownTableEditingTests.swift`。
+**Create：**`Business/MarkdownTableModel.swift`、`Views/MarkdownTableEditor.swift`（仅G0确认需要独立grid时）；parser/projection extensions。**Test：**`MdownTests/MarkdownTableEditingTests.swift`。
 
 - 模型保存cell source range、escaped pipe、alignment、row/col及stable IDs；不将`code|pipe`误拆。
 - cell input/IME、Tab/ShiftTab/Enter/softbreak/⌘Enter与末格addrow锁定操作样本。
@@ -285,7 +285,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **Create：**`Helpers/MarkdownBlockRenderAdapter.swift`；有限native snapshot/value对象。**Modify：**raweditor、现有renderer服务/自有入口；避免改vendor。
 
-**Test：**`MiaoYanTests/MarkdownRenderedBlockStateTests.swift`。
+**Test：**`MdownTests/MarkdownRenderedBlockStateTests.swift`。
 
 - math/fence/HTML source editor是native；renderer收到snapshot与theme/font/size generation。
 - readonly preview/error状态可回source；invalidformula/diagram永不丢源码、改save/undo。
@@ -302,7 +302,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **Create：**`Helpers/NativeMarkdownFormatter.swift`。**Modify：**`Controllers/ViewController.swift:43`、`Controllers/ViewController+Editor.swift:3/13/29/912/949/978/1021/1425`、`Views/EditTextView.swift:385`、`Helpers/EditorMenuManager.swift:157`，保持formatText selector；实施前重新搜索全部formatter callsite，不假设paste/分栏存在隐式format。
 
-**Test：**`MiaoYanTests/NativeMarkdownFormatterTests.swift`、`MiaoYanTests/MarkdownFormattingRevisionTests.swift`。
+**Test：**`MdownTests/NativeMarkdownFormatterTests.swift`、`MdownTests/MarkdownFormattingRevisionTests.swift`。
 
 - redcases：format期间同note继续typing/undo、cancel、switchnote，旧结果不能publish；Formatter结果用source patches+history，不directwhole textStorage replace。
 - 实现SPEC `mdown-preserve-v1`规则与完整golden profile；受保护sourcebytes不动、semantics等价、f(f(x))==f(x)。TypographyCleaner继续独立命令。
@@ -317,7 +317,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **Modify：**`Views/RichMarkdownTextView.swift`、`Controllers/ViewController+Editor.swift`、`Controllers/EditorPrefsViewController.swift`/`Controllers/GeneralPrefsViewController.swift`必要设置、`Helpers/UserDefaultsManagement.swift`、`Resources/Localization/Base.lproj/Main.storyboard`及 `Resources/Localization/{es,ja,zh-Hans,zh-Hant}.lproj/` 对应文案。
 
-**Test：**`MiaoYanTests/NativeEditorViewStateTests.swift`；实机keyboard/VoiceOver。
+**Test：**`MdownTests/NativeEditorViewStateTests.swift`；实机keyboard/VoiceOver。
 
 - native caret行滚动居中、focus非活动块降噪、mode/zoom保持anchor，不改变revision/dirty/history。
 - NSSpellChecker/automaticreplacement按protectedsourcekind分流，不改code/math/URL；markedtext不抢候选。
@@ -332,7 +332,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **Modify：**`Business/Markdown.swift:344`仅必要parse选项、`Views/MPreviewView.swift:803/885/1113`、`Extensions/MPreviewView+Export.swift:703`、`Helpers/PdfExportController.swift:52`、`Helpers/RenderedBlockExportController.swift:434`。
 
-**Test：**扩展现有Html/Mermaid/RenderedBlock tests，`MiaoYanTests/NativeEditorExportSnapshotTests.swift`。
+**Test：**扩展现有Html/Mermaid/RenderedBlock tests，`MdownTests/NativeEditorExportSnapshotTests.swift`。
 
 - export/preview/presentation/PPT读session snapshot，不读取hiddenview或当前切换后note；job固定owner/revision/config。
 - resource ready/failed/timeout/cancelled+字体/图片明确；0sizes/错误块不误成功；writeerror/cancel不改正文模式。
@@ -358,9 +358,9 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**T21。**需求：**NE-25,NE-26,NE-34,NE-36。**验收：**AC-20。
 
-**Remove（核实最后引用后）：**`Views/VditorEditView.swift`、`Resources/DownView.bundle/editor.html`、`Resources/DownView.bundle/vditor/`专属目录；替换 `MiaoYanTests/VditorIntegrationTests.swift`为native contract tests。
+**Remove（核实最后引用后）：**`Views/VditorEditView.swift`、`Resources/DownView.bundle/editor.html`、`Resources/DownView.bundle/vditor/`专属目录；替换 `MdownTests/VditorIntegrationTests.swift`为native contract tests。
 
-**Modify：**`Package.swift:13/16`、`Package.resolved`、`MiaoYan.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`、pbxproj的framework/packageproduct/remote refs、所有已改imports/calls；只清本任务依赖。
+**Modify：**`Package.swift:13/16`、`Package.resolved`、`Mdown.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`、pbxproj的framework/packageproduct/remote refs、所有已改imports/calls；只清本任务依赖。
 
 - baseline inventory与rg检查所有三依赖 direct/indirect references，确认remainingpreviewresources不是Vditor专属重复包。
 - classicpbxproj全4处removeVditor源/旧test，清Highlightr/Prettierlink/product/ref，包括旧孤立实体；保留CMarkGFM/KeyboardShortcuts/Sparkle，无无关pin升级。
@@ -374,7 +374,7 @@ R2 全renderer原生化：独立后续计划，不纳入本次N2退编辑依赖�
 
 **依赖：**N2，官方baseline可用。**需求：**NE-31,NE-33,NE-35,NE-36。**验收：**AC-21 +全部适用AC。
 
-**Modify：**`README.md`、`README_CN.md`、`ARCHITECTURE.md:89`、`DEPENDENCIES.md:17/20`、`AGENTS.md`必要owner/IME规则、旧W Spec/Plan链接、`skills/miaoyan/`产品说明（确有变更才改）。
+**Modify：**`README.md`、`README_CN.md`、`ARCHITECTURE.md:89`、`DEPENDENCIES.md:17/20`、`AGENTS.md`必要owner/IME规则、旧W Spec/Plan链接、`skills/mdown/`产品说明（确有变更才改）。
 
 - officialTypora同输入source/selection/view/undo逐项对比，marker/table/rawcode/typewriter/IME具体差异记录。
 - Mdown intentionaldifferences（最小原文patch、跨模式统一undo、无拒载置空）明示，不偷偷降低验收。
@@ -408,7 +408,7 @@ package refs注意根Package.resolved与Xcodeworkspace resolved已有其他pin�
 
 ```swift
 import XCTest
-@testable import MiaoYan
+@testable import Mdown
 
 final class MarkdownEditingSessionTests: XCTestCase {
     @MainActor
@@ -481,26 +481,26 @@ git rev-parse HEAD
 git status --short --branch
 
 # 示例窄测试：正式类创建并注册后
-xcodebuild test -project MiaoYan.xcodeproj -scheme MiaoYan \
+xcodebuild test -project Mdown.xcodeproj -scheme Mdown \
   -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO \
-  -only-testing:MiaoYanTests/MarkdownEditingSessionTests
+  -only-testing:MdownTests/MarkdownEditingSessionTests
 
 # 正式macOS阶段门
-xcodebuild -project MiaoYan.xcodeproj -scheme MiaoYan \
+xcodebuild -project Mdown.xcodeproj -scheme Mdown \
   -configuration Debug CODE_SIGNING_ALLOWED=NO build
-xcodebuild test -project MiaoYan.xcodeproj -scheme MiaoYan \
+xcodebuild test -project Mdown.xcodeproj -scheme Mdown \
   -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
 swiftlint lint --strict
 swift-format lint --recursive . --strict
 
 # 共享格式/资源/target变更时iOS回归
-xcodebuild -project MiaoYan.xcodeproj -scheme MiaoYanMobile \
+xcodebuild -project Mdown.xcodeproj -scheme MdownMobile \
   -configuration Debug -destination 'generic/platform=iOS' \
   CODE_SIGNING_ALLOWED=NO build
 
 # 退编辑依赖：检查结果需分类，不能把全部renderer当编辑依赖
 rg -n 'Vditor|vditorChange|Highlightr|Prettier|PrettierMarkdown' \
-  Business Controllers Helpers Views Package.swift MiaoYan.xcodeproj/project.pbxproj
+  Business Controllers Helpers Views Package.swift Mdown.xcodeproj/project.pbxproj
 ```
 
 `CODE_SIGNING_ALLOWED=NO`是既有本机单测TeamID问题处理，不证明Sandbox权限。实机测试用project run技能/实际launch方式，保持正确task进程归属；不能为了规划擅自跑release/archive脚本。已安装CLI不足/无设备/依赖需fetch时，记录阻塞与获准路径，不改全局工具配置。

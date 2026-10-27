@@ -57,30 +57,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVa
         storage.loadDocuments {}
     }
 
-    // Attempt to migrate preferences from the old suite "com.tw93.MiaoYan" to the standard suite
+    // Migrate preferences from legacy MiaoYan suites ("com.tw93.miaoyan" and "com.tw93.MiaoYan")
     private func migratePreferences() {
-        let migrationKey = "HasMigratedFromOldSuite"
-        let standardDefaults = UserDefaults.standard
-
-        // Skip if already migrated
-        guard !standardDefaults.bool(forKey: migrationKey) else { return }
-
-        let oldSuiteName = "com.tw93.MiaoYan"
-        guard let oldDefaults = UserDefaults(suiteName: oldSuiteName) else {
-            standardDefaults.set(true, forKey: migrationKey)
-            return
-        }
-
-        let oldDict = oldDefaults.dictionaryRepresentation()
-
-        // Migrate all values from old suite that don't exist in standard defaults
-        for (key, value) in oldDict where standardDefaults.object(forKey: key) == nil {
-            standardDefaults.set(value, forKey: key)
-        }
-
-        // Mark migration as completed
-        standardDefaults.set(true, forKey: migrationKey)
-        standardDefaults.synchronize()
+        UserDefaultsManagement.migrateLegacyPreferences()
     }
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
@@ -141,7 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVa
             self?.normalizeMainWindowFrame(window)
         }
 
-        mainWC.applyMiaoYanAppearance()
+        mainWC.applyMdownAppearance()
 
         // Failsafe: Ensure window reveals after 3 seconds even if list loading hangs or fails
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
@@ -275,7 +254,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVa
         } else {
             message = error.localizedDescription
         }
-        MiaoYanAlert.show(
+        MdownAlert.show(
             message: I18n.str("Could not use this folder"),
             informativeText: message,
             style: .warning,
