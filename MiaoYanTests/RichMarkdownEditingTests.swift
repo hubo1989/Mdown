@@ -6,12 +6,13 @@ import XCTest
 @MainActor
 final class RichMarkdownEditingTests: XCTestCase {
 
-    private var testWindow: NSWindow?
-
     private func makeView(_ source: String) -> RichMarkdownTextView {
         let view = RichMarkdownTextView(source: source)
         // 挂到 window 确保文本输入协议在全量测试序列中稳定
         // （无 window 时 firstResponder 状态在测试顺序敏感场景下不确定）。
+        // 持窗走 addTeardownBlock：tearDown 的覆写是 nonisolated
+        // （XCTestCase 合同），在里面改 @MainActor 存储在 Swift 6
+        // 下编译不过（CI Xcode 16.3；Xcode 27 的 Swift 5 模式放行）。
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
             styleMask: [.titled],
@@ -19,13 +20,8 @@ final class RichMarkdownEditingTests: XCTestCase {
             defer: false
         )
         window.contentView = view
-        testWindow = window
+        addTeardownBlock { [weak window] in window?.close() }
         return view
-    }
-
-    override func tearDown() {
-        testWindow = nil
-        super.tearDown()
     }
 
     // MARK: 正文与行内格式直接编辑（source bytes 断言）
