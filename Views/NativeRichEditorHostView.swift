@@ -88,10 +88,21 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
 
     public override func layout() {
         super.layout()
+        // 同一布局回合里 scrollView 的几何可能尚未提交,contentSize 会是
+        // 旧值——先压平子树,否则 resize 后 text 视图不补高,视口下方点击
+        // 落不到编辑面(NE-01 鼠标全域可达;CI 上表现为 frame.height 短于
+        // clip)。压平后再读 contentSize 才是新视口。
+        scrollView.layoutSubtreeIfNeeded()
         let viewport = scrollView.contentSize
-        textView.minSize = NSSize(width: 0, height: viewport.height)
-        if textView.frame.width != viewport.width || textView.frame.height < viewport.height {
-            textView.setFrameSize(NSSize(width: viewport.width, height: max(textView.frame.height, viewport.height)))
+        // 视口高度兜底:子树布局后仍短于自身 bounds(罕见时序)时以 bounds 为准,
+        // 文档视图必须至少覆盖整个可视区。
+        let viewportHeight = max(viewport.height, bounds.height)
+        textView.minSize = NSSize(width: 0, height: viewportHeight)
+        if textView.frame.width != viewport.width || textView.frame.height < viewportHeight {
+            textView.setFrameSize(
+                NSSize(
+                    width: viewport.width,
+                    height: max(textView.frame.height, viewportHeight)))
         }
     }
 
