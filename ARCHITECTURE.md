@@ -100,6 +100,14 @@ keystroke
      └─ debounced preview:    MPreviewView.updateContent (adaptive 0.3/0.6/1.0s)
 ```
 
+Code-block token highlighting is native since T15/T22:
+`Helpers/NativeCodeHighlighter.swift` tokenizes into UTF-16 ranges
+(plain fallback for unknown languages) applied by
+`Helpers/CodeBlockHighlighter.swift`; Highlightr is retired.
+Markdown formatting is `Helpers/NativeMarkdownFormatter.swift`
+(`mdown-preserve-v1`); Prettier is retired. The wysiwyg backend is the
+native rich surface only (Vditor removed in T22).
+
 Performance ceilings live in `Helpers/NotesTextProcessor.swift`:
 
 - > 1 MB total length OR > 64 KB in a single paragraph: simplified highlight, no code highlight.

@@ -241,12 +241,12 @@ CA
                                                 <action selector="toggleNoteList:" target="Ady-hI-5gd" id="G22-P2-hks"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Toggle Preview" keyEquivalent="3" id="PdU-Em-Ugm">
+                                        <menuItem title="Toggle Preview" image="eye" catalog="system" keyEquivalent="3" id="PdU-Em-Ugm">
                                             <connections>
                                                 <action selector="togglePreview:" target="N0L-g4-qwj" id="2w1-01-aD6"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Toggle Presentation" keyEquivalent="4" id="9ib-os-JZv">
+                                        <menuItem title="Toggle Presentation" image="play.rectangle" catalog="system" keyEquivalent="4" id="9ib-os-JZv">
                                             <connections>
                                                 <action selector="togglePresentation:" target="N0L-g4-qwj" id="Dr0-AZ-Kga"/>
                                             </connections>
@@ -254,6 +254,12 @@ CA
                                         <menuItem title="Toggle Split View" image="square.split.2x1" catalog="system" keyEquivalent="\" id="Tgl-Spl-View">
                                             <connections>
                                                 <action selector="toggleSplitMode:" target="Ady-hI-5gd" id="Act-Tgl-Spl"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Toggle WYSIWYG" image="doc.richtext" catalog="system" keyEquivalent="e" identifier="viewMenu.toggleWysiwyg" id="Tgl-Wys-Menu">
+                                            <modifierMask key="keyEquivalentModifierMask" shift="YES" command="YES"/>
+                                            <connections>
+                                                <action selector="toggleWysiwygMode:" target="Ady-hI-5gd" id="Act-Tgl-Wys"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Toggle TOC" image="list.bullet" catalog="system" keyEquivalent="5" identifier="viewMenu.toggleTOC" id="Tgl-TOC-Menu">

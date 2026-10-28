@@ -173,6 +173,87 @@ final class RichMarkdownEditingTests: XCTestCase {
         XCTAssertEqual(view.source, "项目\n", "Backspace 在项首只删 marker")
     }
 
+    /// T11：heading 内容内行内格式命令，marker 字节不动（AC-01）。
+    func testInlineFormatInsideHeadingKeepsMarker() {
+        let view = makeView("## 标题\n")
+        // display "标题\n"，选中 "题"
+        view.setSelectedRange(NSRange(location: 0, length: 2))  // 选中 "标题"
+        XCTAssertTrue(view.applyInlineFormat(.strong))
+        XCTAssertEqual(view.source, "## **标题**\n", "heading marker 与内容字节精确")
+        XCTAssertEqual(view.displayText, "标题\n")
+    }
+
+    /// T11：format 命令登记单一历史，undo 回 wrap 前字节。
+    func testInlineFormatUndoRestoresBytes() {
+        let view = makeView("词 其他\n")
+        view.setSelectedRange(NSRange(location: 0, length: 1))
+        XCTAssertTrue(view.applyInlineFormat(.emphasis))
+        XCTAssertEqual(view.source, "*词* 其他\n")
+        XCTAssertTrue(view.performUndo())
+        XCTAssertEqual(view.source, "词 其他\n")
+    }
+
+    // MARK: Quick Input 模板展开（PR #10 review F2：rich 面无 Tab 展开路径，
+    // 字面 `/name` 会让 Quick Input 停在字面命令）
+
+    /// 插入命令必须直接展开模板内容，与 source 模式 Tab 展开同语义；
+    /// `{{select}}` 区间按模板语义选中（表头 plain 1:1 映射）。
+    func testShortcutTemplateInsertsExpandedTableTemplate() {
+        let view = makeView("正文\n\n段落\n")
+        view.setSelectedRange(NSRange(location: 3, length: 0))  // "段落" 行首
+        XCTAssertTrue(view.insertShortcutTemplate("table"))
+        XCTAssertFalse(view.source.contains("/table"), "Quick Input 不得停在字面命令")
+        XCTAssertTrue(view.source.contains("| 列1 | 列2 | 列3 |"), "表头必须展开")
+        XCTAssertTrue(view.source.contains("|-----|-----|-----|"), "分隔行必须展开")
+        let selection = view.selectedRange()
+        XCTAssertEqual(selection.length, 2, "{{select}} 区间选中（source 模式展开语义）")
+        XCTAssertEqual(
+            (view.string as NSString).substring(with: selection), "列1",
+            "选中内容必须是模板的 select span 而非附件占位")
+    }
+
+    /// `/time` 展开为时间文本（ShortcutTemplateManager 同一格式），
+    /// caret 落模板末尾。
+    func testShortcutTemplateInsertsExpandedTimeTemplate() {
+        let view = makeView("记于\n")
+        view.setSelectedRange(NSRange(location: 2, length: 0))
+        XCTAssertTrue(view.insertShortcutTemplate("time"))
+        XCTAssertFalse(view.source.contains("/time"), "不得停留字面 `/time`")
+        XCTAssertNotNil(
+            view.source.range(
+                of: #"^记于\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n$"#,
+                options: .regularExpression),
+            "必须展开为 yyyy-MM-dd HH:mm:ss 时间文本")
+    }
+
+    /// Tab 展开斜杠命令(PR #10 follow-up:与源码面 Tab 行为对齐)。
+    /// 走真实 delegate 路径(text(_:doCommandBy:)),旧代码在 rich 面
+    /// 只会插入字面 Tab(`/time` 不展开)。
+    func testTabKeyExpandsSlashShortcutOnRichSurface() throws {
+        let source = "记于\n/time\n"
+        let view = makeView(source)
+        // "/time" 占 source[3,8):行尾(闭围栏 \n 前)是 8
+        let caret = try XCTUnwrap(view.displayOffset(forSourceOffset: 8))
+        view.setSelectedRange(NSRange(location: caret, length: 0))
+        XCTAssertTrue(
+            view.text(view, doCommandBy: NSSelectorFromString("insertTab:")),
+            "Tab 应被展开消费")
+        XCTAssertFalse(view.source.contains("/time"), "不得停留字面 `/time`")
+        XCTAssertNotNil(
+            view.source.range(
+                of: #"^记于\n\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n$"#,
+                options: .regularExpression),
+            "Tab 必须展开为时间模板")
+
+        // 无斜杠命令时 Tab 不被吞,回落默认行为(返回 false)。
+        let plain = makeView("普通段落\n")
+        let plainCaret = try XCTUnwrap(plain.displayOffset(forSourceOffset: 4))  // 行尾
+        plain.setSelectedRange(NSRange(location: plainCaret, length: 0))
+        XCTAssertFalse(
+            plain.text(plain, doCommandBy: NSSelectorFromString("insertTab:")),
+            "无命令时 Tab 不得被吞")
+    }
+
     // MARK: undo / redo（单一历史）
 
     func testUndoRedoTypingAndStructure() {
@@ -240,5 +321,284 @@ extension RichMarkdownEditingTests {
         _ = mirror
         let (caret, found) = view.debugListItemLocalization()
         print("G0DBG sourceCaret=\(caret) listItemFound=\(found) source=\(view.source.debugDescription)")
+    }
+}
+
+// MARK: - T15 rich 面 fence token 上色(SPEC §8.1)
+
+@MainActor
+func testCodeFenceTokensAreColoredInRichProjection() {
+    let view = RichMarkdownTextView(source: "```swift\nlet x = \"s\"\n```\n")
+    view.contentTextColor = NSColor.black
+    let ns = view.string as NSString
+    let letRange = ns.range(of: "let")
+    XCTAssertGreaterThan(letRange.location, 0, "'let' 应在 fence 块内")
+    let color =
+        view.textStorage?.attribute(
+            .foregroundColor, at: letRange.location, effectiveRange: nil) as? NSColor
+    XCTAssertNotNil(color)
+    XCTAssertNotEqual(color, .black, "keyword 需有 token 色,不是正文基色")
+    let strRange = ns.range(of: "\"s\"")
+    let strColor =
+        view.textStorage?.attribute(
+            .foregroundColor, at: strRange.location, effectiveRange: nil) as? NSColor
+    XCTAssertNotNil(strColor)
+    XCTAssertNotEqual(strColor, .black, "string 需有 token 色")
+}
+
+@MainActor
+func testLargeOrUnknownFenceStaysBaseStyle() {
+    let big = String(repeating: "a", count: 3001)
+    let view = RichMarkdownTextView(source: "```swift\n\(big)\n```\n")
+    view.contentTextColor = NSColor.black
+    let ns = view.string as NSString
+    // 超限块:无 token 色,前景保持基色
+    let color =
+        view.textStorage?.attribute(
+            .foregroundColor, at: ns.range(of: big).location, effectiveRange: nil) as? NSColor
+    XCTAssertEqual(color, .black, "超限 fence 应回基础样式")
+
+    let unknown = RichMarkdownTextView(source: "```cobol\nMOVE 1 TO X\n```\n")
+    unknown.contentTextColor = NSColor.black
+    let n2 = unknown.string as NSString
+    let c2 =
+        unknown.textStorage?.attribute(
+            .foregroundColor, at: n2.range(of: "MOVE").location, effectiveRange: nil) as? NSColor
+    XCTAssertEqual(c2, .black, "未知语言保持 plain code 样式")
+}
+
+// MARK: - T15 块级命令(语言更换/⌘Enter 退出块)
+
+extension RichMarkdownEditingTests {
+
+    @MainActor
+    func testSetCodeFenceLanguageReplacesInfoStringAsSourceTransaction() {
+        let view = RichMarkdownTextView(source: "```swift\nlet x = 1\n```\n")
+        view.setSelectedRange(NSRange(location: 6, length: 0))  // fence 内容
+        let revisionBefore = view.revision
+        XCTAssertTrue(view.setCodeFenceLanguage("js"))
+        XCTAssertEqual(view.source, "```js\nlet x = 1\n```\n", "info 串更换,内容与围栏不动")
+        XCTAssertEqual(view.revision, revisionBefore + 1, "语言更换是一次 source 事务")
+        XCTAssertTrue(view.performUndo(), "可单步撤销")
+        XCTAssertEqual(view.source, "```swift\nlet x = 1\n```\n")
+    }
+
+    @MainActor
+    func testSetCodeFenceLanguageFailsOutsideFence() {
+        let view = RichMarkdownTextView(source: "plain text\n")
+        view.setSelectedRange(NSRange(location: 3, length: 0))
+        XCTAssertFalse(view.setCodeFenceLanguage("js"), "fence 外不得改语言")
+        XCTAssertEqual(view.source, "plain text\n")
+    }
+
+    @MainActor
+    func testSetCodeFenceLanguageOnBareFenceInsertsInfo() {
+        let view = RichMarkdownTextView(source: "```\ncode\n```\n")
+        view.setSelectedRange(NSRange(location: 4, length: 0))
+        XCTAssertTrue(view.setCodeFenceLanguage("python"))
+        XCTAssertEqual(view.source, "```python\ncode\n```\n")
+    }
+
+    @MainActor
+    func testExitCodeBlockInsertsParagraphAfterFence() {
+        let view = RichMarkdownTextView(source: "```swift\nlet x = 1\n```\ntail\n")
+        view.setSelectedRange(NSRange(location: 6, length: 0))
+        let revisionBefore = view.revision
+        XCTAssertTrue(view.exitCodeBlockAtCaret())
+        XCTAssertEqual(
+            view.source, "```swift\nlet x = 1\n```\n\ntail\n",
+            "退出块 = 围栏后插空段落")
+        XCTAssertEqual(view.revision, revisionBefore + 1)
+        // caret 落在新段落:open fence + 内容 + close fence + 换行 + 1
+        let expected = ("```swift\nlet x = 1\n```\n" as NSString).length + 1
+        XCTAssertEqual(view.selectedRange().location, expected, "caret 应落在新空行")
+        XCTAssertTrue(view.performUndo(), "单步撤销")
+        XCTAssertEqual(view.source, "```swift\nlet x = 1\n```\ntail\n")
+    }
+
+    @MainActor
+    func testExitCodeBlockFailsOutsideFence() {
+        let view = RichMarkdownTextView(source: "plain\n")
+        view.setSelectedRange(NSRange(location: 2, length: 0))
+        XCTAssertFalse(view.exitCodeBlockAtCaret())
+        XCTAssertEqual(view.source, "plain\n")
+    }
+}
+
+// MARK: - T19 视觉排版(标题分级/行内样式/链接色/代码底色)
+
+extension RichMarkdownEditingTests {
+
+    @MainActor
+    func testHeadingRendersLargerFont() {
+        let view = RichMarkdownTextView(source: "# Title\n\nplain\n")
+        let ns = view.string as NSString
+        let title = ns.range(of: "Title")
+        let font =
+            view.textStorage?.attribute(
+                .font, at: title.location, effectiveRange: nil) as? NSFont
+        let bodyFont =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "plain").location, effectiveRange: nil) as? NSFont
+        XCTAssertGreaterThan(
+            font?.pointSize ?? 0, (bodyFont?.pointSize ?? 0) * 1.3,
+            "H1 字号应明显大于正文")
+    }
+
+    @MainActor
+    func testStrongAndEmphasisRenderTraits() {
+        let view = RichMarkdownTextView(source: "a **bold** b *ital* c ~~del~~ d\n")
+        let ns = view.string as NSString
+        let boldFont =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "bold").location, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(
+            boldFont?.fontDescriptor.symbolicTraits.contains(.bold) == true, "粗体内容应有 bold trait")
+        let italFont =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "ital").location, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(
+            italFont?.fontDescriptor.symbolicTraits.contains(.italic) == true, "斜体内容应有 italic trait")
+        let delStyle =
+            view.textStorage?.attribute(
+                .strikethroughStyle, at: ns.range(of: "del").location, effectiveRange: nil) as? Int
+        XCTAssertEqual(delStyle, NSUnderlineStyle.single.rawValue, "删除线内容应有划线")
+    }
+
+    @MainActor
+    func testLinkLabelRendersAccentColor() {
+        let view = RichMarkdownTextView(source: "see [docs](https://example.com) here\n")
+        let ns = view.string as NSString
+        let label =
+            view.textStorage?.attribute(
+                .foregroundColor, at: ns.range(of: "docs").location, effectiveRange: nil) as? NSColor
+        XCTAssertEqual(label, view.previewLinkColour, "链接 label 应用预览链接色")
+        let here =
+            view.textStorage?.attribute(
+                .foregroundColor, at: ns.range(of: "here").location, effectiveRange: nil) as? NSColor
+        XCTAssertEqual(here, view.contentTextColor, "普通文字不受影响")
+    }
+
+    @MainActor
+    func testCodeFenceAndSpanGetBackground() {
+        let view = RichMarkdownTextView(source: "x `c` y\n\n```\ncode\n```\n")
+        let ns = view.string as NSString
+        let spanBg = view.textStorage?.attribute(
+            .backgroundColor, at: ns.range(of: "c").location, effectiveRange: nil)
+        XCTAssertNotNil(spanBg, "code span 应有底色")
+        let fenceBg = view.textStorage?.attribute(
+            .backgroundColor, at: ns.range(of: "code").location, effectiveRange: nil)
+        XCTAssertNotNil(fenceBg, "fence 内容应有底色")
+    }
+
+    @MainActor
+    func testFocusDimmingKeepsInlineStylesFlat() {
+        let view = RichMarkdownTextView(source: "a **bold** b\n\nc2\n")
+        view.contentTextColor = NSColor.black
+        view.isFocusDimmingEnabled = true
+        view.setSelectedRange(NSRange(location: 11, length: 0))  // c2 块内
+        view.updateFocusDimming()
+        let ns = view.string as NSString
+        let boldFont =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "bold").location, effectiveRange: nil) as? NSFont
+        // 非活跃块:字号 trait 可以在,但前景必须平色(不残留强调色/装饰)
+        let color =
+            view.textStorage?.attribute(
+                .foregroundColor, at: ns.range(of: "bold").location, effectiveRange: nil) as? NSColor
+        XCTAssertNotEqual(color, .black, "非活跃块降噪")
+        XCTAssertEqual(color?.alphaComponent ?? 1, 0.4, accuracy: 0.01)
+        _ = boldFont
+    }
+}
+
+// MARK: - T19 预览对齐(字号/行高/颜色/列表缩进/属性残留)
+
+extension RichMarkdownEditingTests {
+
+    @MainActor
+    func testHeadingScaleMatchesPreviewCSS() {
+        let view = RichMarkdownTextView(source: "# a\n## b\n### c\n#### d\n")
+        let ns = view.string as NSString
+        let body = view.bodyFont.pointSize
+        let scales: [(String, CGFloat)] = [("a", 2.0), ("b", 1.5), ("c", 1.25), ("d", 1.0)]
+        for (word, scale) in scales {
+            let font =
+                view.textStorage?.attribute(
+                    .font, at: ns.range(of: word).location, effectiveRange: nil) as? NSFont
+            XCTAssertEqual(
+                font?.pointSize ?? 0, body * scale, accuracy: 0.6,
+                "H\(word) 字号应为正文 ×\(scale)(typography.css)")
+        }
+    }
+
+    @MainActor
+    func testUnwrapBoldRestoresBodyFont() {
+        // 属性残留回归:wrap/unwrap 两次 display 不变(skip 分支),
+        // 旧实现粗体 trait 留在同字节文本上。
+        let view = RichMarkdownTextView(source: "word tail\n")
+        view.setSelectedRange(NSRange(location: 0, length: 4))
+        XCTAssertTrue(view.applyInlineFormat(.strong))
+        let ns = view.string as NSString
+        let bold =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "word").location, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(bold?.fontDescriptor.symbolicTraits.contains(.bold) == true)
+
+        view.setSelectedRange(NSRange(location: 0, length: 4))
+        XCTAssertTrue(view.applyInlineFormat(.strong))
+        XCTAssertEqual(view.source, "word tail\n")
+        let restored =
+            view.textStorage?.attribute(
+                .font, at: ns.range(of: "word").location, effectiveRange: nil) as? NSFont
+        XCTAssertEqual(restored, view.bodyFont, "unwrap 后同字节必须回正文字体")
+    }
+
+    @MainActor
+    func testCodeBackgroundMatchesPreviewHex() {
+        let view = RichMarkdownTextView(source: "`c`\n")
+        let ns = view.string as NSString
+        let bg =
+            view.textStorage?.attribute(
+                .backgroundColor, at: ns.range(of: "c").location, effectiveRange: nil) as? NSColor
+        let expected = view.previewCodeBackground
+        XCTAssertNotNil(bg)
+        XCTAssertEqual(bg?.redComponent ?? -1, expected.redComponent, accuracy: 0.005)
+        XCTAssertEqual(bg?.greenComponent ?? -1, expected.greenComponent, accuracy: 0.005)
+        XCTAssertEqual(bg?.blueComponent ?? -1, expected.blueComponent, accuracy: 0.005)
+    }
+
+    @MainActor
+    func testBaseLineHeightMatchesPreview() {
+        let view = RichMarkdownTextView(source: "body\n")
+        let ns = view.string as NSString
+        let style =
+            view.textStorage?.attribute(
+                .paragraphStyle, at: ns.range(of: "body").location, effectiveRange: nil)
+            as? NSParagraphStyle
+        XCTAssertEqual(
+            style?.lineHeightMultiple ?? 0, 1.74, accuracy: 0.01,
+            "正文行高应为 1.74(typography.css)")
+    }
+
+    @MainActor
+    func testListMarkerIndentsAndOrdinals() {
+        let view = RichMarkdownTextView(source: "- a\n- b\n1. one\n2. two\n   - nested\n")
+        let markers = view.computeListMarkers()
+        XCTAssertEqual(markers.count, 5)
+        XCTAssertEqual(markers[0].text, "•")
+        XCTAssertEqual(markers[2].ordered, true)
+        XCTAssertEqual(markers[2].ordinal, 1)
+        XCTAssertEqual(markers[3].ordinal, 2)
+        // 深度跟随 parser indentDepth 的整除规则(每 2 空格一级):
+        // 3 空格缩进 = 深度 1(块模型同值;GFM 列对齐语义不另立标准)。
+        XCTAssertEqual(markers[4].depth, 1, "嵌套项深度 = 缩进空格数/2(整除)")
+        // headIndent 写进段落属性
+        let ns = view.string as NSString
+        let style =
+            view.textStorage?.attribute(
+                .paragraphStyle, at: ns.range(of: "a").location, effectiveRange: nil)
+            as? NSParagraphStyle
+        XCTAssertGreaterThan(style?.headIndent ?? 0, 0, "列表项应有 marker 缩进")
     }
 }

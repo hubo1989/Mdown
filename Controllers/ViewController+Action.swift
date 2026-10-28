@@ -271,6 +271,16 @@ extension ViewController {
             return
         }
 
+        // T09 (PLAN)：改名是硬保存点，必须先经统一网关——提交组合输入、
+        // dirty 草稿先落盘并解决写失败（Retry/Save Copy/Discard/Cancel），
+        // 不允许绕开 coordinator 直接 moveItem；失败路径 URL 不动。
+        let transitions = AppEnvironment.current.editingTransitions
+        guard transitions.prepareCommandTargeting(note, in: self), transitions.flushOrResolve(note) else {
+            note.parseURL()
+            sender.stringValue = note.getTitleWithoutLabel()
+            return
+        }
+
         // Suppress our own FSEvent during the rename so the editor isn't
         // reloaded mid-flight. Even on failure the 0.2s window self-resets.
         blockFSUpdates()
@@ -284,6 +294,10 @@ extension ViewController {
         do {
             try FileManager.default.moveItem(at: url, to: newUrl)
             note.overwrite(url: newUrl)
+            // T09 (NE-20): rename 成功后才把源码会话同步到新 URL——代际提升
+            // 使按旧 URL 捕获的 buffer/任务身份失效，改名后的保存不会写回旧
+            // 位置。失败路径不动 session。
+            editArea.syncSessionAfterRename(of: note)
             updateTitleAndFinishImport(note: note, title: value)
         } catch {
             AppDelegate.trackError(error, context: "Note.rename.moveItem")
@@ -544,16 +558,19 @@ extension ViewController {
                 }
 
                 // Make sure note.content actually reflects what is on disk
-                // before we copy it. Two failure modes the next two lines
-                // defend against:
+                // before we copy it. Two failure modes the next lines defend
+                // against:
                 //   1. The note was never opened in this session, so
                 //      isContentLoaded is false and note.content is an
                 //      empty NSMutableAttributedString.
                 //   2. The active note has unsaved edits sitting in the
                 //      1.5s debounce queue; without flushing, the duplicate
                 //      contains the previous on-disk version.
-                if note === EditTextView.note {
-                    editArea.saveTextStorageContent(to: note)
+                // T08: 采集走统一入口——组合输入先提交、只从活动后端采
+                // buffer（wysiwyg 时 Vditor 是权威）；组合无法提交时中止
+                // 本次 duplicate，不复制半截草稿。
+                guard AppEnvironment.current.editingTransitions.prepareCommandTargeting(note, in: self) else {
+                    continue
                 }
                 note.flushPendingSave()
                 if !note.isContentLoaded {
@@ -700,8 +717,52 @@ extension ViewController {
         }
     }
 
+    /// T14（NE-23）：native rich 活动面——查找/替换以会话 source 匹配，
+    /// 不把查找喂给隐藏的 source 编辑器 buffer。返回 true = 已处理。
+    private func handleRichTextFinder(_ sender: NSMenuItem, vc: ViewController) -> Bool {
+        guard vc.sessionLayoutMode == .wysiwyg,
+            vc.shouldUseEditorTextContent,
+            let host = vc.activeWysiwygBackend as? NativeRichEditorHostView,
+            !host.isHidden
+        else { return false }
+
+        if sender.tag == NSFindPanelAction.next.rawValue {
+            if !host.isSearchBarVisible {
+                host.showSearchBar(prefilledText: host.currentSearchQuery)
+            }
+            host.findNext()
+            return true
+        }
+        if sender.tag == NSFindPanelAction.previous.rawValue {
+            if !host.isSearchBarVisible {
+                host.showSearchBar(prefilledText: host.currentSearchQuery)
+            }
+            host.findPrevious()
+            return true
+        }
+        if sender.tag == NSFindPanelAction.setFindString.rawValue {
+            host.useSelectionForFind()
+            return true
+        }
+        if let textFinderAction = NSTextFinder.Action(rawValue: sender.tag) {
+            switch textFinderAction {
+            case .showFindInterface:
+                host.showSearchBar(prefilledText: nil, mode: .find)
+            case .showReplaceInterface:
+                host.showSearchBar(prefilledText: nil, mode: .replace)
+            case .hideFindInterface:
+                host.hideSearchBar()
+            default:
+                break
+            }
+            return true
+        }
+        return true
+    }
+
     @IBAction func textFinder(_ sender: NSMenuItem) {
         guard let vc = ViewController.shared() else { return }
+        if handleRichTextFinder(sender, vc: vc) { return }
 
         if !vc.shouldUseEditorTextContent {
             if let webView = vc.editArea.markdownView {
@@ -791,6 +852,14 @@ extension ViewController {
                 continue
             }
 
+            // T08: move 是硬保存点——dirty 草稿先落盘再移动文件；写失败
+            // 可 Retry/Save Copy/Discard，取消则跳过该笔记，不让草稿在
+            // 移动后写到旧位置（内容分裂在两个文件）。
+            let transitions = AppEnvironment.current.editingTransitions
+            guard transitions.prepareCommandTargeting(note, in: self), transitions.flushOrResolve(note) else {
+                continue
+            }
+
             let destination = project.url.appendingPathComponent(note.name)
 
             if note.type == .markdown, note.container == .none {
@@ -805,6 +874,8 @@ extension ViewController {
             }
 
             _ = note.move(to: destination, project: project)
+            // T09 (NE-20): 移动成功后同步会话 canonical URL（代际提升）。
+            editArea.syncSessionAfterRename(of: note)
 
             if !isFit(note: note, shouldLoadMain: true) {
                 notesTableView.removeByNotes(notes: [note])
@@ -1282,6 +1353,9 @@ extension ViewController {
 
     @IBAction func showVersionHistory(_ sender: Any) {
         guard let note = notesTableView.getSelectedNote() else { return }
+        // T09：面板里的当前版本必须含用户未保存输入——先采集 session 提交
+        // 原文（local recovery trigger；buffer 不属于该 note 时 no-op）。
+        captureSessionSourceForVersionSnapshot(of: note)
         NoteVersionManager.shared.saveVersionIfNeeded(for: note, force: false) { [weak self] in
             guard let self else { return }
             let controller = VersionHistoryViewController(note: note)
@@ -1338,14 +1412,14 @@ extension ViewController {
     }
 
     // MARK: - Keyboard Event Handling
-    /// True when the WYSIWYG editor (WKWebView) or its own first responder
-    /// (a private WebKit content view) owns the keyboard. The type-to-search
-    /// branch below only recognizes EditTextView / NSTextView, so without this
-    /// check a letter typed in WYSIWYG mode jumps focus to the search field
-    /// and never reaches the note — while Delete keeps working, which is the
-    /// reported "cannot type, only delete" symptom.
+    /// True when the WYSIWYG editor (native rich host or its inner subviews)
+    /// owns the keyboard. The type-to-search branch below only recognizes
+    /// EditTextView / NSTextView, so without this check a letter typed in
+    /// WYSIWYG mode jumps focus to the search field and never reaches the
+    /// note — while Delete keeps working, which is the reported "cannot
+    /// type, only delete" symptom.
     func isWysiwygTypingTarget(_ responder: NSResponder) -> Bool {
-        guard let editor = vditorEditView, !editor.isHidden else { return false }
+        guard let editor = activeWysiwygBackend, !editor.isHidden else { return false }
         var current = responder as? NSView
         while let view = current {
             if view === editor { return true }
@@ -1604,6 +1678,15 @@ extension ViewController {
                         return true
                     }
                 }
+                // T14（NE-23）：native rich 活动面——⌘F 归 rich host 的查找条，
+                // 不再给隐藏的 source 编辑器建第二条。
+                if sessionLayoutMode == .wysiwyg,
+                    let host = activeWysiwygBackend as? NativeRichEditorHostView,
+                    !host.isHidden
+                {
+                    host.showSearchBar(prefilledText: host.currentSearchQuery)
+                    return true
+                }
                 // Otherwise use editor search
                 editArea.showSearchBar(prefilledText: nil)
                 return true
@@ -1631,19 +1714,11 @@ extension ViewController {
             // Toast only when something was actually flushed; otherwise a
             // user spamming Cmd+S sees a constant stream of "Saved~" toasts
             // even when there is nothing pending.
-            // T01: 硬保存点从活动编辑后端采集（wysiwyg 时 Vditor 是权威，
-            // source textStorage 停留在旧内容，owner 匹配也会覆盖新输入）。
-            let wysiwygActive = sessionLayoutMode == .wysiwyg
-            if let activeNote = ActiveEditingBackend.activeNote(
-                sourceNote: EditTextView.note, vditorView: vditorEditView, isWysiwygActive: wysiwygActive
-            ) {
-                ActiveEditingBackend.captureBuffer(
-                    for: activeNote, sourceEditor: editArea,
-                    vditorView: vditorEditView, isWysiwygActive: wysiwygActive
-                )
-            }
+            // T08: 统一入口——先提交活动后端的组合输入并从活动后端采集
+            // buffer（不读隐藏 buffer），失败时走 Retry/Save Copy/Discard/
+            // Cancel；Cancel 只保留 dirty，不阻止停留。
             let hadUnsavedChanges = storage.noteList.contains { $0.needsSave }
-            let allSaved = storage.flushPendingSaves()
+            let allSaved = AppEnvironment.current.editingTransitions.saveAllNow(in: self)
             if hadUnsavedChanges, allSaved {
                 toast(message: I18n.str("Saved~"), style: .success)
             }

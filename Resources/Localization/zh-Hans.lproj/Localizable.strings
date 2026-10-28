@@ -1,5 +1,15 @@
 /* About Window */
 "About" = "关于";
+"Copy Visible Text" = "拷贝可见文本";
+"Copy Markdown" = "拷贝 Markdown";
+"Paste Plain Text" = "粘贴纯文本";
+"Paste Markdown" = "粘贴 Markdown";
+"Edit Image" = "编辑图片";
+"Save" = "保存";
+"Alternative Text" = "替代文本";
+"Image URL" = "图片地址";
+"Image Title" = "图片标题";
+"Attachment could not be inserted. Please try again." = "附件插入失败，请重试。";
 
 /* No comment provided by engineer. */
 "Add" = "添加";
@@ -289,6 +299,7 @@
 "Reload" = "重新加载";
 "Note reloaded~" = "笔记已刷新~";
 "Font size: %d" = "字体大小：%d";
+"Native editor failed to load this note; showing source." = "原生编辑器加载此笔记失败，已切回源码显示。";
 
 /* Version History */
 "Version History" = "版本历史";
@@ -315,3 +326,27 @@
 "Light" = "浅色";
 "Dark" = "深色";
 
+
+/* T08 EditingTransitionCoordinator */
+"Failed to save \"%@\"" = "保存「%@」失败";
+"Your changes could not be written to disk. Retry the save, keep a copy elsewhere, or discard this draft." = "修改内容无法写入磁盘。可以重试保存、将副本另存到其他位置，或放弃这份草稿。";
+"Retry" = "重试";
+"Save Copy…" = "另存副本…";
+"Discard Changes" = "放弃修改";
+"Task checkboxes need an active editor for this note." = "任务勾选需要此笔记处于可编辑状态。";
+"Add Row Below" = "在下方插入行";
+"Delete Row" = "删除行";
+"Insert Column" = "插入列";
+"Delete Column" = "删除列";
+"Move Row Up" = "上移行";
+"Move Row Down" = "下移行";
+"Move Column Left" = "左移列";
+"Move Column Right" = "右移列";
+"Align Column" = "列对齐";
+"No Alignment" = "不对齐";
+"Align Left" = "左对齐";
+"Align Center" = "居中对齐";
+"Align Right" = "右对齐";
+"Change Language" = "更改语言";
+"Exit Code Block" = "退出代码块";
+"Toggle WYSIWYG" = "切换所见即所得";

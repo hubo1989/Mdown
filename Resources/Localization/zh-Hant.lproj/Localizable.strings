@@ -1,5 +1,15 @@
 /* About Window */
 "About" = "關於";
+"Copy Visible Text" = "拷貝可見文字";
+"Copy Markdown" = "拷貝 Markdown";
+"Paste Plain Text" = "貼上純文字";
+"Paste Markdown" = "貼上 Markdown";
+"Edit Image" = "編輯圖片";
+"Save" = "儲存";
+"Alternative Text" = "替代文字";
+"Image URL" = "圖片位址";
+"Image Title" = "圖片標題";
+"Attachment could not be inserted. Please try again." = "附件插入失敗，請重試。";
 
 /* No comment provided by engineer. */
 "%d Mdown" = "%d 篇 Mdown";
@@ -266,6 +276,7 @@
 "Reload" = "重新載入";
 "Note reloaded~" = "筆記已重新載入~";
 "Font size: %d" = "字體大小：%d";
+"Native editor failed to load this note; showing source." = "原生編輯器載入此筆記失敗，已切回原始碼顯示。";
 
 /* Version History */
 "Version History" = "版本歷史";
@@ -291,3 +302,27 @@
 "Transparent" = "透明";
 "Light" = "淺色";
 "Dark" = "深色";
+
+/* T08 EditingTransitionCoordinator */
+"Failed to save \"%@\"" = "儲存「%@」失敗";
+"Your changes could not be written to disk. Retry the save, keep a copy elsewhere, or discard this draft." = "修改內容無法寫入磁碟。可以重試儲存、將副本另存到其他位置，或放棄這份草稿。";
+"Retry" = "重試";
+"Save Copy…" = "另存副本…";
+"Discard Changes" = "放棄修改";
+"Task checkboxes need an active editor for this note." = "任務勾選需要此筆記處於可編輯狀態。";
+"Add Row Below" = "在下方插入列";
+"Delete Row" = "刪除列";
+"Insert Column" = "插入欄";
+"Delete Column" = "刪除欄";
+"Move Row Up" = "上移列";
+"Move Row Down" = "下移列";
+"Move Column Left" = "左移欄";
+"Move Column Right" = "右移欄";
+"Align Column" = "欄對齊";
+"No Alignment" = "不對齊";
+"Align Left" = "靠左對齊";
+"Align Center" = "置中對齊";
+"Align Right" = "靠右對齊";
+"Change Language" = "更改語言";
+"Exit Code Block" = "離開程式碼區塊";
+"Toggle WYSIWYG" = "切換所見即所得";

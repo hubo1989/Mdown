@@ -188,6 +188,9 @@
 /* Class = "NSMenuItem"; title = "Toggle Split View"; ObjectID = "Tgl-Spl-View"; */
 "Tgl-Spl-View.title" = "Alternar Vista Dividida";
 
+/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "Tgl-Wys-Menu"; */
+"Tgl-Wys-Menu.title" = "Alternar WYSIWYG";
+
 /* Class = "NSMenuItem"; title = "Toggle TOC"; ObjectID = "Tgl-TOC-Menu"; */
 "Tgl-TOC-Menu.title" = "Alternar Índice";
 
@@ -694,3 +697,19 @@
 
 /* Class = "NSMenuItem"; title = "Reload Note"; ObjectID = "Rld-Nt-7Xm"; */
 "Rld-Nt-7Xm.title" = "Recargar Nota";
+
+/* Class = "NSMenuItem"; ObjectID = "CdB-Blk-Mnu"; */
+"CdB-Blk-Mnu.title" = "Bloque de código";
+
+/* Class = "NSMenuItem"; ObjectID = "CpP-01-iTm"; */
+"CpP-01-iTm.title" = "Copiar ruta";
+
+/* Class = "NSMenuItem"; ObjectID = "InC-Cd-Mnu"; */
+"InC-Cd-Mnu.title" = "Código en línea";
+
+/* Class = "NSMenuItem"; ObjectID = "OiT-01-iTm"; */
+"OiT-01-iTm.title" = "Abrir en Terminal";
+
+/* Class = "NSMenuItem"; ObjectID = "OiT-03-mnu"; */
+"OiT-03-mnu.title" = "Abrir en Terminal";
+

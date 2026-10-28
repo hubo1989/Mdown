@@ -135,7 +135,6 @@ struct EditorSettings: SettingsConfigurable {
 
     func applyChanges() {
         guard let vc = ViewController.shared() else { return }
-        NotesTextProcessor.hl = nil
         NotesTextProcessor.refreshFonts()
 
         let wasPreviewOn = UserDefaultsManagement.preview

@@ -1,57 +1,9 @@
 import Cocoa
 import Foundation
-import Prettier
-import PrettierMarkdown
 
-struct MarkdownFormatOutput: Sendable {
-    let protectedContent: String
-    let placeholders: [String: String]
-    let formattedString: String
-    let cursorOffset: Int
-}
-
-actor MarkdownFormatWorker {
-    private var formatter: PrettierFormatter?
-
-    private func getFormatter() -> PrettierFormatter {
-        if let formatter {
-            return formatter
-        }
-
-        let formatter = PrettierFormatter(plugins: [MarkdownPlugin()], parser: MarkdownParser())
-        formatter.htmlWhitespaceSensitivity = HTMLWhitespaceSensitivityStrategy.ignore
-        formatter.proseWrap = ProseWrapStrategy.preserve
-        formatter.prepare()
-        self.formatter = formatter
-        return formatter
-    }
-
-    func format(content: String, cursor: Int) throws -> MarkdownFormatOutput {
-        if Task.isCancelled {
-            throw CancellationError()
-        }
-
-        let (protectedContent, placeholders) = HtmlManager.protectHTMLTags(in: content)
-        let adjustedCursor = HtmlManager.adjustCursorForProtectedContent(cursor: cursor, original: content, protected: protectedContent)
-        let result = getFormatter().format(protectedContent, withCursorAtLocation: adjustedCursor)
-
-        if Task.isCancelled {
-            throw CancellationError()
-        }
-
-        switch result {
-        case .success(let formatResult):
-            return MarkdownFormatOutput(
-                protectedContent: protectedContent,
-                placeholders: placeholders,
-                formattedString: formatResult.formattedString,
-                cursorOffset: formatResult.cursorOffset
-            )
-        case .failure(let error):
-            throw error
-        }
-    }
-}
+// MARK: - T18:NativeMarkdownFormatter 已接管 formatText(Prettier worker
+// 随 T22 退依赖)。排版是纯函数,在 Task 内同步跑后经 apply 函数落为
+// 整篇替换事务;取消/失配仍走既有 requestID 守卫。
 
 // MARK: - Editor Management
 extension ViewController {
@@ -106,12 +58,15 @@ extension ViewController {
 
         if !sessionPreviewMode {
             savedEditorSelection = editArea.selectedRange()
+            saveNativeRichSelectionAnchorIfNeeded()
             savedEditorScrollRatio = editorScrollRatio
             savedEditorNoteURL = EditTextView.note?.url
             savedLayoutModeBeforePreview = sessionLayoutMode
-            if sessionLayoutMode == .wysiwyg {
-                vditorEditView?.flushPendingSave()
-            }
+            // T08: 进 preview 是编辑器失焦但仍在上下文的转换点——经统一
+            // 入口采集活动后端 buffer（不读隐藏 buffer，wysiwyg 时 Vditor
+            // 是权威），清掉 debounce 队列；不打断进行中的 IME 组合输入。
+            _ = AppEnvironment.current.editingTransitions.finishActiveEditing(
+                in: self, forceCompositionFinish: false)
         }
 
         if !sessionMagicPPTMode {
@@ -203,7 +158,7 @@ extension ViewController {
         // accounts for it.
         previewScrollView?.isHidden = false
         editAreaScroll.isHidden = false
-        vditorEditView?.isHidden = true
+        setVisibleWysiwygBackend(nil)
 
         // Force layout update BEFORE setting display mode to ensure correct bounds
         contentSplitView.layoutSubtreeIfNeeded()
@@ -470,19 +425,20 @@ extension ViewController {
         }
     }
 
+    /// ⌘3 / previewButton 的共同入口。T10 (AC-16)：Toggle Preview 只做
+    /// 纯 preview 进出（MPreviewView 独占，enablePreview 保存当前布局、
+    /// disablePreview 经 restoreEditorLayoutAfterPreview 回到 saved layout，
+    /// 含 wysiwyg）。wysiwyg 是独立菜单/设置入口，不经此处切换。
     func togglePreview() {
         saveTitleSafely()
 
-        if sessionPreviewMode || sessionLayoutMode == .wysiwyg {
+        if sessionPreviewMode {
             disablePreview()
-            sessionLayoutMode = .source
-            applyEditorModePreferenceChange()
         } else {
             if sessionSplitMode {
                 disableSplitViewMode()
             }
-            sessionLayoutMode = .wysiwyg
-            applyEditorModePreferenceChange()
+            enablePreview()
         }
     }
 
@@ -507,11 +463,34 @@ extension ViewController {
 
     // MARK: - WYSIWYG Mode Management
 
+    /// T10 (NE-36)：native 装载失败的笔记只在本次会话内回 source——
+    /// sessionLayoutMode 保持用户的 wysiwyg pref，pref 不被失败改写；
+    /// 切换到其它笔记后失败标记清除。
+    func handleNativeWysiwygLoadFailure(_ note: Note) {
+        guard sessionLayoutMode == .wysiwyg, nativeRichHost != nil else { return }
+        wysiwygLoadFailureNote = note
+        // 只影响显示：source 面接手，backend 隐藏；pref（用户选择）不动。
+        setVisibleWysiwygBackend(nil)
+        editAreaScroll.isHidden = false
+        editAreaScroll.alphaValue = 1.0
+        if !isFocusedTitle {
+            focusEditArea()
+        }
+        toast(message: I18n.str("Native editor failed to load this note; showing source."), style: .info)
+    }
+
+    /// T10 (SPEC §13)：显示活动 backend、隐藏另一个。同一时刻只有一个
+    /// backend 可见/被装载——布局层只经 activeWysiwygBackend 路由。
+    private func setVisibleWysiwygBackend(_ backend: (WysiwygEditingBackend & NSView)?) {
+        nativeRichHost?.isHidden = (backend !== nativeRichHost)
+    }
+
     func enableWysiwygMode() {
         saveTitleSafely()
 
+        let backend = activeWysiwygBackend
+        setVisibleWysiwygBackend(backend)
         editAreaScroll.isHidden = true
-        vditorEditView?.isHidden = false
         editorContentSplitView?.setDisplayMode(.editorOnly, animated: false)
 
         titleBarView.isHidden = false
@@ -523,29 +502,52 @@ extension ViewController {
                 editArea.saveTextStorageContent(to: note)
             }
 
-            vditorEditView?.loadNote(note)
+            if backend === nativeRichHost, wysiwygLoadFailureNote === note {
+                // 该笔记本会话内装载失败过：留在 source 面，不再反复装载。
+                setVisibleWysiwygBackend(nil)
+                editAreaScroll.isHidden = false
+                if !isFocusedTitle {
+                    focusEditArea()
+                }
+                return
+            }
+
+            backend?.loadNote(note)
 
             let isTrashNote = note.project.isTrash
             titleLabel.isEditable = !isTrashNote
 
             if !isFocusedTitle {
-                vditorEditView?.focus()
+                backend?.focus()
             }
         }
         updateToolbarButtonTints()
     }
 
-    func disableWysiwygMode() {
-        guard vditorEditView?.isHidden == false || sessionLayoutMode != .wysiwyg else { return }
+    /// T10 (AC-16)：离开 wysiwyg（进 preview/presentation/PPT、切布局）
+    /// 前保存 native 面的 selection 锚点，退出后经 host 按笔记身份恢复。
+    /// T22：native 是唯一 backend——legacy `useNativeWysiwyg=false` 存量值
+    /// 不得拦截锚点保存（activeWysiwygBackend 已不按该开关分流）。
+    func saveNativeRichSelectionAnchorIfNeeded() {
+        guard sessionLayoutMode == .wysiwyg,
+            let host = nativeRichHost
+        else { return }
+        host.saveSelectionAnchor()
+    }
 
-        vditorEditView?.flushPendingSave { [weak self] in
+    func disableWysiwygMode() {
+        guard activeWysiwygBackend?.isHidden == false || sessionLayoutMode != .wysiwyg else { return }
+
+        saveNativeRichSelectionAnchorIfNeeded()
+        let backend = activeWysiwygBackend
+        backend?.flushPendingSave(completion: { [weak self] in
             guard let self = self else { return }
             if self.notesTableView.getSelectedNote() != nil {
                 self.refillEditArea(suppressSave: true)
             }
-        }
+        })
 
-        vditorEditView?.isHidden = true
+        setVisibleWysiwygBackend(nil)
         editAreaScroll.isHidden = false
 
         if notesTableView.getSelectedNote() != nil {
@@ -562,7 +564,13 @@ extension ViewController {
     @IBAction func toggleWysiwygMode(_ sender: Any? = nil) {
         saveTitleSafely()
         if sessionPreviewMode {
+            // 预览 ⇄ 所见即所得互为切换:从预览进入 WYSIWYG 是确定的
+            // 目标(不是回 source 或"之前布局")。disablePreview 的异步
+            // 恢复回调消费 savedLayoutModeBeforePreview,预置目标即可;
+            // 预览中 sessionLayoutMode 本就未变,不得再翻转。
+            savedLayoutModeBeforePreview = .wysiwyg
             disablePreview()
+            return
         }
         if sessionLayoutMode == .wysiwyg {
             sessionLayoutMode = .source
@@ -598,7 +606,7 @@ extension ViewController {
             disableWysiwygMode()
             editAreaScroll.isHidden = false
             editAreaScroll.alphaValue = 1.0
-            vditorEditView?.isHidden = true
+            setVisibleWysiwygBackend(nil)
             editorContentSplitView?.setDisplayMode(.editorOnly, animated: false)
             revealEditor()
             if !isFocusedTitle {
@@ -666,7 +674,8 @@ extension ViewController {
         sessionPresentationMode = true
         savedLayoutModeBeforePreview = sessionLayoutMode
         if sessionLayoutMode == .wysiwyg {
-            vditorEditView?.flushPendingSave()
+            saveNativeRichSelectionAnchorIfNeeded()
+            activeWysiwygBackend?.flushPendingSave(completion: nil)
         }
         savePresentationLayout()
         hideNoteList("")
@@ -795,7 +804,8 @@ extension ViewController {
         sessionMagicPPTMode = true
         savedLayoutModeBeforePreview = sessionLayoutMode
         if sessionLayoutMode == .wysiwyg {
-            vditorEditView?.flushPendingSave()
+            saveNativeRichSelectionAnchorIfNeeded()
+            activeWysiwygBackend?.flushPendingSave(completion: nil)
         }
         savePresentationLayout()
         hideNoteList("")
@@ -925,6 +935,42 @@ extension ViewController {
             return
         }
 
+        guard let note = notesTableView.getSelectedNote() else { return }
+
+        // T14（NE-24）：native rich 活动面——读取会话权威 source，排版结果
+        // 以整篇替换事务应用（单条历史、可撤销），不走隐藏 editArea。
+        if sessionLayoutMode == .wysiwyg,
+            let host = activeWysiwygBackend as? NativeRichEditorHostView,
+            !host.isHidden, host.currentNote === note
+        {
+            isFormatting = true
+            updateFormatButtonState(isFormatting: true)
+            formatRequestID += 1
+            let requestID = formatRequestID
+            let noteURL = note.url
+            saveTitleSafely()
+
+            let content = host.textView.source
+            // T18:身份快照——迟到结果必须核对 owner/URL/代际/revision/原文
+            let token = UUID()
+            formatOwnerToken = token
+            let snapshot = NativeMarkdownFormatter.Snapshot(
+                owner: token, url: noteURL, generation: UInt64(max(0, note.editGeneration)),
+                revision: host.textView.revision, source: content)
+
+            formatTask = Task(priority: .userInitiated) { [weak self] in
+                guard let self else { return }
+                let newContent = NativeMarkdownFormatter.format(content)
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    self.applyRichFormattingResult(
+                        newContent, snapshot: snapshot,
+                        requestID: requestID, host: host)
+                }
+            }
+            return
+        }
+
         if let note = notesTableView.getSelectedNote() {
             // Same ownership rule as cleanTypography: the buffer being
             // formatted must belong to the selected note (#543). The apply
@@ -940,47 +986,40 @@ extension ViewController {
 
             // Get latest content from editor to ensure consistency
             let content = editArea.textStorage?.string ?? note.content.string
-            let cursor = editArea.selectedRanges[0].rangeValue.location
             let top = editAreaScroll.contentView.bounds.origin.y
+            // 整篇 insertText 会把 selection 推到文末——caret 必须在派发排版
+            // 任务前捕获（旧 formatter 的 cursorOffset 语义）。迟到结果已被
+            // snapshot 的 revision/source 核对拒绝，被接受路径上 caret 未变，
+            // clamp 到新文档长度即可恢复（与 cleanTypography 同款）。
+            let caret = editArea.selectedRanges[0].rangeValue.location
+            let token = UUID()
+            formatOwnerToken = token
+            let snapshot = NativeMarkdownFormatter.Snapshot(
+                owner: token, url: noteURL, generation: UInt64(max(0, note.editGeneration)),
+                revision: editArea.storageRevision, source: content)
 
             formatTask = Task(priority: .userInitiated) { [weak self] in
                 guard let self else { return }
-                do {
-                    let output = try await self.markdownFormatWorker.format(content: content, cursor: cursor)
-                    if Task.isCancelled {
-                        return
-                    }
-
-                    await MainActor.run {
-                        self.applyFormattingResult(output, content: content, noteURL: noteURL, requestID: requestID, top: top)
-                    }
-                } catch is CancellationError {
-                    await MainActor.run {
-                        guard self.formatRequestID == requestID else { return }
-                        self.isFormatting = false
-                        self.updateFormatButtonState(isFormatting: false)
-                        self.formatTask = nil
-                    }
-                } catch {
-                    await MainActor.run {
-                        guard self.formatRequestID == requestID else { return }
-                        AppDelegate.trackError(error, context: "ViewController+Editor.format")
-                        self.toast(message: I18n.str("Formatting failed, please try again"), style: .failure)
-                        self.isFormatting = false
-                        self.updateFormatButtonState(isFormatting: false)
-                        self.formatTask = nil
-                    }
+                let newContent = NativeMarkdownFormatter.format(content)
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    self.applyFormattingResult(
+                        newContent, snapshot: snapshot,
+                        requestID: requestID, top: top, caret: caret)
                 }
             }
         }
     }
 
-    private func applyFormattingResult(_ output: MarkdownFormatOutput, content: String, noteURL: URL, requestID: Int, top: CGFloat) {
+    private func applyFormattingResult(
+        _ formattedContent: String, snapshot: NativeMarkdownFormatter.Snapshot,
+        requestID: Int, top: CGFloat, caret: Int
+    ) {
         guard formatRequestID == requestID else {
             return
         }
 
-        guard let note = notesTableView.getSelectedNote(), note.url == noteURL,
+        guard let note = notesTableView.getSelectedNote(), note.url == snapshot.url,
             editArea.storageNote === note
         else {
             isFormatting = false
@@ -989,18 +1028,43 @@ extension ViewController {
             return
         }
 
-        let restoredContent = HtmlManager.restoreHTMLTags(in: output.formattedString, with: output.placeholders)
-        var newContent = restoredContent
-        let originalLines = content.components(separatedBy: .newlines)
-        if originalLines.count > 1 && !restoredContent.contains("\n") {
-            newContent = content
-        } else if content.last != "\n" && restoredContent.last == "\n" {
-            newContent = restoredContent.removeLastNewLine()
+        // T18:迟到结果核对——格式化期间用户继续输入/undo/切笔记,一律拒绝
+        // 应用并提示重试(SPEC §8.2)。
+        guard
+            snapshot.matches(
+                currentOwner: formatOwnerToken, url: note.url,
+                generation: UInt64(max(0, note.editGeneration)),
+                revision: editArea.storageRevision,
+                source: editArea.textStorage?.string ?? note.content.string)
+        else {
+            isFormatting = false
+            updateFormatButtonState(isFormatting: false)
+            formatTask = nil
+            toast(message: I18n.str("Formatting failed, please try again"), style: .failure)
+            return
         }
 
-        replaceEditorStorage(with: newContent, note: note)
+        let newContent = formattedContent
+        guard newContent != snapshot.source else {
+            isFormatting = false
+            updateFormatButtonState(isFormatting: false)
+            formatTask = nil
+            toast(message: I18n.str("Typography is already clean~"))
+            return
+        }
 
-        let adjustedCursorOffset = HtmlManager.adjustCursorAfterRestore(originalOffset: output.cursorOffset, protected: output.protectedContent, restored: newContent)
+        // 经编辑路径整篇替换(与 cleanTypography 同款):结果可 undo/redo。
+        EditTextView.shouldForceRescan = true
+        editArea.breakUndoCoalescing()
+        editArea.insertText(
+            newContent,
+            replacementRange: NSRange(location: 0, length: (snapshot.source as NSString).length))
+        editArea.saveTextStorageContent(to: note)
+        note.save()
+
+        // 恢复排版前捕获的 caret——insertText 已把 selection 推到文末，
+        // 事后读 selectedRange 只会得到 EOF 位置。
+        let adjustedCursorOffset = min(max(caret, 0), (newContent as NSString).length)
         editArea.setSelectedRange(NSRange(location: adjustedCursorOffset, length: 0))
         formatContent = newContent
         note.save(attributed: editArea.attributedString())
@@ -1018,27 +1082,51 @@ extension ViewController {
         formatTask = nil
     }
 
-    private func replaceEditorStorage(with newContent: String, note: Note) {
-        guard let storage = editArea.textStorage else {
-            editArea.string = newContent
+    /// T14/T18:native rich 面的排版结果应用——整篇替换事务（单条历史），
+    /// caret clamp 到新 source 偏移，镜像与落盘走 host 既有通道。
+    private func applyRichFormattingResult(
+        _ formattedContent: String, snapshot: NativeMarkdownFormatter.Snapshot,
+        requestID: Int, host: NativeRichEditorHostView
+    ) {
+        guard formatRequestID == requestID else { return }
+
+        defer {
+            isFormatting = false
+            updateFormatButtonState(isFormatting: false)
+            formatTask = nil
+        }
+
+        guard let note = host.currentNote, note.url == snapshot.url, !host.isHidden else {
             return
         }
-        let originalLength = storage.length
-        storage.beginEditing()
-        storage.replaceCharacters(in: NSRange(0..<originalLength), with: newContent)
-        NotesTextProcessor.checkPerformanceLevel(attributedString: storage, note: note)
-        if NotesTextProcessor.shouldUseSimplifiedHighlighting {
-            NotesTextProcessor.highlightBasicMarkdown(attributedString: storage, note: note)
-        } else {
-            NotesTextProcessor.highlightMarkdown(attributedString: storage, note: note)
-            NotesTextProcessor.highlightFencedAndIndentCodeBlocks(attributedString: storage)
+
+        // 迟到结果核对:输入/undo/重装载后旧结果不得应用。
+        guard
+            snapshot.matches(
+                currentOwner: formatOwnerToken, url: note.url,
+                generation: UInt64(max(0, note.editGeneration)),
+                revision: host.textView.revision, source: host.textView.source)
+        else {
+            toast(message: I18n.str("Formatting failed, please try again"), style: .failure)
+            return
         }
-        storage.updateParagraphStyle()
-        let fullRange = NSRange(location: 0, length: storage.length)
-        let linkProcessor = NotesTextProcessor(storage: storage, range: fullRange)
-        linkProcessor.highlightLinks()
-        storage.applyEditorLetterSpacing()
-        storage.endEditing()
+
+        let newContent = formattedContent
+        guard newContent != snapshot.source else {
+            toast(message: I18n.str("Typography is already clean~"))
+            return
+        }
+
+        let cursor = host.textView.commandSourceSelection()?.location ?? 0
+        let caretSource = min(max(cursor, 0), (newContent as NSString).length)
+
+        if host.textView.applyWholeSourceReplacement(newContent, name: "format", caretSourceOffset: caretSource) {
+            host.flushPendingSave()
+            if sessionSplitMode, let previewView = editArea.markdownView {
+                previewView.updateContent(note: note)
+            }
+            toast(message: I18n.str("Automatic typesetting succeeded~"), style: .success)
+        }
     }
 
     /// CJK typography cleanup for the whole document: pangu spacing, punctuation
@@ -1430,7 +1518,7 @@ extension ViewController {
     func focusEditArea(firstResponder: NSResponder? = nil, restoreCursor: Bool = true) {
         guard EditTextView.note != nil else { return }
         if sessionLayoutMode == .wysiwyg {
-            vditorEditView?.focus()
+            activeWysiwygBackend?.focus()
             return
         }
         var resp: NSResponder = editArea
@@ -1467,6 +1555,21 @@ extension ViewController {
     }
 
     // MARK: - Editor Content Management
+    /// T09 (PLAN)：版本快照点（导航离开 / 打开版本面板 / 恢复前）先把活动
+    /// buffer 的已确认原文采集进 note 镜像，快照才是用户实际所见正文，而不是
+    /// 落后于输入的旧镜像。这是 local recovery trigger，与真实写盘成功后保存
+    /// 的版本（Note.performDiskWrite → saveVersionIfNeeded）区分：它不代表
+    /// 保存成功，只保证离开/覆盖前正文可从版本库找回。
+    /// owner 不匹配（buffer 属于别的 note，#543）时是安全 no-op。
+    func captureSessionSourceForVersionSnapshot(of note: Note) {
+        guard sessionLayoutMode != .wysiwyg else {
+            activeWysiwygBackend?.flushPendingSave(completion: nil)
+            return
+        }
+        guard editArea.storageNote === note else { return }
+        editArea.saveTextStorageContent(to: note)
+    }
+
     func refillEditArea(
         cursor: Int? = nil,
         previewOnly: Bool = false,
@@ -1540,14 +1643,20 @@ extension ViewController {
                     self.editArea.setSelectedRange(NSRange(location: location, length: 0))
 
                     if self.sessionLayoutMode == .wysiwyg {
-                        self.vditorEditView?.loadNote(note)
-                        self.editAreaScroll.isHidden = true
-                        self.vditorEditView?.isHidden = false
-                        self.vditorEditView?.alphaValue = 1.0
+                        let backend = self.activeWysiwygBackend
+                        if let backend {
+                            backend.loadNote(note)
+                            self.editAreaScroll.isHidden = true
+                            backend.isHidden = false
+                            backend.alphaValue = 1.0
+                        } else {
+                            self.editAreaScroll.isHidden = false
+                            self.editAreaScroll.alphaValue = 1.0
+                        }
                     } else {
                         self.editAreaScroll.isHidden = false
                         self.editAreaScroll.alphaValue = 1.0
-                        self.vditorEditView?.isHidden = true
+                        self.setVisibleWysiwygBackend(nil)
                     }
                     self.revealEditor()
                 }
@@ -1673,9 +1782,19 @@ extension ViewController {
         let currentName = note.getFileName()
         guard currentName != newTitle else { return }
 
+        // T08: rename 是硬保存点——dirty 草稿先经统一入口落盘再动文件
+        // 名；写失败可 Retry/Save Copy/Discard，取消则中止改名。
+        let transitions = AppEnvironment.current.editingTransitions
+        guard transitions.prepareCommandTargeting(note, in: self), transitions.flushOrResolve(note) else {
+            return
+        }
+
         let result = attemptSave(note: note, title: newTitle, current: currentName)
         if case .success = result {
             note.title = newTitle
+            // T09 (NE-20): 改名成功后同步源码会话 canonical URL（代际提升），
+            // 否则按旧 URL 捕获的身份仍可通过防护写回旧位置。
+            editArea.syncSessionAfterRename(of: note)
             notesTableView.reloadRow(note: note)
         }
     }

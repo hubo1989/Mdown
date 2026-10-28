@@ -1,5 +1,15 @@
 /* About Window */
 "About" = "Acerca de Mdown";
+"Copy Visible Text" = "Copiar texto visible";
+"Copy Markdown" = "Copiar Markdown";
+"Paste Plain Text" = "Pegar texto sin formato";
+"Paste Markdown" = "Pegar Markdown";
+"Edit Image" = "Editar imagen";
+"Save" = "Guardar";
+"Alternative Text" = "Texto alternativo";
+"Image URL" = "URL de imagen";
+"Image Title" = "Título de imagen";
+"Attachment could not be inserted. Please try again." = "No se pudo insertar el archivo adjunto. Inténtalo de nuevo.";
 
 /* No comment provided by engineer. */
 "Add" = "Añadir";
@@ -287,6 +297,7 @@
 "Reload" = "Recargar";
 "Note reloaded~" = "Nota recargada~";
 "Font size: %d" = "Tamaño de fuente: %d";
+"Native editor failed to load this note; showing source." = "El editor nativo no pudo cargar esta nota; se muestra el código fuente.";
 
 /* Version History */
 "Version History" = "Historial de versiones";
@@ -312,3 +323,27 @@
 "Light" = "Claro";
 "Dark" = "Oscuro";
 
+
+/* T08 EditingTransitionCoordinator */
+"Failed to save \"%@\"" = "No se pudo guardar \"%@\"";
+"Your changes could not be written to disk. Retry the save, keep a copy elsewhere, or discard this draft." = "Tus cambios no se pudieron escribir en el disco. Reintenta el guardado, guarda una copia en otro lugar o descarta este borrador.";
+"Retry" = "Reintentar";
+"Save Copy…" = "Guardar copia…";
+"Discard Changes" = "Descartar cambios";
+"Task checkboxes need an active editor for this note." = "Las casillas de tareas requieren que esta nota tenga un editor activo.";
+"Add Row Below" = "Añadir fila abajo";
+"Delete Row" = "Eliminar fila";
+"Insert Column" = "Insertar columna";
+"Delete Column" = "Eliminar columna";
+"Move Row Up" = "Subir fila";
+"Move Row Down" = "Bajar fila";
+"Move Column Left" = "Mover columna a la izquierda";
+"Move Column Right" = "Mover columna a la derecha";
+"Align Column" = "Alinear columna";
+"No Alignment" = "Sin alineación";
+"Align Left" = "Alinear a la izquierda";
+"Align Center" = "Centrar";
+"Align Right" = "Alinear a la derecha";
+"Change Language" = "Cambiar idioma";
+"Exit Code Block" = "Salir del bloque de código";
+"Toggle WYSIWYG" = "Alternar WYSIWYG";

@@ -76,7 +76,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, NSWindowRestor
         if let vc = AppContext.shared.viewController {
             vc.editArea.applySystemAppearance()
             vc.editArea.markdownView?.updateAppearance()
-            vc.vditorEditView?.updateAppearance()
+            vc.nativeRichHost?.updateAppearance()
             vc.applyModernChromeStyling()
             vc.updateToolbarButtonTints()
 
@@ -234,6 +234,15 @@ class MainWindowController: NSWindowController, NSWindowDelegate, NSWindowRestor
         }
     }
 
+    /// T08: 关窗的可取消前置。dirty 草稿先经统一入口提交+落盘；写失败/
+    /// 冲突呈现 Retry/Save Copy/Discard/Cancel 并等待结果，Cancel 阻止
+    /// 关窗（返回 false）。组合输入无法提交时同样留在原上下文。
+    /// willClose 只做最后的静默兜底，不在这里提示。
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard let vc = AppContext.shared.viewController else { return true }
+        return AppEnvironment.current.editingTransitions.prepareExit(in: vc)
+    }
+
     func windowDidResignKey(_ notification: Notification) {
         // Switching to another app or window can be the last interaction
         // before a kill / power loss. Drain the 1.5s debounce queue so the
@@ -246,7 +255,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, NSWindowRestor
         // (each write nudges the sync engine). Skip if we already flushed
         // very recently, and only push the active note rather than scanning
         // the entire noteList.
-        guard AppContext.shared.viewController != nil else { return }
+        guard let vc = AppContext.shared.viewController else { return }
 
         let now = ProcessInfo.processInfo.systemUptime
         if now - lastResignKeyFlushAt < Self.resignKeyFlushMinInterval {
@@ -254,12 +263,14 @@ class MainWindowController: NSWindowController, NSWindowDelegate, NSWindowRestor
         }
         lastResignKeyFlushAt = now
 
-        guard let activeNote = EditTextView.note else { return }
-        // needsSave also stays true after a failed debounced write, so losing
-        // focus retries dirty content without making the filesystem watcher
-        // mistake it for a timer that is still waiting to fire.
-        guard activeNote.needsSave else { return }
-        activeNote.flushPendingSave()
+        // T08: 统一入口采集（不读隐藏 buffer）。不打断进行中的 IME 组合
+        // 输入（force=false）——编辑器仍在上下文内，用户回到窗口时组合
+        // 状态保持原样（NE-13）。needsSave also stays true after a failed
+        // debounced write, so losing focus retries dirty content without
+        // making the filesystem watcher mistake it for a timer that is still
+        // waiting to fire.
+        _ = AppEnvironment.current.editingTransitions.finishActiveEditing(
+            in: vc, forceCompositionFinish: false)
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -270,16 +281,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, NSWindowRestor
         NotificationCenter.default.removeObserver(self, name: .alwaysOnTopChanged, object: nil)
         if let vc = AppContext.shared.viewController {
             vc.persistCurrentViewState()
-            // T01: 硬保存点从活动编辑后端采集（wysiwyg 时 Vditor 是权威）。
-            let wysiwygActive = vc.sessionLayoutMode == .wysiwyg
-            if let activeNote = ActiveEditingBackend.activeNote(
-                sourceNote: EditTextView.note, vditorView: vc.vditorEditView, isWysiwygActive: wysiwygActive
-            ) {
-                ActiveEditingBackend.captureBuffer(
-                    for: activeNote, sourceEditor: vc.editArea,
-                    vditorView: vc.vditorEditView, isWysiwygActive: wysiwygActive
-                )
-            }
+            // T08: windowShouldClose 已做可取消网关，这里只做最后的静默
+            // 兜底（编程式 close / 覆盖网关的路径同样不丢 buffer）。
+            _ = AppEnvironment.current.editingTransitions.finishActiveEditing(
+                in: vc, forceCompositionFinish: true)
             vc.storage.flushPendingSaves()
         }
     }

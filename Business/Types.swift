@@ -185,6 +185,24 @@ public enum EditorLayoutMode: String, CaseIterable {
     case wysiwyg
 }
 
+/// T10 (PLAN)：wysiwyg 布局的正文后端。native rich（NativeRichEditorHostView）
+/// 是默认实现；Vditor 开发期保留 legacy backend（SPEC §13：稳定门通过前
+/// 不与 native 同时发布正文——同一时刻只有一个 backend 被 loadNote/focus，
+/// 布局层只经 `activeWysiwygBackend` 触达后端）。
+@MainActor
+protocol WysiwygEditingBackend: AnyObject {
+    /// 活动后端正在编辑的笔记（离开点采集的权威，绝不读隐藏 buffer）。
+    var currentNote: Note? { get }
+    /// 切换编辑目标。旧笔记的未保存草稿必须先落盘（NE-36：不丢草稿）。
+    func loadNote(_ note: Note)
+    /// 强制把未保存草稿写盘；完成后回调（无待写内容时立即回调）。
+    func flushPendingSave(completion: (() -> Void)?)
+    /// 键盘焦点进后端编辑面。
+    func focus()
+    /// 深浅色主题/字体外观变化。
+    func updateAppearance()
+}
+
 @MainActor
 final class EditorSessionState {
     var layoutMode: EditorLayoutMode {

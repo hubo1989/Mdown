@@ -178,6 +178,13 @@ final class GeneralPrefsViewController: BasePrefsViewController {
             activateShortcutRecorder.refreshAppearance()
 
             if let vc = ViewController.shared() {
+                // 与 KVO 系统切换路径(handleAppearanceChange)对齐:
+                // 手动 Light/Dark 也要刷编辑面文字色与 native rich 外观
+                // (含 mermaid 图明暗失效重渲),否则编辑器停在旧主题。
+                vc.editArea.applySystemAppearance()
+                vc.nativeRichHost?.updateAppearance()
+                vc.applyModernChromeStyling()
+                vc.updateToolbarButtonTints()
                 vc.editArea.recreatePreviewView()
 
                 let sidebarSelectedRows = vc.storageOutlineView.selectedRowIndexes

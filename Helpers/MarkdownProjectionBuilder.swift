@@ -21,6 +21,14 @@ struct MarkdownProjectionBuilder {
         case attachmentPlaceholder  // 图片：alt 作为占位显示
         case metadata  // frontmatter：整块原样
         case plainFallback  // 保护块/未识别：原样显示，编辑回退 source
+        // T19 视觉：行内样式体(marker 隐藏,内容带渲染语义)
+        case strongBody  // **x** 内容：粗体
+        case emphasisBody  // *x* 内容：斜体
+        case strikethroughBody  // ~~x~~ 内容：删除线
+        case linkLabel  // [label](url) 的 label：链接色
+        // 渲染块（mermaid/math/plantuml）：显示为附件占位字符，
+        // 真实图由视图层挂 NSTextAttachment；点击附件切换源码/渲染态。
+        case renderedBlock
     }
 
     struct Segment: Equatable {
@@ -48,6 +56,9 @@ struct MarkdownProjectionBuilder {
             if let inner = segments.first(where: {
                 offset > $0.displayRangeUTF16.location && offset < NSMaxRange($0.displayRangeUTF16)
             }) {
+                if inner.kind == .attachmentPlaceholder || inner.kind == .renderedBlock {
+                    return NSMaxRange(inner.sourceRangeUTF16)
+                }
                 return linearMap(offset, from: inner.displayRangeUTF16, to: inner.sourceRangeUTF16)
             }
             // 边界匹配跳过 0 显示长的段：marker 段无显示表面，其端点不代表
@@ -103,19 +114,48 @@ struct MarkdownProjectionBuilder {
         }
     }
 
+    /// 渲染块显示态（Typora 交互：默认只显示渲染图，点击展开源码+图）。
+    enum RenderedBlockMode: Equatable {
+        case collapsed  // 只显示渲染图（附件占位字符）
+        case expanded  // 上方源码 + 下方渲染图
+    }
+
     /// 对单个块构建投影。display 坐标从 0 开始（每块独立投影；视图拼接
     /// 时按行位移，T10 接入）。
-    func buildProjection(for block: LosslessMarkdownParser.Block, in document: LosslessMarkdownParser.Document) -> Projection {
+    /// `renderedMode` 仅对 mermaid/math/plantuml 等渲染块生效（PRD ND-02/03）。
+    func buildProjection(
+        for block: LosslessMarkdownParser.Block, in document: LosslessMarkdownParser.Document,
+        renderedMode: RenderedBlockMode = .collapsed
+    ) -> Projection {
         let source = document.source
         let blockText = (source as NSString).substring(with: block.rangeUTF16)
 
         switch block.kind {
         case .frontmatter:
             return plain(blockText, kind: .metadata, base: block.rangeUTF16.location)
-        case .codeFence, .codeIndented, .htmlBlock, .table, .thematicBreak, .blank:
+        case .codeFence(let info):
+            if Self.isRenderableBlock(kind: block.kind, info: info) {
+                return renderedBlockProjection(
+                    blockText: blockText, block: block, mode: renderedMode)
+            }
+            return plain(blockText, kind: .plainFallback, base: block.rangeUTF16.location)
+        case .codeIndented, .htmlBlock, .mathBlock, .table, .thematicBreak, .blank:
             return plain(blockText, kind: .plainFallback, base: block.rangeUTF16.location)
         case .heading(let level):
-            let markerLen = level + 1  // '#'×level + 空格
+            let text = blockText as NSString
+            var markerLen = 0
+            while markerLen < text.length,
+                text.character(at: markerLen) == asciiUnit(" ") || text.character(at: markerLen) == asciiUnit("\t")
+            {
+                markerLen += 1
+            }
+            markerLen += level
+            // 裸标题 marker 不带分隔空格；换行仍是可编辑的显示位置。
+            while markerLen < text.length,
+                text.character(at: markerLen) == asciiUnit(" ") || text.character(at: markerLen) == asciiUnit("\t")
+            {
+                markerLen += 1
+            }
             // marker 段用文档绝对坐标（与 inlineSegments 一致）：块相对 0 会
             // 让非首块 heading 的 marker 指向文档开头。display 坐标统一由
             // finalize 重算（inlineSegments 已各自 finalize，重算幂等）。
@@ -131,12 +171,9 @@ struct MarkdownProjectionBuilder {
             finalizeDisplayRanges(&segments)
             return Projection(display: segments.displayText, segments: segments)
         case .listItem, .quote:
-            // 多行容器逐行处理：每行前缀 marker 隐藏，行内容走 inline
-            return lineWiseProjection(
-                blockText: blockText, block: block,
-                isQuote: {
-                    if case .listItem = block.kind { return false }; return true
-                }())
+            // 多行容器逐行处理：行前缀（quote 层 + 内层 list marker）隐藏，
+            // 行内容走 inline
+            return lineWiseProjection(blockText: blockText, block: block)
         case .paragraph:
             let segments = inlineSegments(of: blockText, contentStart: 0, block: block)
             return Projection(display: segments.displayText, segments: segments)
@@ -148,7 +185,7 @@ struct MarkdownProjectionBuilder {
     }
 
     private func lineWiseProjection(
-        blockText: String, block: LosslessMarkdownParser.Block, isQuote: Bool
+        blockText: String, block: LosslessMarkdownParser.Block
     ) -> Projection {
         let ns = blockText as NSString
         var segments: [Segment] = []
@@ -156,13 +193,40 @@ struct MarkdownProjectionBuilder {
         while lineStart < ns.length {
             let lineRange = ns.lineRange(for: NSRange(location: lineStart, length: 0))
             let line = ns.substring(with: lineRange)
-            let prefixLen = isQuote ? quotePrefixLength(line) : listItemMarkerLength(line)
+            let parsed = MarkdownBlockModel.parseLine(
+                line as NSString, lineRange: NSRange(location: 0, length: line.utf16.count))
+            let prefixLen = parsed.prefixLength
+            // task 勾选字面（`[x] `/`[ ] `）保持可见：T14 原生勾选框落地前，
+            // 勾选状态必须可见可定位（NE-07）。
+            var hiddenLen = prefixLen
+            if let task = parsed.task {
+                let bracketRel = task.checkOffsetUTF16 - 1
+                if bracketRel >= 0, bracketRel < prefixLen {
+                    hiddenLen = bracketRel
+                }
+            }
             segments.append(
                 Segment(
                     kind: .hiddenMarker,
-                    sourceRangeUTF16: NSRange(location: block.rangeUTF16.location + lineStart, length: prefixLen),
-                    displayRangeUTF16: NSRange(location: -1, length: 0), displayText: ""
+                    sourceRangeUTF16: NSRange(location: block.rangeUTF16.location + lineStart, length: hiddenLen),
+                    displayRangeUTF16: NSRange(location: -1, length: 0), displayText: "",
+                    // T12：行级 marker 是 opening——上一行末与下一行内容首共享
+                    // 的 display 边界点，caret 归属下一行内容首（marker 后），
+                    // 否则结构命令后落在新行首的输入会插到上一行尾。
+                    isOpening: true
                 ))
+            if hiddenLen < prefixLen {
+                segments.append(
+                    Segment(
+                        kind: .text,
+                        sourceRangeUTF16: NSRange(
+                            location: block.rangeUTF16.location + lineStart + hiddenLen,
+                            length: prefixLen - hiddenLen),
+                        displayRangeUTF16: NSRange(location: -1, length: prefixLen - hiddenLen),
+                        displayText: ns.substring(
+                            with: NSRange(location: lineStart + hiddenLen, length: prefixLen - hiddenLen))
+                    ))
+            }
             segments.append(
                 contentsOf: inlineSegments(
                     of: blockText, contentStart: lineStart + prefixLen,
@@ -200,8 +264,15 @@ struct MarkdownProjectionBuilder {
         while cursor < total {
             let ch = ns.character(at: cursor)
             // 转义：下一个字符原样并入文本
-            if ch == asciiUnit("\\"), cursor + 1 < total {
-                appendText(cursor, cursor + 2)
+            if ch == asciiUnit("\\"), cursor + 1 < total,
+                let scalar = UnicodeScalar(ns.character(at: cursor + 1)), CharacterSet.punctuationCharacters.union(.symbols).contains(scalar),
+                scalar.isASCII
+            {
+                segments.append(
+                    Segment(
+                        kind: .text,
+                        sourceRangeUTF16: NSRange(location: base + cursor, length: 2),
+                        displayRangeUTF16: NSRange(location: -1, length: 1), displayText: String(scalar)))
                 cursor += 2
                 continue
             }
@@ -251,9 +322,19 @@ struct MarkdownProjectionBuilder {
                                 displayText: "", isOpening: true
                             ))
                         let contentLen = close - (cursor + openLen)
+                        // T19 视觉:按 marker 分型(~=删除线;>=2 星/下划线=
+                        // 粗体;单个=斜体)——渲染层据此上 NSFont trait。
+                        let bodyKind: SegmentKind
+                        if marker.hasPrefix("~") {
+                            bodyKind = .strikethroughBody
+                        } else if openLen >= 2 {
+                            bodyKind = .strongBody
+                        } else {
+                            bodyKind = .emphasisBody
+                        }
                         segments.append(
                             Segment(
-                                kind: .text,
+                                kind: bodyKind,
                                 sourceRangeUTF16: NSRange(location: base + cursor + openLen, length: contentLen),
                                 displayRangeUTF16: NSRange(location: -1, length: contentLen),
                                 displayText: ns.substring(with: NSRange(location: cursor + openLen, length: contentLen))
@@ -310,6 +391,96 @@ struct MarkdownProjectionBuilder {
             displayText: text
         )
         return Projection(display: text, segments: [segment])
+    }
+
+    /// 是否为可渲染块(PRD ND-03/08)。
+    /// 当前仅 mermaid——host 有在线渲染产物;plantuml 待接既有
+    /// RenderedBlockExportController 管线后再纳入,先行占位只会留下
+    /// 永空的附件位。math 暂不走渲染占位——既有测试合同要求 math
+    /// 投影保留源码原文(MarkdownRawBlockEditingTests),且 math→图
+    /// 转换需 HTML 产物路径。
+    static func isRenderableBlock(kind: LosslessMarkdownParser.BlockKind, info: String) -> Bool {
+        switch kind {
+        case .codeFence(let fenceInfo):
+            let lang = fenceInfo.trimmingCharacters(in: .whitespaces).lowercased()
+            return lang == "mermaid"
+        default:
+            return false
+        }
+    }
+
+    /// 剥掉 codeFence 的开/闭围栏行,返回围栏内原文(行界含 \r 的按
+    /// 原字节保留,行间换行统一 \n)。围栏识别与 consumeFence 同规则:
+    /// 同字符、闭长度 ≥ 开长度、闭行仅围栏字符与空白;无闭围栏(EOF
+    /// 截断)时内容到块尾。这是渲染请求的 source 形态(host 合同,与
+    /// 主预览 cmark 输出一致):围栏行不属于图源码,mermaid 拿到
+    /// ```` ```mermaid ```` 行必然解析失败。
+    static func fenceContent(of blockText: String) -> String {
+        var lines = blockText.components(separatedBy: "\n")
+        let endsWithNewline = lines.last?.isEmpty == true
+        if endsWithNewline { lines.removeLast() }
+        guard let open = lines.first else { return "" }
+        let openTrimmed = open.trimmingCharacters(in: .whitespaces)
+        guard let openChar = openTrimmed.first, openChar == "`" || openChar == "~",
+            openTrimmed.prefix { $0 == openChar }.count >= 3
+        else { return blockText }
+        let openLen = openTrimmed.prefix { $0 == openChar }.count
+        var end = lines.count
+        if lines.count > 1 {
+            for i in 1..<lines.count {
+                let trimmed = lines[i].trimmingCharacters(in: .whitespaces)
+                if trimmed.prefix { $0 == openChar }.count >= openLen,
+                    trimmed.allSatisfy({ $0 == openChar || $0.isWhitespace })
+                {
+                    end = i
+                    break
+                }
+            }
+        }
+        var content = lines[1..<end].joined(separator: "\n")
+        if endsWithNewline { content += "\n" }
+        return content
+    }
+
+    /// 渲染块投影：collapsed 只显示附件占位字符；expanded 显示源码+附件。
+    /// 附件占位字符固定为 U+FFFC（NSAttachmentCharacter），视图层在该
+    /// 字符上挂 NSTextAttachment 显示真实渲染图。
+    /// sourceRange 始终覆盖整块原文，display↔source 映射不因渲染产物改变。
+    private func renderedBlockProjection(
+        blockText: String, block: LosslessMarkdownParser.Block, mode: RenderedBlockMode
+    ) -> Projection {
+        let base = block.rangeUTF16.location
+        let attachmentChar = "\u{FFFC}"
+        switch mode {
+        case .collapsed:
+            // 只显示附件：display 1 字符，映射到整块 source。
+            let segment = Segment(
+                kind: .renderedBlock,
+                sourceRangeUTF16: block.rangeUTF16,
+                displayRangeUTF16: NSRange(location: 0, length: 1),
+                displayText: attachmentChar
+            )
+            return Projection(display: attachmentChar, segments: [segment])
+        case .expanded:
+            // 源码在上、渲染图在下（Typora 点击展开态）。
+            // 源码段走 plainFallback（编辑语义回退 source），附件段在末尾。
+            let sourceLen = blockText.utf16.count
+            var segments: [Segment] = [
+                Segment(
+                    kind: .plainFallback,
+                    sourceRangeUTF16: block.rangeUTF16,
+                    displayRangeUTF16: NSRange(location: 0, length: sourceLen),
+                    displayText: blockText
+                ),
+                Segment(
+                    kind: .renderedBlock,
+                    sourceRangeUTF16: NSRange(location: NSMaxRange(block.rangeUTF16), length: 0),
+                    displayRangeUTF16: NSRange(location: sourceLen, length: 1),
+                    displayText: attachmentChar
+                ),
+            ]
+            return Projection(display: blockText + attachmentChar, segments: segments)
+        }
     }
 
     /// 行首 list marker 的长度：缩进 + 恰好一个合法 marker（`-`/`+`/`*` 或
@@ -378,21 +549,8 @@ struct MarkdownProjectionBuilder {
         return 0
     }
 
-    /// 行首 quote 前缀（`>` + 缩进）长度。行尾换行不计入前缀（空 quote 行
-    /// 的换行必须留在 display），无 `>` 的懒延续行返回 0。
-    private func quotePrefixLength(_ blockText: String) -> Int {
-        let t = blockText as NSString
-        var i = 0
-        while i < t.length {
-            let c = t.character(at: i)
-            if c == asciiUnit(">") || c == asciiUnit(" ") || c == asciiUnit("\t") {
-                i += 1
-            } else {
-                break
-            }
-        }
-        return i
-    }
+    /// 行首 quote 前缀（`>` + 缩进）由 `MarkdownBlockModel.parseLine` 的
+    /// quote 分支处理（含混合嵌套的内层 list/task 前缀）。
 
     private struct CodeSpanRange {
         let openEnd: Int
@@ -472,6 +630,15 @@ struct MarkdownProjectionBuilder {
     }
 
     private func linkSegments(at i: Int, in ns: NSString, isImage: Bool, base: Int, limit: Int) -> [Segment]? {
+        if isImage, let span = InlineLinkScanner.span(at: i, in: ns as String), NSMaxRange(span.fullRangeUTF16) <= limit {
+            return [
+                Segment(
+                    kind: .attachmentPlaceholder,
+                    sourceRangeUTF16: NSRange(location: base + i, length: span.fullRangeUTF16.length),
+                    displayRangeUTF16: NSRange(location: -1, length: 0),
+                    displayText: span.label.isEmpty ? "[图]" : InlineLinkScanner.unescape(span.label))
+            ]
+        }
         let openBracket = i + (isImage ? 1 : 0)
         guard let labelEnd = findUnescaped("]", from: openBracket + 1, in: ns, limit: limit),
             labelEnd + 1 < limit,
@@ -500,10 +667,10 @@ struct MarkdownProjectionBuilder {
             ))
         segments.append(
             Segment(
-                kind: isImage ? .attachmentPlaceholder : .text,
+                kind: isImage ? .attachmentPlaceholder : .linkLabel,
                 sourceRangeUTF16: NSRange(location: base + labelStart, length: labelRange.length),
                 displayRangeUTF16: NSRange(location: -1, length: labelRange.length),
-                displayText: isImage ? "[图]" : ns.substring(with: labelRange)
+                displayText: isImage && labelRange.length == 0 ? "[图]" : ns.substring(with: labelRange)
             ))
         segments.append(
             Segment(

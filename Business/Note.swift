@@ -3,6 +3,35 @@ import Darwin
 import Foundation
 import LocalAuthentication
 
+/// T07 (SPEC §7.1): a write attempt is only allowed to clear dirty when the
+/// write succeeded AND the captured identity/generation/revision/digest still
+/// matches the note's current state. Anything else is reported, never hidden.
+public enum NoteSaveOutcome: Equatable {
+    /// Disk write succeeded and the pending write still matches the current
+    /// identity/revision/digest; dirty is cleared.
+    case saved
+    /// Nothing to persist; dirty was already clear.
+    case noChanges
+    /// Note is retired (removed/trashed); the write is rejected.
+    case retired
+    /// Disk write failed; dirty is retained and retry is possible.
+    case failed
+    /// Disk write succeeded but the note moved on (new revision/generation/
+    /// URL/digest) before completion. The file holds this older write, but
+    /// dirty is retained so the newer committed content is still pending.
+    case superseded
+}
+
+/// Captured at save-request time; matched at write-completion time so a
+/// same-URL rebind or same-numbered revision cannot clear a newer draft's
+/// dirty state (SPEC §7.1).
+struct NotePendingWriteIdentity: Equatable {
+    let url: URL
+    let generation: Int
+    let revision: Int
+    let digest: String
+}
+
 @MainActor
 public class Note: NSObject {
     @objc var title: String = ""
@@ -33,6 +62,24 @@ public class Note: NSObject {
     private var hasUnpersistedChanges = false
     private var isRetired = false
     private var allowsInitialFileCreation = false
+
+    // T07: identity/generation/revision bookkeeping for verifiable write
+    // outcomes. generation moves on rebind/rename/retire; revision moves on
+    // every commit of new content; digest guards content equality.
+    private(set) var editGeneration = 0
+    private(set) var committedRevision = 0
+    private var inFlightWrite: NotePendingWriteIdentity?
+
+    var saveErrorPresenter: (Error) -> Void = { error in
+        Task { @MainActor in
+            MdownAlert.show(
+                message: I18n.str("Save Failed"),
+                informativeText: I18n.str(error.localizedDescription),
+                style: .warning
+            )
+        }
+    }
+
     public var hasPendingSave: Bool {
         guard !isRetired else { return false }
         return saveWorkItem.map { !$0.isCancelled } == true
@@ -40,6 +87,22 @@ public class Note: NSObject {
     var needsSave: Bool {
         !isRetired && hasUnpersistedChanges
     }
+
+    /// T05: 源码会话接线用（EditTextView+EditingSession）；存储保持 private。
+    var isRetiredForEditing: Bool { isRetired }
+
+    #if DEBUG
+        /// T07: 测试接缝——模拟“初始创建被拒”的失败写与 rebind 后同号 revision。
+        var allowsInitialFileCreationForTesting: Bool {
+            get { allowsInitialFileCreation }
+            set { allowsInitialFileCreation = newValue }
+        }
+
+        var committedRevisionForTesting: Int {
+            get { committedRevision }
+            set { committedRevision = newValue }
+        }
+    #endif
 
     private var decryptedTemporarySrc: URL?
     public var ciphertextWriter = OperationQueue()
@@ -524,6 +587,9 @@ public class Note: NSObject {
 
     public func overwrite(url: URL) {
         self.url = url
+        // T07: any identity change invalidates writes captured for the old
+        // location; they may still land on disk but cannot clear dirty.
+        editGeneration += 1
 
         parseURL()
     }
@@ -561,22 +627,39 @@ public class Note: NSObject {
     }
 
     public func save(content: NSMutableAttributedString) {
+        commit(content: content)
+    }
+
+    /// T07: minimal commit interface. Updates the committed source mirror,
+    /// marks dirty immediately (never waiting for the 1.5s timer), and
+    /// schedules the debounced write. Uses the existing mutable-attr buffer;
+    /// no full unLoad/rescan on the per-keystroke path.
+    public func commit(content: NSMutableAttributedString) {
         guard !isRetired else { return }
         self.content = content.unLoad()
         hasUnpersistedChanges = true
+        committedRevision += 1
 
         debounceSave(attributedString: self.content)
     }
 
     public func save(globalStorage: Bool = true) {
-        guard !isRetired else { return }
+        saveReturningOutcome(globalStorage: globalStorage)
+    }
+
+    /// Result-returning immediate save (SPEC §7.1): all committed-content
+    /// commands should be able to observe the real outcome, not just the
+    /// debounced branch.
+    @discardableResult
+    public func saveReturningOutcome(globalStorage: Bool = true) -> NoteSaveOutcome {
+        guard !isRetired else { return .retired }
         if isMarkdown() {
             content = content.unLoadCheckboxes()
         }
         hasUnpersistedChanges = true
 
         // Immediate save for manual requests or structure changes
-        _ = executeSave(attributedString: content, globalStorage: globalStorage)
+        return executeSave(attributedString: content, globalStorage: globalStorage)
     }
 
     /// Synchronously runs any pending debounced save and clears the work item.
@@ -595,14 +678,42 @@ public class Note: NSObject {
     /// handler so the second branch becomes a no-op as soon as the workItem
     /// finishes naturally.
     @discardableResult
-    public func flushPendingSave(globalStorage: Bool = true) -> Bool {
-        guard !isRetired else { return false }
+    public func flushPendingSaveOutcome(globalStorage: Bool = true) -> NoteSaveOutcome {
+        guard !isRetired else { return .retired }
         if let workItem = saveWorkItem, !workItem.isCancelled {
             workItem.cancel()
             saveWorkItem = nil
         }
-        guard hasUnpersistedChanges else { return true }
+        guard hasUnpersistedChanges else { return .noChanges }
         return executeSave(attributedString: content, globalStorage: globalStorage)
+    }
+
+    /// Bool compatibility shim for existing callers; see flushPendingSaveOutcome.
+    @discardableResult
+    public func flushPendingSave(globalStorage: Bool = true) -> Bool {
+        switch flushPendingSaveOutcome(globalStorage: globalStorage) {
+        case .saved, .noChanges: return true
+        case .retired, .failed, .superseded: return false
+        }
+    }
+
+    /// T08: abandon the in-session draft without touching the disk file.
+    /// Discard is the explicit user choice from the transition gate — it only
+    /// drops this session's uncommitted changes (the debounced/failed draft),
+    /// reloads `content` from the on-disk truth, and bumps the generation so a
+    /// write that raced with the discard completes as `.superseded` instead of
+    /// resurrecting the dropped draft or clearing dirty state.
+    public func discardUnsavedChanges() {
+        guard !isRetired else { return }
+        if let workItem = saveWorkItem, !workItem.isCancelled {
+            workItem.cancel()
+            saveWorkItem = nil
+        }
+        editGeneration += 1
+        committedRevision = 0
+        inFlightWrite = nil
+        hasUnpersistedChanges = false
+        forceReload()
     }
 
     private func debounceSave(attributedString: NSAttributedString, globalStorage: Bool = true) {
@@ -629,15 +740,92 @@ public class Note: NSObject {
     }
 
     @discardableResult
-    private func executeSave(attributedString: NSAttributedString, globalStorage: Bool = true) -> Bool {
-        guard !isRetired else { return false }
+    private func executeSave(attributedString: NSAttributedString, globalStorage: Bool = true) -> NoteSaveOutcome {
+        guard !isRetired else { return .retired }
         // Cancel pending debounce if we are saving immediately
         saveWorkItem?.cancel()
 
+        // T07: capture the full identity/revision/digest of what we are about
+        // to write. Completion is only allowed to clear dirty against this
+        // exact tuple plus the note's current digest.
+        let pending = NotePendingWriteIdentity(
+            url: getURL(),
+            generation: editGeneration,
+            revision: committedRevision,
+            digest: attributedString.string.md5)
+        inFlightWrite = pending
+
+        let writeSucceeded = performDiskWrite(
+            attributedString: attributedString,
+            destination: pending.url)
+
+        return completeSave(pending, writeSucceeded: writeSucceeded, globalStorage: globalStorage)
+    }
+
+    /// Internal test seam: complete a previously captured write without going
+    /// through the disk path, so the in-flight race (rev1 completing after
+    /// rev2 was committed) is directly exercised.
+    func completeSave(
+        _ pending: NotePendingWriteIdentity,
+        writeSucceeded: Bool,
+        globalStorage: Bool = true
+    ) -> NoteSaveOutcome {
+        guard inFlightWrite == nil || inFlightWrite == pending else {
+            // A newer write request replaced ours; it owns the outcome.
+            return .superseded
+        }
+        inFlightWrite = nil
+
+        guard writeSucceeded else { return .failed }
+
+        // Same-URL rebind or same-numbered revision after rebind must not
+        // clear a newer draft's dirty state.
+        let currentDigest = content.string.md5
+        guard
+            pending.url == getURL(),
+            pending.generation == editGeneration,
+            pending.revision == committedRevision,
+            pending.digest == currentDigest
+        else {
+            return .superseded
+        }
+
+        if globalStorage {
+            sharedStorage.add(self)
+        }
+        allowsInitialFileCreation = false
+        hasUnpersistedChanges = false
+        return .saved
+    }
+
+    /// Disk-write half of executeSave; returns success. Kept free of dirty
+    /// bookkeeping so capture/complete ownership is unambiguous.
+    private func performDiskWrite(
+        attributedString: NSAttributedString,
+        destination: URL
+    ) -> Bool {
         let attributes = getFileAttributes()
 
         do {
             let fileWrapper = getFileWrapper(attributedString: attributedString)
+
+            // NSAttributedString's plain-text writer always emits bare UTF-8,
+            // which silently strips a UTF-8 BOM the user's file carried. If
+            // the on-disk file had one, rebuild the wrapper bytes with it so
+            // the round trip is byte-honest (PLAN T07: fix the byte encoding
+            // path, don't fake the memory-only test).
+            let finalWrapper: FileWrapper
+            if destinationHasUTF8BOM(destination),
+                !fileWrapperBytesStartWithBOM(fileWrapper),
+                let bytes = fileWrapper.regularFileContents
+            {
+                var bommed = Data([0xEF, 0xBB, 0xBF])
+                bommed.append(bytes)
+                finalWrapper = FileWrapper(regularFileWithContents: bommed)
+                finalWrapper.filename = fileWrapper.filename
+            } else {
+                finalWrapper = fileWrapper
+            }
 
             let contentSrc: URL? = getContentFileURL()
             guard contentSrc != nil || allowsInitialFileCreation else {
@@ -648,7 +836,7 @@ public class Note: NSObject {
                 AppDelegate.trackError(error, context: "Note.writeMissingFile")
                 return false
             }
-            let dst = contentSrc ?? getURL()
+            let dst = contentSrc ?? destination
 
             var originalContentsURL: URL?
             if let contentSrc = contentSrc {
@@ -657,11 +845,11 @@ public class Note: NSObject {
 
             if let originalContentsURL = originalContentsURL {
                 try writeReplacingExistingFile(
-                    fileWrapper,
+                    finalWrapper,
                     at: dst,
                     originalContentsURL: originalContentsURL)
             } else {
-                try fileWrapper.write(to: dst, options: .atomic, originalContentsURL: nil)
+                try finalWrapper.write(to: dst, options: .atomic, originalContentsURL: nil)
             }
             try FileManager.default.setAttributes(attributes, ofItemAtPath: dst.path)
 
@@ -672,22 +860,25 @@ public class Note: NSObject {
             AppDelegate.trackError(error, context: "Note.writeError")
             AppDelegate.trackError(error, context: "Note.write")
 
-            Task { @MainActor in
-                MdownAlert.show(
-                    message: I18n.str("Save Failed"),
-                    informativeText: I18n.str(error.localizedDescription),
-                    style: .warning
-                )
-            }
+            saveErrorPresenter(error)
             return false
         }
 
-        if globalStorage {
-            sharedStorage.add(self)
-        }
-        allowsInitialFileCreation = false
-        hasUnpersistedChanges = false
         return true
+    }
+
+    /// True when the file at `url` currently begins with a UTF-8 BOM.
+    private func destinationHasUTF8BOM(_ url: URL) -> Bool {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { try? handle.close() }
+        guard let head = try? handle.read(upToCount: 3), head.count == 3 else { return false }
+        return head == Data([0xEF, 0xBB, 0xBF])
+    }
+
+    /// True when a plain-text FileWrapper's bytes already carry a UTF-8 BOM.
+    private func fileWrapperBytesStartWithBOM(_ wrapper: FileWrapper) -> Bool {
+        guard let bytes = wrapper.regularFileContents else { return false }
+        return bytes.prefix(3) == Data([0xEF, 0xBB, 0xBF])
     }
 
     /// Writes through a sibling temporary item, then swaps it with the live
@@ -750,6 +941,8 @@ public class Note: NSObject {
         guard !isRetired else { return }
         isRetired = true
         hasUnpersistedChanges = false
+        editGeneration += 1
+        inFlightWrite = nil
         saveWorkItem?.cancel()
         saveWorkItem = nil
     }
