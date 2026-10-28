@@ -182,6 +182,54 @@ extension RichMarkdownTextView {
 
     /// 自绘列表 marker(在 draw(_:) 的 super 之后调用):圆点/序号画在
     /// headIndent 留出的左侧空位,与正文同色、垂直居中于首行。
+    /// ND-04:表格网格 overlay(行线+列线+外框)。只动绘制,不动 storage
+    /// 与映射;坐标沿 drawListMarkers 的容器坐标约定(见其注释)。
+    func drawTableGrid(in dirtyRect: NSRect) {
+        guard !tableGridGeometries.isEmpty, let layoutManager else { return }
+        let ns = string as NSString
+        let charWidth = ("0" as NSString).size(withAttributes: [.font: codeFont]).width
+        guard charWidth > 0.5 else { return }
+        for geo in tableGridGeometries {
+            guard geo.displayRange.length > 0, NSMaxRange(geo.displayRange) <= ns.length
+            else { continue }
+            var rowRects: [CGRect] = []
+            var start = geo.displayRange.location
+            while start < NSMaxRange(geo.displayRange) {
+                let lineRange = NSIntersectionRange(
+                    ns.lineRange(for: NSRange(location: start, length: 0)), geo.displayRange)
+                guard lineRange.length > 0 else { break }
+                let glyphRange = layoutManager.glyphRange(
+                    forCharacterRange: lineRange, actualCharacterRange: nil)
+                if glyphRange.length > 0 {
+                    let rect = layoutManager.lineFragmentUsedRect(forGlyphAt: glyphRange.location, effectiveRange: nil)
+                    if rect.height > 0 { rowRects.append(rect) }
+                }
+                start = NSMaxRange(lineRange)
+            }
+            guard rowRects.count >= 2, let first = rowRects.first, let last = rowRects.last
+            else { continue }
+            let top = first.minY, bottom = last.maxY
+            if bottom < dirtyRect.minY || top > dirtyRect.maxY { continue }
+            let left = first.minX
+            let right = left + CGFloat(geo.totalVisualColumns) * charWidth
+            let path = NSBezierPath()
+            path.lineWidth = 1
+            for rect in rowRects {
+                path.move(to: NSPoint(x: left, y: rect.maxY))
+                path.line(to: NSPoint(x: right, y: rect.maxY))
+            }
+            path.move(to: NSPoint(x: left, y: top))
+            path.line(to: NSPoint(x: right, y: top))
+            for boundary in geo.boundaryVisualColumns {
+                let x = left + CGFloat(boundary) * charWidth
+                path.move(to: NSPoint(x: x, y: top))
+                path.line(to: NSPoint(x: x, y: bottom))
+            }
+            contentTextColor.withAlphaComponent(0.25).setStroke()
+            path.stroke()
+        }
+    }
+
     func drawListMarkers(in dirtyRect: NSRect) {
         guard let layoutManager, let container = textContainer else { return }
         // TextKit1 的 containerOrigin 由 textContainerInset 与绘制换算得出;

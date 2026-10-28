@@ -164,11 +164,35 @@ final class MarkdownProjectionTests: XCTestCase {
     }
 
     func testProtectedBlocksFallBackPlain() throws {
-        let table = projection(of: "| a\\|b | c |\n| --- | --- |\n| 1 | 2 |\n", as: .table)
-        XCTAssertTrue(table.segments.allSatisfy { $0.kind == .plainFallback })
         let fence = projection(of: "```text\n内部 **不解析**\n```\n", as: .codeFence(info: "text"))
         XCTAssertTrue(fence.segments.allSatisfy { $0.kind == .plainFallback })
         XCTAssertEqual(fence.display, "```text\n内部 **不解析**\n```\n", "fence 内容必须逐字节原样")
+    }
+
+    /// ND-04 表格网格投影:cell 内容 1:1、管道/分隔行隐藏、尾部填充列对齐;
+    /// 内容区映射 1:1,填充区映射到 cell 源末尾。
+    func testTableCellsProjectToGrid() throws {
+        let source = "| a\\|b | c |\n| --- | --- |\n| 1 | 2 |\n"
+        let table = projection(of: source, as: .table)
+        XCTAssertTrue(table.segments.contains { $0.kind == .tableCell }, "cell 必须投影")
+        XCTAssertFalse(table.segments.contains { $0.kind == .plainFallback })
+        XCTAssertFalse(table.display.contains("|"), "管道必须隐藏")
+        XCTAssertFalse(table.display.contains("---"), "分隔行必须隐藏")
+        XCTAssertTrue(table.display.contains("a\\|b"), "cell 内容原样")
+
+        let ns = source as NSString
+        let cellRange = ns.range(of: "a\\|b")
+        let firstCell = try XCTUnwrap(table.segments.first { $0.kind == .tableCell })
+        XCTAssertEqual(firstCell.sourceRangeUTF16, cellRange)
+        XCTAssertEqual(
+            table.sourceOffset(forDisplay: firstCell.displayRangeUTF16.location),
+            cellRange.location, "内容起点映射 1:1")
+        XCTAssertEqual(
+            table.sourceOffset(forDisplay: NSMaxRange(firstCell.displayRangeUTF16) - 1),
+            NSMaxRange(cellRange), "填充/间隙区映射到 cell 源末尾")
+        XCTAssertEqual(
+            table.displayOffset(forSource: cellRange.location),
+            firstCell.displayRangeUTF16.location, "source→display 内容区 1:1")
     }
 
     func testFenceContentNeverEntersInlineSegments() {

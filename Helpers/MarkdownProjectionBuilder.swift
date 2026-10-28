@@ -9,7 +9,8 @@ import Foundation
 /// strong/emphasis/delimiter 成对 marker、code span、`[t](url)` 与
 /// `![a](url)`（destination 隐藏）。未配对、转义、未知结构一律
 /// plainFallback：原样显示，编辑语义回退 source（不猜测）。
-/// Pending（不投影，整块原样）：table 单元格、html inline、autolink、
+/// 表格(ND-04):cell 内容 1:1 + 尾部填充列对齐,管道/分隔行隐藏。
+/// Pending（不投影，整块原样）：html inline、autolink、
 /// ref link 定义拆分、footnote、setext heading。
 struct MarkdownProjectionBuilder {
 
@@ -21,6 +22,9 @@ struct MarkdownProjectionBuilder {
         case attachmentPlaceholder  // 图片：alt 作为占位显示
         case metadata  // frontmatter：整块原样
         case plainFallback  // 保护块/未识别：原样显示，编辑回退 source
+        // ND-04 表格单元格:内容原样(1:1)+尾部填充对齐;填充区编辑映射
+        // 到 cell 源末尾(见 sourceOffset/displayOffset 的 tableCell 特例)。
+        case tableCell
         // T19 视觉：行内样式体(marker 隐藏,内容带渲染语义)
         case strongBody  // **x** 内容：粗体
         case emphasisBody  // *x* 内容：斜体
@@ -57,6 +61,15 @@ struct MarkdownProjectionBuilder {
                 offset > $0.displayRangeUTF16.location && offset < NSMaxRange($0.displayRangeUTF16)
             }) {
                 if inner.kind == .attachmentPlaceholder || inner.kind == .renderedBlock {
+                    return NSMaxRange(inner.sourceRangeUTF16)
+                }
+                if inner.kind == .tableCell {
+                    // 内容区 1:1;尾部填充区一律映射到 cell 源末尾(点视觉行尾
+                    // 打字落在内容末尾,不落进管道)。
+                    let into = offset - inner.displayRangeUTF16.location
+                    if into < inner.sourceRangeUTF16.length {
+                        return inner.sourceRangeUTF16.location + into
+                    }
                     return NSMaxRange(inner.sourceRangeUTF16)
                 }
                 return linearMap(offset, from: inner.displayRangeUTF16, to: inner.sourceRangeUTF16)
@@ -96,6 +109,11 @@ struct MarkdownProjectionBuilder {
             if let inner = segments.first(where: {
                 offset > $0.sourceRangeUTF16.location && offset < NSMaxRange($0.sourceRangeUTF16)
             }) {
+                if inner.kind == .tableCell {
+                    // 内容区 1:1(填充区不会从 source 侧到达)。
+                    return inner.displayRangeUTF16.location
+                        + (offset - inner.sourceRangeUTF16.location)
+                }
                 return linearMap(offset, from: inner.sourceRangeUTF16, to: inner.displayRangeUTF16)
             }
             if let boundary = segments.last(where: { $0.sourceRangeUTF16.location == offset }) {
@@ -139,7 +157,9 @@ struct MarkdownProjectionBuilder {
                     blockText: blockText, block: block, mode: renderedMode)
             }
             return plain(blockText, kind: .plainFallback, base: block.rangeUTF16.location)
-        case .codeIndented, .htmlBlock, .mathBlock, .table, .thematicBreak, .blank:
+        case .table:
+            return tableGridProjection(blockText: blockText, block: block, document: document)
+        case .codeIndented, .htmlBlock, .mathBlock, .thematicBreak, .blank:
             return plain(blockText, kind: .plainFallback, base: block.rangeUTF16.location)
         case .heading(let level):
             let text = blockText as NSString
@@ -380,6 +400,114 @@ struct MarkdownProjectionBuilder {
     }
 
     // MARK: - 辅助
+
+    /// ND-04:表格网格投影。cell 内容原样显示(1:1 映射)+尾部填充到列宽,
+    /// 列间 2 空格;管道、列间分隔空格与整条分隔行(含行尾)隐藏。行尾换行
+    /// 保留可见以分行。边框线由视图层 TableGridLayoutManager overlay 绘制。
+    private func tableGridProjection(
+        blockText: String, block: LosslessMarkdownParser.Block,
+        document: LosslessMarkdownParser.Document
+    ) -> Projection {
+        let model = MarkdownTableModel.parse(source: document.source, blockRange: block.rangeUTF16)
+        let columnCount = model.rows.map(\.cells.count).max() ?? 0
+        guard !model.rows.isEmpty, columnCount > 0 else {
+            return plain(blockText, kind: .plainFallback, base: block.rangeUTF16.location)
+        }
+        let widths = Self.tableGridColumnWidths(model, columnCount: columnCount)
+
+        let ns = blockText as NSString
+        var segments: [Segment] = []
+        var cursor = 0  // blockText 相对偏移
+        func appendHidden(to end: Int) {
+            guard cursor < end else { return }
+            segments.append(
+                Segment(
+                    kind: .hiddenMarker,
+                    sourceRangeUTF16: NSRange(
+                        location: block.rangeUTF16.location + cursor, length: end - cursor),
+                    displayRangeUTF16: NSRange(location: -1, length: 0),
+                    displayText: ""))
+            cursor = end
+        }
+
+        for row in model.rows {
+            if row.isDelimiter {
+                // 分隔行(含行尾)整段隐藏;表头下的分隔线由 overlay 绘制。
+                appendHidden(to: NSMaxRange(row.fullRangeUTF16) - block.rangeUTF16.location)
+                continue
+            }
+            for (index, cell) in row.cells.enumerated() {
+                appendHidden(to: cell.rangeUTF16.location - block.rangeUTF16.location)
+                let contentWidth = Self.tableCellDisplayWidth(cell.text)
+                var display = cell.text
+                display += String(repeating: " ", count: max(0, widths[index] - contentWidth))
+                if index < row.cells.count - 1 {
+                    display += "  "
+                } else {
+                    // 行尾(ragged 行缺列时)补齐剩余列,保持各行显示等宽。
+                    for extra in (index + 1)..<columnCount {
+                        display += "  " + String(repeating: " ", count: widths[extra])
+                    }
+                }
+                segments.append(
+                    Segment(
+                        kind: .tableCell,
+                        sourceRangeUTF16: cell.rangeUTF16,
+                        displayRangeUTF16: NSRange(location: -1, length: 0),
+                        displayText: display))
+                cursor = NSMaxRange(cell.rangeUTF16) - block.rangeUTF16.location
+            }
+            // 行内尾管道/分隔空格隐藏;行尾换行保留可见(分行)。
+            let lineEndRel = NSMaxRange(row.rangeUTF16) - block.rangeUTF16.location
+            appendHidden(to: lineEndRel)
+            let endingRel = NSMaxRange(row.fullRangeUTF16) - block.rangeUTF16.location
+            if endingRel > lineEndRel {
+                segments.append(
+                    Segment(
+                        kind: .text,
+                        sourceRangeUTF16: NSRange(
+                            location: block.rangeUTF16.location + lineEndRel, length: endingRel - lineEndRel),
+                        displayRangeUTF16: NSRange(location: -1, length: 0),
+                        displayText: row.lineEnding))
+                cursor = endingRel
+            }
+        }
+        appendHidden(to: ns.length)
+        finalizeDisplayRanges(&segments)
+        return Projection(display: segments.displayText, segments: segments)
+    }
+
+    /// 列显示宽度(cell 显示宽度的逐列最大值);overlay 网格几何同样用它。
+    static func tableGridColumnWidths(_ model: MarkdownTableModel, columnCount: Int) -> [Int] {
+        var widths = Array(repeating: 0, count: columnCount)
+        for row in model.rows {
+            for (index, cell) in row.cells.enumerated() where index < columnCount {
+                widths[index] = max(widths[index], tableCellDisplayWidth(cell.text))
+            }
+        }
+        return widths
+    }
+
+    /// cell 显示宽度(CJK/全角按 2 列计,等宽字体下用于列对齐填充)。
+    static func tableCellDisplayWidth(_ text: String) -> Int {
+        var width = 0
+        for scalar in text.unicodeScalars {
+            width += isWideDisplayScalar(scalar) ? 2 : 1
+        }
+        return width
+    }
+
+    private static func isWideDisplayScalar(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.value {
+        case 0x1100...0x115F, 0x2E80...0x303E, 0x3041...0x33FF, 0x3400...0x4DBF,
+            0x4E00...0x9FFF, 0xA000...0xA4CF, 0xAC00...0xD7A3, 0xF900...0xFAFF,
+            0xFE10...0xFE19, 0xFE30...0xFE6F, 0xFF00...0xFF60, 0xFFE0...0xFFE6,
+            0x1F300...0x1F64F, 0x1F900...0x1F9FF, 0x20000...0x3FFFD:
+            return true
+        default:
+            return false
+        }
+    }
 
     private func plain(_ text: String, kind: SegmentKind, base: Int) -> Projection {
         // sourceRange 用文档绝对坐标（与其他投影一致）：textDidChange 等消费方
