@@ -71,6 +71,14 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
 
+        // 文本系统在 reflow 后会把文档视图缩回内容高,且不保证采信 minSize
+        // (CI Xcode 16 链与本地 Xcode 27 行为不一致)。帧变化同步回夹到视口
+        // 高,保证视口全域可点(NE-01)。
+        textView.postsFrameChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(textViewFrameChanged(_:)),
+            name: NSView.frameDidChangeNotification, object: textView)
+
         textView.onSourceCommitted = { [weak self] source in
             guard let self else { return }
             self.handleSourceCommitted(source)
@@ -88,11 +96,36 @@ public final class NativeRichEditorHostView: NSView, WysiwygEditingBackend {
 
     public override func layout() {
         super.layout()
-        let viewport = scrollView.contentSize
-        textView.minSize = NSSize(width: 0, height: viewport.height)
-        if textView.frame.width != viewport.width || textView.frame.height < viewport.height {
-            textView.setFrameSize(NSSize(width: viewport.width, height: max(textView.frame.height, viewport.height)))
+        // 同一布局回合里 scrollView 的几何可能尚未提交,contentSize 会是
+        // 旧值——先压平子树再读视口。
+        scrollView.layoutSubtreeIfNeeded()
+        clampTextViewHeightToViewport()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    /// 文档视图高度必须覆盖整个可视区,否则文本下方空白点击落不到编辑面
+    /// (NE-01 鼠标全域可达)。宽度仍随视口,高度只增不减于视口。
+    private func clampTextViewHeightToViewport() {
+        let clipHeight = scrollView.contentView.bounds.height
+        let viewportHeight = max(clipHeight, scrollView.contentSize.height, bounds.height)
+        guard viewportHeight > 0 else { return }
+        if textView.minSize.height < viewportHeight {
+            textView.minSize = NSSize(width: 0, height: viewportHeight)
         }
+        let width = scrollView.contentSize.width
+        if textView.frame.width != width || textView.frame.height < viewportHeight {
+            textView.setFrameSize(
+                NSSize(
+                    width: width,
+                    height: max(textView.frame.height, viewportHeight)))
+        }
+    }
+
+    @objc private func textViewFrameChanged(_ note: Notification) {
+        clampTextViewHeightToViewport()
     }
 
     // MARK: - WysiwygEditingBackend

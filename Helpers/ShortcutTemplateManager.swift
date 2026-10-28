@@ -92,6 +92,18 @@ class ShortcutTemplateManager {
                 """
         ),
 
+        "math": ShortcutTemplate(
+            template: "${{select}}E = mc^2{{/select}}$"
+        ),
+
+        "mathblock": ShortcutTemplate(
+            template: """
+                $$
+                {{select}}E = mc^2{{/select}}
+                $$
+                """
+        ),
+
         "img": ShortcutTemplate(
             template: "<img src=\"{{cursor}}\" width=\"800\">"
         ),

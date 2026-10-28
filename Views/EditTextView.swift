@@ -423,6 +423,14 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         insertShortcutText("table")
     }
 
+    @IBAction func insertMathShortcut(_ sender: Any) {
+        insertShortcutText("math")
+    }
+
+    @IBAction func insertMathBlockShortcut(_ sender: Any) {
+        insertShortcutText("mathblock")
+    }
+
     @IBAction func insertImgShortcut(_ sender: Any) {
         insertShortcutText("img")
     }

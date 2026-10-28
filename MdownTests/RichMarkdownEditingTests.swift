@@ -31,6 +31,7 @@ final class RichMarkdownEditingTests: XCTestCase {
         // First Responder 契约:菜单 action 必须能在富面被命中(⌘ 菜单不会置灰)。
         for selector in [
             #selector(RichMarkdownTextView.insertTimeShortcut(_:)), #selector(RichMarkdownTextView.insertTableShortcut(_:)),
+            #selector(RichMarkdownTextView.insertMathShortcut(_:)), #selector(RichMarkdownTextView.insertMathBlockShortcut(_:)),
             #selector(RichMarkdownTextView.insertImgShortcut(_:)), #selector(RichMarkdownTextView.insertVideoShortcut(_:)),
             #selector(RichMarkdownTextView.insertMarkmapShortcut(_:)), #selector(RichMarkdownTextView.insertMermaidShortcut(_:)),
             #selector(RichMarkdownTextView.insertPlantumlShortcut(_:)), #selector(RichMarkdownTextView.insertFoldShortcut(_:)),
@@ -50,6 +51,18 @@ final class RichMarkdownEditingTests: XCTestCase {
         mermaid.setSelectedRange(NSRange(location: 2, length: 0))
         mermaid.insertMermaidShortcut(self)
         XCTAssertTrue(mermaid.source.contains("```mermaid"), "mermaid 模板必须插进 source")
+    }
+
+    func testInsertMathMenuActionsLandTemplates() {
+        let inline = makeView("正文\n")
+        inline.setSelectedRange(NSRange(location: 2, length: 0))
+        inline.insertMathShortcut(self)
+        XCTAssertTrue(inline.source.contains("$E = mc^2$"), "行内公式模板必须插进 source")
+
+        let block = makeView("正文\n")
+        block.setSelectedRange(NSRange(location: 2, length: 0))
+        block.insertMathBlockShortcut(self)
+        XCTAssertTrue(block.source.contains("$$\nE = mc^2\n$$"), "块级公式模板必须插进 source")
     }
 
     func testTypewriterAndFocusTogglesOnlyChangeViewState() {

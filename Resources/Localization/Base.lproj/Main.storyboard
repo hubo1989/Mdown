@@ -396,6 +396,18 @@ CA
                                                             <action selector="insertPlantumlShortcut:" target="Ady-hI-5gd" id="plantuml-action"/>
                                                         </connections>
                                                     </menuItem>
+                                                    <menuItem title="/math - Inline Formula" id="mth-Inl-Mnu">
+                                                        <modifierMask key="keyEquivalentModifierMask"/>
+                                                        <connections>
+                                                            <action selector="insertMathShortcut:" target="Ady-hI-5gd" id="math-action"/>
+                                                        </connections>
+                                                    </menuItem>
+                                                    <menuItem title="/mathblock - Block Formula" id="mth-BIk-Mnu">
+                                                        <modifierMask key="keyEquivalentModifierMask"/>
+                                                        <connections>
+                                                            <action selector="insertMathBlockShortcut:" target="Ady-hI-5gd" id="mathblock-action"/>
+                                                        </connections>
+                                                    </menuItem>
                                                     <menuItem title="/fold - Collapsible Section" id="YFF-9q-sOk">
                                                         <modifierMask key="keyEquivalentModifierMask"/>
                                                         <connections>

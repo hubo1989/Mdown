@@ -144,6 +144,50 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
 
     // MARK: - 投影重建
 
+    /// ND-04:表格网格 overlay 的几何(display 只读缓存,每次重建重算)。
+    struct TableGridGeometry {
+        /// 表格块的全文 display 区间。
+        let displayRange: NSRange
+        /// 竖线位置(视觉列):左右外边 + 各列间隙中心。
+        let boundaryVisualColumns: [Int]
+        /// 表格显示宽度(视觉列,含列间 2 空格间隙)。
+        let totalVisualColumns: Int
+    }
+
+    /// 网格几何缓存;TableGridLayoutManager/自绘层只读。
+    private(set) var tableGridGeometries: [TableGridGeometry] = []
+
+    private func recomputeTableGridGeometries() {
+        var result: [TableGridGeometry] = []
+        for item in rendered {
+            guard case .table = item.block.kind else { continue }
+            let model = MarkdownTableModel.parse(
+                source: source, blockRange: item.block.rangeUTF16)
+            let columnCount = model.rows.map(\.cells.count).max() ?? 0
+            guard columnCount > 0 else { continue }
+            let widths = MarkdownProjectionBuilder.tableGridColumnWidths(
+                model, columnCount: columnCount)
+            var boundaries: [Int] = [0]
+            var running = 0
+            for (index, width) in widths.enumerated() {
+                running += width
+                if index < columnCount - 1 {
+                    boundaries.append(running + 1)  // 2 列间隙的中心
+                    running += 2
+                }
+            }
+            boundaries.append(running)
+            result.append(
+                TableGridGeometry(
+                    displayRange: NSRange(
+                        location: item.displayStart,
+                        length: item.projection.display.utf16.count),
+                    boundaryVisualColumns: boundaries,
+                    totalVisualColumns: running))
+        }
+        tableGridGeometries = result
+    }
+
     func rebuildProjection() {
         guard !hasMarkedText() else { return }
         document = parser.parse(source)
@@ -179,6 +223,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
             }
         }
         rendered = renderedNew
+        recomputeTableGridGeometries()
         let newDisplay = pieces.joined()
         cachedDisplay = newDisplay
 
@@ -221,6 +266,7 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
     public override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         drawListMarkers(in: dirtyRect)
+        drawTableGrid(in: dirtyRect)
     }
 
     // MARK: - T19 typewriter / focus(NE-32:只改 view state)
@@ -420,6 +466,9 @@ public final class RichMarkdownTextView: NSTextView, NSTextViewDelegate {
         case .codeSpan:
             storage.addAttribute(.font, value: mono, range: range)
             storage.addAttribute(.backgroundColor, value: codeBackgroundColor, range: range)
+        case .tableCell:
+            // ND-04:等宽是列对齐的前提(填充按视觉列计)。
+            storage.addAttribute(.font, value: mono, range: range)
         case .strongBody:
             let bold = NSFontManager.shared.convert(bodyFont, toHaveTrait: .boldFontMask) ?? bodyFont
             storage.addAttribute(.font, value: bold, range: range)
