@@ -168,6 +168,12 @@ extension RichMarkdownTextView {
 
     @IBAction public func insertTableShortcut(_ sender: Any) { _ = insertShortcutTemplate("table") }
 
+    @IBAction public func insertMathShortcut(_ sender: Any) { _ = insertShortcutTemplate("math") }
+
+    @IBAction public func insertMathBlockShortcut(_ sender: Any) {
+        _ = insertShortcutTemplate("mathblock")
+    }
+
     @IBAction public func insertImgShortcut(_ sender: Any) { _ = insertShortcutTemplate("img") }
 
     @IBAction public func insertVideoShortcut(_ sender: Any) { _ = insertShortcutTemplate("video") }

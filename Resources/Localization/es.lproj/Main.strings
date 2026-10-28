@@ -717,3 +717,9 @@
 
 /* Class = "NSMenuItem"; title = "Focus Dimming"; ObjectID = "Fcs-Dim-Mnu"; */
 "Fcs-Dim-Mnu.title" = "Atenuación de enfoque";
+
+/* Class = "NSMenuItem"; title = "/math - Inline Formula"; ObjectID = "mth-Inl-Mnu"; */
+"mth-Inl-Mnu.title" = "/math - Fórmula en línea";
+
+/* Class = "NSMenuItem"; title = "/mathblock - Block Formula"; ObjectID = "mth-BIk-Mnu"; */
+"mth-BIk-Mnu.title" = "/mathblock - Fórmula de bloque";

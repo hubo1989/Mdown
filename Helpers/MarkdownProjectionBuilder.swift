@@ -81,6 +81,8 @@ struct MarkdownProjectionBuilder {
             }) {
                 // G0 修复：检查是否有 opening marker 在 previous 与 next 内容之间。
                 // 有则 caret 应进入结构内容（Typora：在"**粗**"前打字落在"粗"前）。
+                // ND-04:cell 前的 hidden(管道/行前缀)同语义标 isOpening,
+                // caret 在 cell 显示起点反解到 cell 源起点(不是管道)。
                 var idx = prevIndex + 1
                 var hasOpening = false
                 while idx < segments.count && segments[idx].displayRangeUTF16.length == 0 {
@@ -115,6 +117,17 @@ struct MarkdownProjectionBuilder {
                         + (offset - inner.sourceRangeUTF16.location)
                 }
                 return linearMap(offset, from: inner.sourceRangeUTF16, to: inner.displayRangeUTF16)
+            }
+            // cell 源末尾 → 显示内容末尾(不含填充/列间隙)。否则 caret 落到
+            // 填充尾部,与后随 hidden marker 共点时反解会被误推到行首管道,
+            // 表格导航(tablePosition)直接落空(ND-04)。
+            if let cell = segments.last(where: {
+                $0.kind == .tableCell && NSMaxRange($0.sourceRangeUTF16) == offset
+            }) {
+                return cell.displayRangeUTF16.location
+                    + min(
+                        offset - cell.sourceRangeUTF16.location,
+                        cell.sourceRangeUTF16.length)
             }
             if let boundary = segments.last(where: { $0.sourceRangeUTF16.location == offset }) {
                 return boundary.displayRangeUTF16.location
@@ -418,7 +431,7 @@ struct MarkdownProjectionBuilder {
         let ns = blockText as NSString
         var segments: [Segment] = []
         var cursor = 0  // blockText 相对偏移
-        func appendHidden(to end: Int) {
+        func appendHidden(to end: Int, isOpening: Bool = false) {
             guard cursor < end else { return }
             segments.append(
                 Segment(
@@ -426,7 +439,8 @@ struct MarkdownProjectionBuilder {
                     sourceRangeUTF16: NSRange(
                         location: block.rangeUTF16.location + cursor, length: end - cursor),
                     displayRangeUTF16: NSRange(location: -1, length: 0),
-                    displayText: ""))
+                    displayText: "",
+                    isOpening: isOpening))
             cursor = end
         }
 
@@ -437,7 +451,9 @@ struct MarkdownProjectionBuilder {
                 continue
             }
             for (index, cell) in row.cells.enumerated() {
-                appendHidden(to: cell.rangeUTF16.location - block.rangeUTF16.location)
+                // cell 前的管道/行前缀标 opening:caret 在 cell 显示起点反解进 cell。
+                appendHidden(
+                    to: cell.rangeUTF16.location - block.rangeUTF16.location, isOpening: true)
                 let contentWidth = Self.tableCellDisplayWidth(cell.text)
                 var display = cell.text
                 display += String(repeating: " ", count: max(0, widths[index] - contentWidth))
@@ -480,7 +496,8 @@ struct MarkdownProjectionBuilder {
     /// 列显示宽度(cell 显示宽度的逐列最大值);overlay 网格几何同样用它。
     static func tableGridColumnWidths(_ model: MarkdownTableModel, columnCount: Int) -> [Int] {
         var widths = Array(repeating: 0, count: columnCount)
-        for row in model.rows {
+        // 分隔行整行隐藏,其 `---` 不参与列宽(否则单元格被无谓撑宽)。
+        for row in model.rows where !row.isDelimiter {
             for (index, cell) in row.cells.enumerated() where index < columnCount {
                 widths[index] = max(widths[index], tableCellDisplayWidth(cell.text))
             }

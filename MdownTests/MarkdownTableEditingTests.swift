@@ -358,22 +358,44 @@ extension MarkdownTableEditingTests {
         RichMarkdownTextView(source: tableSource)
     }
 
+    /// source 偏移 → display caret 位(ND-04 网格投影下表格 display≠source;
+    /// 行为语义按 source 意图断言,坐标一律换算)。
+    @MainActor
+    private func caretDisplay(_ view: RichMarkdownTextView, sourceAt offset: Int) -> Int {
+        view.displayRange(forSourceRange: NSRange(location: offset, length: 0))?.location
+            ?? offset
+    }
+
+    /// 表格块内字面 → display caret 位。
+    @MainActor
+    private func caretDisplay(afterLiteral literal: String, in view: RichMarkdownTextView) -> Int {
+        let ns = view.source as NSString
+        let r = ns.range(of: literal)
+        return caretDisplay(view, sourceAt: r.location + r.length)
+    }
+
     @MainActor
     func testTabMovesCaretBetweenCells() {
         let view = makeTable()
-        // caret 在 "a" 后(display 与 source 在 table 块内 1:1)
-        view.setSelectedRange(NSRange(location: 2, length: 0))
+        // caret 在 "a" 后(经投影换算 display 位)
+        let aStart = caretDisplay(
+            view, sourceAt: (view.source as NSString).range(of: "a").location)
+        view.setSelectedRange(NSRange(location: aStart, length: 0))
         XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertTab(_:))))
-        XCTAssertEqual(view.selectedRange().location, 6, "Tab 应跳到第二格 \"bb\" 起点")
+        XCTAssertEqual(
+            view.selectedRange().location,
+            caretDisplay(view, sourceAt: (view.source as NSString).range(of: "bb").location),
+            "Tab 应跳到第二格 \"bb\" 起点")
 
         XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertBacktab(_:))))
-        XCTAssertEqual(view.selectedRange().location, 2, "Shift+Tab 应回到 \"a\" 内")
+        XCTAssertEqual(view.selectedRange().location, aStart, "Shift+Tab 应回到 \"a\" 格起点")
     }
 
     @MainActor
     func testEnterInLastCellAppendsRowAsUndoableTransaction() {
         let view = makeTable()
-        view.setSelectedRange(NSRange(location: 32, length: 0))  // "d" 后
+        view.setSelectedRange(
+            NSRange(location: caretDisplay(afterLiteral: "d", in: view), length: 0))  // "d" 后
         let revisionBefore = view.revision
         XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertNewline(_:))))
         XCTAssertEqual(view.revision, revisionBefore + 1, "加行是一次结构事务")
@@ -385,9 +407,13 @@ extension MarkdownTableEditingTests {
     @MainActor
     func testEnterInNonLastRowJumpsToCellBelow() {
         let view = makeTable()
-        view.setSelectedRange(NSRange(location: 2, length: 0))  // "a" 后
+        view.setSelectedRange(
+            NSRange(location: caretDisplay(afterLiteral: "a", in: view), length: 0))  // "a" 后
         XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertNewline(_:))))
-        XCTAssertEqual(view.selectedRange().location, 27, "Enter 应跳到正下方 \"c\" 起点")
+        XCTAssertEqual(
+            view.selectedRange().location,
+            caretDisplay(view, sourceAt: (view.source as NSString).range(of: "c").location),
+            "Enter 应跳到正下方 \"c\" 起点")
         XCTAssertEqual(view.source, tableSource, "非末行 Enter 不改正文")
     }
 
@@ -399,16 +425,19 @@ extension MarkdownTableEditingTests {
         let view = RichMarkdownTextView(
             source: "| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n| g | h |\n")
         let ns = view.source as NSString
-        view.setSelectedRange(NSRange(location: ns.range(of: "g").location, length: 0))
+        view.setSelectedRange(
+            NSRange(location: caretDisplay(view, sourceAt: ns.range(of: "g").location), length: 0))
         XCTAssertTrue(
             view.text(NSTextView(), doCommandBy: #selector(NSText.insertBacktab(_:))))
         XCTAssertEqual(
-            view.selectedRange().location, 40,
+            view.selectedRange().location,
+            caretDisplay(view, sourceAt: ns.range(of: "f").location),
             "Shift+Tab 自第 3 数据行首格应落第 2 数据行末格 \"f\",不得跳回头行")
         // 正向不变:行末格 Tab 跨行落下一行首格
         XCTAssertTrue(view.text(NSTextView(), doCommandBy: #selector(NSText.insertTab(_:))))
         XCTAssertEqual(
-            view.selectedRange().location, ns.range(of: "g").location,
+            view.selectedRange().location,
+            caretDisplay(view, sourceAt: ns.range(of: "g").location),
             "Tab 正向跨行仍落下一行首格")
     }
 
@@ -434,9 +463,11 @@ extension MarkdownTableEditingTests {
     @MainActor
     func testInsertAndDeleteRowCommandsAtCaret() {
         let view = makeTableView()
-        // caret 在 body 首行 "c" 内
+        // caret 在 body 首行 "c" 内(经投影换算)
         let ns = view.source as NSString
-        view.setSelectedRange(NSRange(location: ns.range(of: "c").location + 1, length: 0))
+        view.setSelectedRange(
+            NSRange(
+                location: caretDisplay(view, sourceAt: ns.range(of: "c").location + 1), length: 0))
         XCTAssertTrue(view.insertTableRowBelowAtCaret())
         XCTAssertEqual(
             view.source, "| a | b |\n| --- | --- |\n| c | d |\n|  |  |\n| e | f |\n")
@@ -451,12 +482,14 @@ extension MarkdownTableEditingTests {
     func testInsertRowBelowMovesCaretToNewRowFirstCell() {
         let view = makeTableView()
         let ns = view.source as NSString
-        view.setSelectedRange(NSRange(location: ns.range(of: "c").location + 1, length: 0))
+        let cEnd = caretDisplay(view, sourceAt: ns.range(of: "c").location + 1)
+        view.setSelectedRange(NSRange(location: cEnd, length: 0))
         XCTAssertTrue(view.insertTableRowBelowAtCaret())
-        // 新行 "|  |  |" 起于 34(table 块内 display 与 source 1:1),
-        // 首格内容在 "| " 后 = 36;旧行为恢复 pre-edit 偏移(27)留在旧行。
+        // caret 必须落新行首格内容起点(经投影换算);旧行为恢复 pre-edit 偏移留在旧行。
+        let newStart = (view.source as NSString).range(of: "|  |  |").location + 2
         XCTAssertEqual(
-            view.selectedRange().location, 36,
+            view.selectedRange().location,
+            caretDisplay(view, sourceAt: newStart),
             "Add Row Below 后 caret 必须落新行首格,而非停留旧行")
     }
 
@@ -467,11 +500,16 @@ extension MarkdownTableEditingTests {
         let view = RichMarkdownTextView(
             source: "| a | b |\n| --- | --- |\n| ccccccc | d |\n| e | f |\n")
         let ns = view.source as NSString
-        view.setSelectedRange(NSRange(location: ns.range(of: "d").location + 1, length: 0))
+        view.setSelectedRange(
+            NSRange(
+                location: caretDisplay(view, sourceAt: ns.range(of: "d").location + 1), length: 0))
         XCTAssertTrue(view.deleteTableRowAtCaret())
         XCTAssertEqual(view.source, "| a | b |\n| --- | --- |\n| e | f |\n")
+        // plan 存活位 = 被删行原起点(现 "| e | f |" 行首),经新投影换算。
+        let survivor = (view.source as NSString).range(of: "| e | f |").location
         XCTAssertEqual(
-            view.selectedRange().location, 24,
+            view.selectedRange().location,
+            caretDisplay(view, sourceAt: survivor),
             "删行后 caret 落 plan 的安全存活位(被删行原起点),不得沿用位移后错位的旧偏移")
     }
 
@@ -479,8 +517,10 @@ extension MarkdownTableEditingTests {
     func testTypingPipeInsideCellEscapesAndKeepsColumns() {
         let view = makeTableView()
         let ns = view.source as NSString
-        // caret 在 body 首格 "c" 内
-        view.setSelectedRange(NSRange(location: ns.range(of: "c").location + 1, length: 0))
+        // caret 在 body 首格 "c" 内(经投影换算)
+        view.setSelectedRange(
+            NSRange(
+                location: caretDisplay(view, sourceAt: ns.range(of: "c").location + 1), length: 0))
         view.insertText("x|y")
         XCTAssertTrue(view.source.contains("| cx\\|y |"), "管道转义写入: \(view.source)")
         // 列数不塌:表仍为两列结构
@@ -515,14 +555,18 @@ extension MarkdownTableEditingTests {
     func testInsertAndDeleteColumnCommandsAtCaret() {
         let view = makeTableView()
         let ns = view.source as NSString
-        view.setSelectedRange(NSRange(location: ns.range(of: "d").location + 1, length: 0))
+        view.setSelectedRange(
+            NSRange(
+                location: caretDisplay(view, sourceAt: ns.range(of: "d").location + 1), length: 0))
         XCTAssertTrue(view.insertTableColumnAtCaret())
         XCTAssertEqual(
             view.source, "| a |  | b |\n| --- | --- | --- |\n| c |  | d |\n| e |  | f |\n",
             "新空列插在 caret 列前(原列右移)")
         XCTAssertTrue(view.performUndo())
 
-        view.setSelectedRange(NSRange(location: ns.range(of: "f").location + 1, length: 0))
+        view.setSelectedRange(
+            NSRange(
+                location: caretDisplay(view, sourceAt: ns.range(of: "f").location + 1), length: 0))
         XCTAssertTrue(view.deleteTableColumnAtCaret())
         XCTAssertEqual(view.source, "| a |\n| --- |\n| c |\n| e |\n")
         XCTAssertTrue(view.performUndo())
@@ -533,14 +577,18 @@ extension MarkdownTableEditingTests {
         let view = makeTableView()
         let ns = view.source as NSString
         // caret 在末行 "e" 内:上移一行
-        view.setSelectedRange(NSRange(location: ns.range(of: "e").location + 1, length: 0))
+        view.setSelectedRange(
+            NSRange(
+                location: caretDisplay(view, sourceAt: ns.range(of: "e").location + 1), length: 0))
         XCTAssertTrue(view.moveTableRowUpAtCaret())
         XCTAssertEqual(
             view.source, "| a | b |\n| --- | --- |\n| e | f |\n| c | d |\n")
         XCTAssertTrue(view.performUndo())
 
         // 头行上移必须拒绝(护头/分隔行)
-        view.setSelectedRange(NSRange(location: ns.range(of: "a").location + 1, length: 0))
+        view.setSelectedRange(
+            NSRange(
+                location: caretDisplay(view, sourceAt: ns.range(of: "a").location + 1), length: 0))
         XCTAssertFalse(view.moveTableRowUpAtCaret())
         XCTAssertEqual(view.source, "| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n")
     }
@@ -549,7 +597,9 @@ extension MarkdownTableEditingTests {
     func testMoveColumnCommandSwapsDataAndAlignment() {
         let view = RichMarkdownTextView(source: "| a | b |\n| :- | -: |\n| c | d |\n")
         let ns = view.source as NSString
-        view.setSelectedRange(NSRange(location: ns.range(of: "a").location + 1, length: 0))
+        view.setSelectedRange(
+            NSRange(
+                location: caretDisplay(view, sourceAt: ns.range(of: "a").location + 1), length: 0))
         XCTAssertTrue(view.moveTableColumnRightAtCaret())
         XCTAssertEqual(view.source, "| b | a |\n| -: | :- |\n| d | c |\n", "数据与对齐随列移动")
         XCTAssertTrue(view.performUndo())
@@ -559,7 +609,9 @@ extension MarkdownTableEditingTests {
     func testSetAlignmentCommandRewritesDelimiter() {
         let view = makeTableView()
         let ns = view.source as NSString
-        view.setSelectedRange(NSRange(location: ns.range(of: "b").location + 1, length: 0))
+        view.setSelectedRange(
+            NSRange(
+                location: caretDisplay(view, sourceAt: ns.range(of: "b").location + 1), length: 0))
         XCTAssertTrue(view.setTableAlignmentAtCaret(.center))
         XCTAssertEqual(
             view.source,

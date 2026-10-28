@@ -176,7 +176,8 @@ final class MarkdownProjectionTests: XCTestCase {
         let table = projection(of: source, as: .table)
         XCTAssertTrue(table.segments.contains { $0.kind == .tableCell }, "cell 必须投影")
         XCTAssertFalse(table.segments.contains { $0.kind == .plainFallback })
-        XCTAssertFalse(table.display.contains("|"), "管道必须隐藏")
+        XCTAssertFalse(table.display.contains("| "), "边界管道必须隐藏")
+        XCTAssertFalse(table.display.hasPrefix("|"), "行首管道必须隐藏")
         XCTAssertFalse(table.display.contains("---"), "分隔行必须隐藏")
         XCTAssertTrue(table.display.contains("a\\|b"), "cell 内容原样")
 
@@ -257,4 +258,5 @@ extension MarkdownProjectionTests {
             print("  \(seg.kind) src=\(seg.sourceRangeUTF16) disp=\(seg.displayRangeUTF16) text=\(seg.displayText.debugDescription)")
         }
     }
+
 }
