@@ -486,11 +486,25 @@ final class VersionHistoryViewController: NSViewController {
             let text = try? String(contentsOf: url, encoding: .utf8)
         else { return }
 
-        NoteVersionManager.shared.saveVersionIfNeeded(for: note, force: true)
+        // History policy: snapshot the current content before overwriting it,
+        // so the restore itself is reversible through this same panel.
+        // T09：快照取 session 提交原文（含未保存输入；local recovery trigger）。
         guard let vc = ViewController.shared() else { return }
+        vc.captureSessionSourceForVersionSnapshot(of: note)
+        NoteVersionManager.shared.saveVersionIfNeeded(for: note, force: true)
 
-        note.save(content: NSMutableAttributedString(string: text))
-        vc.editArea.fill(note: note, options: .forced)
+        // T09 (SPEC §7.3): version restore is an explicit source replacement
+        // transaction — the session advances its generation and republishes the
+        // buffer, instead of writing note.save() and calling fill() directly
+        // (which left the old buffer one generation behind and let a stale
+        // whole-buffer save resurrect the pre-restore text).
+        let restored = vc.editArea.applyRestoredVersion(text, owner: note)
+        if restored {
+            note.commit(content: NSMutableAttributedString(string: text))
+        } else {
+            note.save(content: NSMutableAttributedString(string: text))
+            vc.editArea.fill(note: note, options: .forced)
+        }
         dismiss(self)
         reselect()
 

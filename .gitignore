@@ -116,3 +116,6 @@ AGENTS.override.md
 
 # Local AI Assistant files
 journal/
+
+# local smoke-test libraries (agent verification only)
+.smoke-libs/

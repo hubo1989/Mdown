@@ -133,6 +133,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVa
 
     }
 
+    /// T08: 退出的可取消前置。dirty 草稿先经统一入口提交+落盘；写失败/
+    /// 冲突呈现 Retry/Save Copy/Discard/Cancel 并等待结果，Cancel 阻止
+    /// 退出（terminateCancel）。willTerminate 只做最后的静默兜底。
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let vc = resolveViewController() else { return .terminateNow }
+        return AppEnvironment.current.editingTransitions.prepareExit(in: vc)
+            ? .terminateNow
+            : .terminateCancel
+    }
+
     func applicationWillTerminate(_ aNotification: Notification) {
         UserDefaultsManagement.clearSingleMode()
         if let vc = resolveViewController() {
@@ -140,16 +150,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVa
             // Capture the current editor buffer into the active note before
             // we drain the debounce queue, otherwise an in-flight keystroke
             // from the last 1.5s would never reach Note.content.
-            // T01: 硬保存点从活动编辑后端采集（wysiwyg 时 Vditor 是权威）。
-            let wysiwygActive = vc.sessionLayoutMode == .wysiwyg
-            if let activeNote = ActiveEditingBackend.activeNote(
-                sourceNote: EditTextView.note, vditorView: vc.vditorEditView, isWysiwygActive: wysiwygActive
-            ) {
-                ActiveEditingBackend.captureBuffer(
-                    for: activeNote, sourceEditor: vc.editArea,
-                    vditorView: vc.vditorEditView, isWysiwygActive: wysiwygActive
-                )
-            }
+            // T08: 统一入口采集（applicationShouldTerminate 已做可取消
+            // 网关，这里只做最后的静默兜底）。
+            _ = AppEnvironment.current.editingTransitions.finishActiveEditing(
+                in: vc, forceCompositionFinish: true)
             vc.storage.flushPendingSaves()
         }
         try? FileManager.default.removeItem(at: HtmlManager.previewBundleURL())

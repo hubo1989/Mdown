@@ -1,6 +1,5 @@
 import Carbon.HIToolbox
 import Cocoa
-import Highlightr
 
 // Configuration options for EditTextView fill operations
 struct FillOptions {
@@ -50,6 +49,23 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
     /// persists must validate against this owner, never against
     /// `EditTextView.note` alone (#543).
     private(set) var storageNote: Note?
+    /// T05: 源码会话（窗口编辑上下文的 source/revision/selection 权威）。
+    /// 与 storageNote 同生命周期：fill 装载 buffer 时同 URL 复用（replaceAll
+    /// 提升代际），URL 变化则新建。旧 session 由 ARC 回收，显式 retire
+    /// 由 T07/T08 的删除/关闭路径接入。写入只经 installEditingSession /
+    /// updateStorageRevision（EditTextView+EditingSession 调用）。
+    private(set) var editingSession: MarkdownEditingSession?
+    /// buffer 内容对应的会话 revision（publish 时标注）。落后于会话当前
+    /// revision 的 buffer 不得整篇写回（旧 v1 覆盖新 v2，T05 防护）。
+    private(set) var storageRevision: UInt64 = 0
+
+    func installEditingSession(_ session: MarkdownEditingSession?) {
+        editingSession = session
+    }
+
+    func updateStorageRevision(_ revision: UInt64) {
+        storageRevision = revision
+    }
     public static var shouldForceRescan: Bool = false
     public static var lastRemoved: String?
     public var viewDelegate: ViewController?
@@ -437,6 +453,8 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
 
     private func insertShortcutText(_ shortcut: String) {
         guard EditTextView.note != nil else { return }
+        // T14：rich 活动面优先,不踢回 source（NE-24）。复用 adapter 的路由前提。
+        if MarkdownEditorCommandAdapter.richShortcutInsertTarget(for: self, shortcut: shortcut) { return }
         if let vc = getViewController(), vc.sessionLayoutMode == .wysiwyg {
             vc.sessionLayoutMode = .source
             UserDefaultsManagement.editorLayoutMode = .source
@@ -502,6 +520,9 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         // user navigates away inside that window. force:true bypasses the
         // throttle; content dedup still skips no-op snapshots.
         if let previous = EditTextView.note, previous !== note {
+            // T09：快照前先采集 session 提交原文（local recovery trigger，
+            // buffer 仍属于 previous 时刷新镜像；owner 不匹配时安全 no-op）。
+            viewController.captureSessionSourceForVersionSnapshot(of: previous)
             NoteVersionManager.shared.saveVersionIfNeeded(for: previous, force: true)
         }
 
@@ -987,33 +1008,42 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
     /// Single point that replaces the storage bytes wholesale and records
     /// which note they belong to. Every full-storage assignment must go
     /// through here so `storageNote` can never drift from the actual bytes.
+    /// T05: 会话基线同步见 EditTextView+EditingSession.syncEditingSession。
     func publishStorage(_ content: NSAttributedString, owner: Note?) {
-        textStorage?.setAttributedString(content)
+        // T06：程序化装载（fill/版本恢复/外部重载）不登记 undo——view 刷新
+        // 不产生历史（SPEC §5.4）。用户后续输入从该基线开始新的 undo 链。
+        withoutUndoRegistration {
+            textStorage?.setAttributedString(content)
+        }
         storageNote = owner
+        syncEditingSession(with: content, owner: owner)
     }
 
-    func saveTextStorageContent(to note: Note) {
-        guard let storage = textStorage else { return }
-        // Refuse cross-note writes: when the buffer belongs to a different
-        // note than the requested target (preview-family modes after a list
-        // switch, see `storageNote` doc), copying it over would replace the
-        // target note's entire content with another file's text (#543).
-        guard let owner = storageNote, owner.isEqualURL(url: note.url) else {
-            let mismatch = NSError(
-                domain: "com.mdown.app.race",
-                code: 3,
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "textStorage owner (\(storageNote?.url.lastPathComponent ?? "nil")) != save target (\(note.url.lastPathComponent))"
-                ])
-            AppDelegate.trackError(mismatch, context: "EditTextView.saveTextStorageContent.ownerGuard")
-            return
+    /// T09: 会话已自行推进代际（watcher 无 dirty 重载、版本恢复、显式接受
+    /// 外部版本）后，把新基线发布进 buffer。与 `publishStorage` 的差别是
+    /// **不再 rebase 会话**——`replaceAll` 只应发生一次，否则 generation
+    /// 双跳、`storageIsStale` 防护与测试断言都偏离真实代际。字节赋值留在
+    /// 主文件：storageNote 的 private(set) 不放宽。
+    /// 程序化装载同样不登记 undo。
+    func publishStorageWithoutRebasingSession(_ content: NSAttributedString, owner: Note?) {
+        withoutUndoRegistration {
+            textStorage?.setAttributedString(content)
         }
-        let string = storage.attributedSubstring(from: NSRange(0..<storage.length))
-        let cleaned = NSMutableAttributedString(attributedString: string)
-            .unLoadImages()
-            .unLoadCheckboxes()
-        note.content = cleaned
+        storageNote = owner
+        editingSession?.markStoragePublished()
+        updateStorageRevision(editingSession?.revision ?? 0)
+    }
+
+    /// T08: finish an in-flight IME composition so leaving points capture the
+    /// confirmed text instead of a buffer missing the composing draft
+    /// (NE-13). Returns false while a composition stays active — transition
+    /// gates must then keep the user in the original context instead of
+    /// capturing a partial buffer.
+    @discardableResult
+    func finishActiveComposition() -> Bool {
+        guard hasMarkedText() else { return true }
+        unmarkText()
+        return !hasMarkedText()
     }
 
     func setEditorTextColor(_ color: NSColor) {
@@ -1137,7 +1167,6 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
             UserDataService.instance.isDark = effectiveAppearance.isDark
         }
 
-        NotesTextProcessor.hl = nil
         NotesTextProcessor.highlight(note: note)
 
         // Don't toggle preview mode on theme change - just refresh the preview content
@@ -1411,6 +1440,7 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
     }
 
     private func handleFindCommands(characters: String, isShiftPressed: Bool) -> Bool {
+        if richHostOwnsFind() { return false }
         if shouldRouteFindToPreview(), let web = markdownView {
             return handlePreviewFindCommands(characters: characters, isShiftPressed: isShiftPressed, webView: web)
         } else {
@@ -1453,6 +1483,7 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
 
     private func ensureSearchBarVisibleAfterAppKit(handled: Bool, characters: String, modifiers: KeyModifiers) {
         guard handled && modifiers.commandOnly else { return }
+        if richHostOwnsFind() { return }  // T14：rich 活动时查找条归 rich host
         switch characters.lowercased() {
         case "f":
             if !isSearchBarVisible {
@@ -1957,20 +1988,4 @@ class EditTextView: NSTextView, @preconcurrency NSTextFinderClient {
         return true
     }
 
-    // MARK: - Text Replacement Helper
-    private func replaceText(_ text: String, in range: NSRange) {
-        guard let textStorage = textStorage else { return }
-
-        // Preserve text attributes when replacing
-        let attributes = typingAttributes
-        let attributedText = NSAttributedString(string: text, attributes: attributes)
-
-        textStorage.replaceCharacters(in: range, with: attributedText)
-
-        // Trigger layout update and change notification
-        if let tc = textContainer {
-            layoutManager?.ensureLayout(for: tc)
-        }
-        didChangeText()
-    }
 }

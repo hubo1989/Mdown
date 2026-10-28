@@ -1,5 +1,15 @@
 /* About Window */
 "About" = "Mdownについて";
+"Copy Visible Text" = "表示テキストをコピー";
+"Copy Markdown" = "Markdown をコピー";
+"Paste Plain Text" = "プレーンテキストをペースト";
+"Paste Markdown" = "Markdown をペースト";
+"Edit Image" = "画像を編集";
+"Save" = "保存";
+"Alternative Text" = "代替テキスト";
+"Image URL" = "画像 URL";
+"Image Title" = "画像タイトル";
+"Attachment could not be inserted. Please try again." = "添付ファイルを挿入できませんでした。もう一度お試しください。";
 
 /* No comment provided by engineer. */
 "Add" = "追加";
@@ -289,6 +299,7 @@
 "Reload" = "再読み込み";
 "Note reloaded~" = "ノートを再読み込みしました~";
 "Font size: %d" = "文字サイズ：%d";
+"Native editor failed to load this note; showing source." = "ネイティブエディタでこのノートを読み込めませんでした。ソース表示に戻します。";
 
 /* Version History */
 "Version History" = "バージョン履歴";
@@ -314,3 +325,27 @@
 "Light" = "ライト";
 "Dark" = "ダーク";
 
+
+/* T08 EditingTransitionCoordinator */
+"Failed to save \"%@\"" = "「%@」を保存できませんでした";
+"Your changes could not be written to disk. Retry the save, keep a copy elsewhere, or discard this draft." = "変更内容をディスクに書き込めませんでした。再試行するか、別の場所にコピーを保存するか、この下書きを破棄してください。";
+"Retry" = "再試行";
+"Save Copy…" = "コピーを保存…";
+"Discard Changes" = "変更を破棄";
+"Task checkboxes need an active editor for this note." = "タスクのチェックには、このノートが編集可能である必要があります。";
+"Add Row Below" = "下に行を挿入";
+"Delete Row" = "行を削除";
+"Insert Column" = "列を挿入";
+"Delete Column" = "列を削除";
+"Move Row Up" = "行を上へ移動";
+"Move Row Down" = "行を下へ移動";
+"Move Column Left" = "列を左へ移動";
+"Move Column Right" = "列を右へ移動";
+"Align Column" = "列の整列";
+"No Alignment" = "整列なし";
+"Align Left" = "左揃え";
+"Align Center" = "中央揃え";
+"Align Right" = "右揃え";
+"Change Language" = "言語を変更";
+"Exit Code Block" = "コードブロックを抜ける";
+"Toggle WYSIWYG" = "WYSIWYG に切り替え";

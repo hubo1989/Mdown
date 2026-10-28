@@ -25,6 +25,7 @@ struct LosslessMarkdownParser {
         case table
         case thematicBreak
         case htmlBlock
+        case mathBlock
         case blank
     }
 
@@ -98,11 +99,26 @@ struct LosslessMarkdownParser {
             let kind = classifyLine(line, previousKind: blocks.last?.kind)
 
             switch kind {
+            case .mathBlock:
+                let opening = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                var end = index
+                if opening == "$$" {
+                    end = index + 1
+                    while end < lines.count, lines[end].trimmingCharacters(in: .whitespacesAndNewlines) != "$$" { end += 1 }
+                    end = min(end, lines.count - 1)
+                }
+                blocks.append(idx.block(.mathBlock, from: index, through: end))
+                index = end + 1
             case .codeFence:
                 index = consumeFence(from: index, lines: lines) { kind, from, through in
                     blocks.append(idx.block(kind, from: from, through: through))
                 }
-            case .blank, .paragraph, .heading, .thematicBreak, .htmlBlock:
+            case .htmlBlock:
+                var end = index + 1
+                while end < lines.count, !lines[end].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { end += 1 }
+                blocks.append(idx.block(.htmlBlock, from: index, through: end - 1))
+                index = end
+            case .blank, .paragraph, .heading, .thematicBreak:
                 let (block, next) = consumeSingleOrParagraph(kind, at: index, lines: lines, index: idx)
                 blocks.append(block)
                 index = next
@@ -196,6 +212,8 @@ struct LosslessMarkdownParser {
         // fence 是合法 fence；≥4 空格/tab 的已被上面的 indented code 承接
         // （CommonMark 内容列规则）。
         if let info = fenceInfo(trimmed) { return .codeFence(info: info) }
+
+        if trimmed.trimmingCharacters(in: .newlines).hasPrefix("$$") { return .mathBlock }
 
         // quote
         if line.hasPrefix(">") {

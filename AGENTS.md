@@ -183,6 +183,18 @@ Avoid broad scans of `build/`, `.build/`, `dist/`, and bundled web assets unless
 - `renderMarkdownHTML` in `Business/Markdown.swift` is the single markdown-to-HTML funnel for preview, split view, export, PPT, and actions. Post-render transforms (the GitHub Alerts callout rewrite lives there) belong at the end of that function, never in individual call sites. Alert styling lives in `DownView.bundle/css/typography.css` with dark overrides in `theme-dark.css` (the `.darkmode *` color rule forces explicit dark restatements).
 - Frontmatter stripping is a per-surface invariant, not a two-file rule: every surface that outputs note or markdown content (macOS preview/export, iOS preview, appcast/release-notes rendering, any future export) must strip leading YAML frontmatter, and a new rendering surface adds its stripping in the same commit (`---date/image---` has leaked verbatim through both the appcast body and the iOS preview). The copies are deliberately duplicated per platform: `Note.cleanMetaData` (macOS), `MobileHtmlRenderer.stripFrontmatter` (iOS preview) and the private `stripFrontmatter` in `MdownMobile/Services/FileReader.swift` must keep identical semantics; change all three in the same commit. CRLF gotcha all copies share: `"\r\n"` is one Swift grapheme, so `range(of: "\n---")` never matches inside it; search both `"\n---"` and `"\r\n---"`.
 - `Helpers/TypographyCleaner.swift` (Edit → Clean Typography) must never rewrite protected regions: fenced/inline code, math, link targets, wikilinks, bare URLs, frontmatter. Extend the segment parser, don't bypass it. `Helpers/HtmlToMarkdown.swift` converts pasted HTML only when block-structure tags are present, so plain-text paste stays authoritative for code copied from editors; keep that gate.
+- Native wysiwyg surface (T10–T22): `NativeRichEditorHostView` +
+  `RichMarkdownTextView` is the only wysiwyg backend (Vditor removed).
+  Its authoritative text is `RichMarkdownTextView.source`; edits mirror to
+  `note.content` through `onSourceCommitted`. Never persist from the hidden
+  `EditTextView` buffer while wysiwyg is active, and never edit the same
+  note from both surfaces — the #543 ownership rules apply to both.
+- Code highlighting (`NativeCodeHighlighter`) and formatting
+  (`NativeMarkdownFormatter`, `mdown-preserve-v1`) are native. Protected
+  regions for both: fenced/indented code, math, frontmatter, raw HTML,
+  link targets, wikilinks. Extend the parsers, don't bypass them; IME
+  marked-text periods must never have attributes rewritten (rich surface
+  skips projection rebuilds while `hasMarkedText()`).
 - New macOS menu items need the storyboard entry plus an ObjectID-keyed `.title` line in all four `Main.strings` (es/ja/zh-Hans/zh-Hant); new toasts need the English text as key in all four `Localizable.strings` (Base has no Localizable.strings, English falls back to the key itself). Missing a file silently ships English to that locale.
 
 ## Release Channels

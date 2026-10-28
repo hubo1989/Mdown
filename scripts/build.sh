@@ -50,21 +50,25 @@ echo "[3/6] Exporting..."
 mkdir -p "./build/Release"
 cp -R "./build/Mdown.xcarchive/Products/Applications/Mdown.app" "./build/Release/Mdown.app"
 
-# 4. Ad-hoc sign & package
+# 4. Sign & package
 echo "[4/6] Signing & packaging..."
+# 与 TransFrame 同款:公司 Developer ID(发布产物可公证/Gatekeeper 放行)。
+# 回退 ad-hoc:MDOWN_SIGN_IDENTITY="-" bash scripts/build.sh
+SIGN_IDENTITY="${MDOWN_SIGN_IDENTITY:-Developer ID Application: Chengdu Chunfenshijie Technology Co.,Ltd. (27LU47J28S)}"
 # Clean attributes FIRST, then sign (otherwise signature is invalidated)
 xattr -cr "./build/Release/Mdown.app"
 # Sign frameworks explicitly first to ensure consistency
 if [ -d "./build/Release/Mdown.app/Contents/Frameworks" ]; then
-	find "./build/Release/Mdown.app/Contents/Frameworks" -depth -name "*.framework" -print0 | xargs -0 codesign --force --deep -s -
+	find "./build/Release/Mdown.app/Contents/Frameworks" -depth -name "*.framework" -print0 | xargs -0 codesign --force --deep -s "$SIGN_IDENTITY" --options runtime
 fi
 # Sign the main application
-codesign --force --deep -s - "./build/Release/Mdown.app"
+codesign --force --deep -s "$SIGN_IDENTITY" --options runtime "./build/Release/Mdown.app"
 # Verify signature
 codesign -v "./build/Release/Mdown.app" || {
 	echo "Signature verification failed"
 	exit 1
 }
+echo "Signed with: $(codesign -dvv ./build/Release/Mdown.app 2>&1 | awk '/Authority=/{print $2" "$3" "$4; exit}')"
 
 ZIP_NAME="Mdown_V${VERSION}.zip"
 DMG_NAME="Mdown.dmg"
@@ -72,6 +76,29 @@ DOWNLOADS=~/Downloads
 APP_NAME="Mdown"
 BACKGROUND_IMAGE_SOURCE="./Resources/dmg-background.png"
 BACKGROUND_IMAGE_NAME="$(basename "$BACKGROUND_IMAGE_SOURCE")"
+
+# 4.5 Notarize & staple(公司 Developer ID 产物;凭据已存 keychain:
+# xcrun notarytool store-credentials mdown-notary ...)。装订后再打 zip,
+# 分发包必须携带票据,离线首启才不被 Gatekeeper 拦。
+# 跳过:MDOWN_NOTARIZE=0;ad-hoc 签名(回退模式)自动跳过——不可公证。
+NOTARY_PROFILE="${MDOWN_NOTARY_PROFILE:-mdown-notary}"
+if [[ "${MDOWN_NOTARIZE:-1}" == "1" && "$SIGN_IDENTITY" != "-" ]]; then
+	echo "[4.5/6] Notarizing (profile: ${NOTARY_PROFILE})..."
+	# 公证按 zip 提交;先打一份临时提交包,装订后正式重打。
+	/usr/bin/ditto -c -k --sequesterRsrc --keepParent "./build/Release/Mdown.app" "./build/notary-submit.zip"
+	if ! xcrun notarytool submit "./build/notary-submit.zip" --keychain-profile "$NOTARY_PROFILE" --wait; then
+		echo -e "${RED}ERROR: Notarization failed${NC}"
+		exit 1
+	fi
+	rm -f "./build/notary-submit.zip"
+	if ! xcrun stapler staple "./build/Release/Mdown.app"; then
+		echo -e "${RED}ERROR: Stapling failed${NC}"
+		exit 1
+	fi
+	xcrun stapler validate "./build/Release/Mdown.app"
+else
+	echo "[4.5/6] Notarization skipped (MDOWN_NOTARIZE=0 or ad-hoc signing)"
+fi
 
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "./build/Release/Mdown.app" "./build/$ZIP_NAME"
 

@@ -79,8 +79,7 @@ Star Mdown, report problems through [Issues](https://github.com/hubo1989/Mdown/i
 - [tw93/MiaoYan](https://github.com/tw93/MiaoYan) - Original project; the MIT copyright notice is retained
 - [glushchenko/fsnotes](https://github.com/glushchenko/fsnotes) - Initial project structure reference
 - [stackotter/swift-cmark-gfm](https://github.com/stackotter/swift-cmark-gfm) - Swift Markdown parser
-- [simonbs/Prettier](https://github.com/simonbs/Prettier) - Markdown formatting utilities
-- [raspu/Highlightr](https://github.com/raspu/Highlightr) - Syntax highlighting
+
 - [hakimel/reveal.js](https://github.com/hakimel/reveal.js) - PPT presentation framework
 ## License
 

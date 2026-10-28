@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-10-14",
+  "mdown_head": "b8110a942e27ae13ebe531b549a56e5a220f91ae",
+  "target": {
+    "sha256": "6fc6b2cf726f7366b8b0a62d0e2fa557ef8ec186dea9079c3f758c5a1e46962f",
+    "name": "Typora 1.12.6 / 7588 本地副本",
+    "official_release_identity": "unverified",
+    "arm64_slice_sha256": "35d2369c866af36e98cbca8a8dec5d408a8c78b8ec210d82b32c71a2b6857f57",
+    "main_js_sha256": "745d737c75397a1424e6211a8a9523349ecae5267f39e4a516790ac7f9cfeee8"
+  },
+  "independent_native_verification": {
+    "report": "/Volumes/external/Projects/typora-r/research/native-verify/report.md",
+    "status": "complete-within-listed-static-paths",
+    "covered": ["target-digests-and-slice-byte-equality", "classlist-and-symbols", "multiwindow-sync", "snapshot-fields", "prompt-sync-bridge", "export-dispatch-and-pdf-postprocessing", "textbundle-asset-handler"],
+    "limitations": ["不包含运行输入、视觉、性能或所有原生函数", "未获得 Hopper 函数 dossier", "独立复核不把同一静态输入升级为运行观测"]
+  },
+  "claims": [
+    {
+      "id": "NATIVE-IDENTITY",
+      "claim": "分析对象包含 x86_64 与 arm64 两个 Mach-O slice",
+      "authority": "shipped-artifact",
+      "status": "static-observed",
+      "evidence_ids": ["ev_eda34ac073ec3a08f1a7cfda2a8ad62beab761725490e58dee03e68bd2d50807"],
+      "limitations": ["不证明官方发行来源"]
+    },
+    {
+      "id": "NATIVE-SIGNATURE",
+      "claim": "该副本 codesign 记录 Authority 为 Antibiotics，未返回 TeamIdentifier",
+      "authority": "shipped-artifact",
+      "status": "static-observed",
+      "evidence_ids": ["ev_b53586590447a2f495b9ac27cbce660ffcc35ef7912062ec0e475e24d2db8b14"],
+      "limitations": ["未作系统信任与官方发行验证"]
+    },
+    {
+      "id": "NATIVE-CLASSCOUNT",
+      "claim": "__objc_classlist 为 0x318 bytes，99 项；此前 198 计数重复包含 metaclass",
+      "authority": "local-static-tool-observation",
+      "status": "static-observed",
+      "source": "native-offline/load-commands.txt + objc.txt",
+      "limitations": ["不是整套继承体系或运行类全集"]
+    },
+    {
+      "id": "NATIVE-SYNC",
+      "claim": "Document.syncChange 将非空变更广播到同一文档的非活动窗口",
+      "authority": "local-static-tool-observation",
+      "status": "static-derived",
+      "address": "0x100043264",
+      "source": "native-offline/selected/Document_syncChange.txt",
+      "limitations": ["未执行多窗口同步场景"]
+    },
+    {
+      "id": "NATIVE-SNAPSHOT",
+      "claim": "原生 DocumentSnap 接收 nodeMap、undoRedo、源码历史、光标、滚动、换行信息",
+      "authority": "local-static-tool-observation",
+      "status": "static-derived",
+      "address": "0x100040fd0",
+      "source": "native-offline/selected/Document_buildDocumentSnap.txt",
+      "limitations": ["未进行崩溃恢复运行验证"]
+    },
+    {
+      "id": "NATIVE-PROMPT-BRIDGE",
+      "claim": "WK prompt __bridge__ 接入 callSync 的 name/method/data JSON 分发",
+      "authority": "local-static-tool-observation",
+      "status": "static-derived",
+      "addresses": ["0x10000f654", "0x10000f524"],
+      "source": "native-offline/selected/CommandBridge_callSync.txt",
+      "limitations": ["未验证运行回调或响应延迟", "不是 Mdown 原生编辑的建议实现方式"]
+    },
+    {
+      "id": "NATIVE-EXPORT-DISPATCH",
+      "claim": "prepare 回调后按 type 分 PDF、HTML、image、custom、Pandoc",
+      "authority": "local-static-tool-observation",
+      "status": "static-derived",
+      "addresses": ["0x100074bd0", "0x100074cc8"],
+      "source": "native-offline/extra-selected/48_TyWindowController_Export__exportWithOption__block_invoke.txt",
+      "limitations": ["尚未运行全部导出格式"]
+    },
+    {
+      "id": "NATIVE-PDF-REPAIR",
+      "claim": "PDF 修复请求 getFixData，并依次处理重绘、目录、属性与字体映射",
+      "authority": "local-static-tool-observation",
+      "status": "static-derived",
+      "addresses": ["0x10002989c", "0x100029ab0", "0x100029120"],
+      "source": "native-offline/callback-slices/0x100029ab0.txt",
+      "limitations": ["字体与链接的具体运行效果未验证"]
+    },
+    {
+      "id": "NATIVE-TEXTBUNDLE-ASSET",
+      "claim": "URL scheme handler 按 lastPathComponent 读取当前 TextBundle asset",
+      "authority": "local-static-tool-observation",
+      "status": "static-derived",
+      "address": "0x10001df94",
+      "source": "native-offline/selected/DocWebViewURLHandler_webView_startURLSchemeTask.txt",
+      "limitations": ["不能据此概括任意本地文件访问的安全策略"]
+    },
+    {
+      "id": "BLOCKER-HOPPER",
+      "claim": "实际分析启动仍被 Apple Events 拒绝；未获得 Hopper 函数 dossier",
+      "authority": "tool-operation-result",
+      "status": "blocked",
+      "source": "native-arm64-session-20261014/results/001-overview.json",
+      "limitations": ["open_binary 的成功返回仅完成绑定", "close_binary cleanup_incomplete，GUI/遗留资源未确认关闭"]
+    },
+    {
+      "id": "JS-MODEL",
+      "claim": "main.js 使用 SystemJS 86 模块、自有 Node/NodeMap、parseFrom 和 toMark 序列化",
+      "authority": "local-static-source-observation",
+      "status": "static-derived",
+      "source": "EDITOR-MODEL.md + research/js-final-anchors.json",
+      "limitations": ["有限负搜索不证明整个应用不存在其他 parser", "未运行所有输入与选择分支"]
+    },
+    {
+      "id": "JS-IME-HISTORY",
+      "claim": "有 composition 事件、结构命令历史与同 cid/flag 的条件聚合；源码另走 CodeMirror 历史",
+      "authority": "local-static-source-observation",
+      "status": "static-derived",
+      "source": "EDITOR-MODEL.md",
+      "limitations": ["3 秒仅是聚合代码条件，运行竞态未验证", "不能把两套历史说成跨模式统一 undo"]
+    },
+    {
+      "id": "MDOWN-EDITING-DEPENDENCIES",
+      "claim": "当前 Mdown 同时有 NSTextView 与 Vditor；Highlightr 和 Prettier 是另外两条编辑 JS 依赖",
+      "authority": "repository-source-observation",
+      "status": "static-observed",
+      "source": "MDOWN-MIGRATION.md",
+      "limitations": ["当前 HEAD 未构建或运行；旧 build 产物仅为辅助证据"]
+    },
+    {
+      "id": "MDOWN-VDITOR-SETTER",
+      "claim": "editor.html 将 setValue 第二参数当回调，随包实现实际参数为 clearStack boolean",
+      "authority": "repository-source-observation",
+      "status": "static-confirmed-contract-mismatch",
+      "source": "Resources/DownView.bundle/editor.html:146 + vditor/dist/index.d.ts:65 + index.js:15754",
+      "limitations": ["未运行复现，未修复；静态失配不能写为运行验证通过"]
+    },
+    {
+      "id": "RUNTIME-PARITY",
+      "claim": "Mdown 与 Typora 的输入、视觉、性能和导出体验完全一致",
+      "authority": "implementation-goal",
+      "status": "unverified",
+      "source": "fixtures/behavior-cases.json",
+      "limitations": ["本轮无运行对照结果", "需要官方 Typora 原包、同一组样例与逐项验收"]
+    }
+  ]
+}

@@ -408,8 +408,8 @@ extension ViewController {
                         self.editArea.fill(note: selectedNote, options: .silent)
                         if self.sessionLayoutMode == .wysiwyg {
                             self.editAreaScroll.isHidden = true
-                            self.vditorEditView?.isHidden = false
-                            self.vditorEditView?.loadNote(selectedNote)
+                            self.activeWysiwygBackend?.isHidden = false
+                            self.activeWysiwygBackend?.loadNote(selectedNote)
                         }
                         self.revealEditor()
                     }
@@ -424,8 +424,8 @@ extension ViewController {
                         self.editArea.fill(note: firstNote, options: .silent)
                         if self.sessionLayoutMode == .wysiwyg {
                             self.editAreaScroll.isHidden = true
-                            self.vditorEditView?.isHidden = false
-                            self.vditorEditView?.loadNote(firstNote)
+                            self.activeWysiwygBackend?.isHidden = false
+                            self.activeWysiwygBackend?.loadNote(firstNote)
                         }
                         self.revealEditor()
                     } else {
