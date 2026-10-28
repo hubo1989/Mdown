@@ -220,12 +220,11 @@ class ViewController:
 
     @IBOutlet var toggleListButton: NSButton!
     @IBOutlet var toggleSplitButton: NSButton!
-    /// T10/T22:工具栏 WYSIWYG 切换按钮(代码创建,同 split 按钮模式)。
-    var wysiwygButton: NSButton?
     @IBOutlet var formatButton: NSButton!
+    /// 所见即所得切换按钮(替代原预览入口;工具栏 eye 按钮即 WYSIWYG 开关)。
     @IBOutlet var previewButton: NSButton! {
         didSet {
-            applyToolbarButtonState(previewButton, isActive: sessionPreviewMode || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
+            applyToolbarButtonState(previewButton, isActive: (sessionLayoutMode == .wysiwyg && !sessionPreviewMode) || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
         }
     }
 
@@ -429,15 +428,10 @@ class ViewController:
         let inactive = Theme.inactiveIconColor
 
         // Toolbar Buttons (Unified Grey in all modes unless active)
-        applyToolbarButtonState(previewButton, isActive: sessionPreviewMode || sessionMagicPPTMode, activeTint: accent, inactiveTint: inactive)
-
-        // WYSIWYG(active only in wysiwyg layout)
-        wysiwygButton?.image?.isTemplate = true
-        // 预览 ⇄ 所见即所得互斥:预览期间 wysiwyg 布局仍在底层,
-        // 但按钮只亮当前展示的那个模式。
+        // WYSIWYG(所见即所得已替代旧预览入口)
         applyToolbarButtonState(
-            wysiwygButton,
-            isActive: sessionLayoutMode == .wysiwyg && !sessionPreviewMode,
+            previewButton,
+            isActive: (sessionLayoutMode == .wysiwyg && !sessionPreviewMode) || sessionMagicPPTMode,
             activeTint: accent, inactiveTint: inactive)
 
         // Presentation
@@ -736,6 +730,16 @@ class ViewController:
             return notesTableView.selectedRow != -1
         }
 
+        if menuItem.action == #selector(toggleTypewriterMode(_:)) {
+            menuItem.state = UserDefaultsManagement.editorTypewriterMode ? .on : .off
+            return true
+        }
+
+        if menuItem.action == #selector(toggleFocusDimming(_:)) {
+            menuItem.state = UserDefaultsManagement.editorFocusDimming ? .on : .off
+            return true
+        }
+
         if menuItem.action == #selector(toggleTOC(_:)) {
             // TOC lives in the preview WebView; only meaningful in preview or
             // split mode, and not in PPT (reveal.js template has no TOC).
@@ -793,11 +797,11 @@ class ViewController:
         }
 
         formatButton.toolTip = I18n.str("Format")
-        previewButton.toolTip = I18n.str("Toggle Preview")
+        previewButton.toolTip = I18n.str("Toggle WYSIWYG")
         presentationButton.toolTip = I18n.str("Presentation")
 
         // Unify button sizes and let newer systems render their own chrome.
-        let toolbarButtons = [formatButton, previewButton, presentationButton, toggleListButton, toggleSplitButton, wysiwygButton].compactMap { $0 }
+        let toolbarButtons = [formatButton, previewButton, presentationButton, toggleListButton, toggleSplitButton].compactMap { $0 }
         for btn in toolbarButtons {
             btn.contentTintColor = .secondaryLabelColor
             Theme.configureChromeIconButton(btn)
@@ -819,7 +823,7 @@ class ViewController:
         if let image = NSImage(named: "icon_preview") {
             image.isTemplate = true
             previewButton.image = image
-            applyToolbarButtonState(previewButton, isActive: sessionPreviewMode || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
+            applyToolbarButtonState(previewButton, isActive: (sessionLayoutMode == .wysiwyg && !sessionPreviewMode) || sessionMagicPPTMode, activeTint: Theme.accentColor, inactiveTint: Theme.inactiveIconColor)
         }
         if let image = NSImage(named: "icon_presentation") {
             image.isTemplate = true
@@ -847,28 +851,6 @@ class ViewController:
             Theme.configureChromeIconButton(button)
 
             toggleSplitButton = button
-        }
-
-        // T22:WYSIWYG 切换按钮(native rich 唯一后端的显式入口)
-        if wysiwygButton == nil {
-            let wysButton = NSButton()
-            wysButton.translatesAutoresizingMaskIntoConstraints = false
-            wysButton.bezelStyle = .texturedRounded
-            wysButton.isBordered = false
-            wysButton.imagePosition = .imageOnly
-            if let image = NSImage(
-                systemSymbolName: "doc.richtext",
-                accessibilityDescription: I18n.str("Toggle WYSIWYG"))
-            {
-                image.isTemplate = true
-                wysButton.image = image
-            }
-            wysButton.target = self
-            wysButton.action = #selector(toggleWysiwygMode(_:))
-            wysButton.contentTintColor = .secondaryLabelColor
-            wysButton.toolTip = I18n.str("Toggle WYSIWYG")
-            Theme.configureChromeIconButton(wysButton)
-            wysiwygButton = wysButton
         }
 
         // Create toggleListButton first (leftmost position)
@@ -908,10 +890,6 @@ class ViewController:
         // Setup constraints for toggleSplitButton after both buttons are created
         if let splitButton = toggleSplitButton, let listButton = toggleListButton {
             parent.addSubview(splitButton)
-            // 先入层级再激活引用它的约束(跨层级约束会废掉整窗布局)
-            if let wysButton = wysiwygButton {
-                parent.addSubview(wysButton)
-            }
 
             // Ensure splitButton also has 20x20 constraints if they weren't set in the loop above
             // (The loop above might have run before toggleSplitButton was assigned to the property)
@@ -920,10 +898,10 @@ class ViewController:
                 splitButton.heightAnchor.constraint(equalToConstant: 20),
             ])
 
-            // Recommended Order: List -> Format -> Split -> Preview -> Presentation
+            // Recommended Order: List -> Format -> Split -> WYSIWYG(原 Preview 位) -> Presentation
 
             // Clear existing horizontal constraints for all buttons
-            let allButtons = [listButton, formatButton, splitButton, wysiwygButton, previewButton, presentationButton]
+            let allButtons = [listButton, formatButton, splitButton, previewButton, presentationButton]
             for btn in allButtons {
                 guard let btn = btn else { continue }
                 for constraint in parent.constraints {
@@ -961,20 +939,10 @@ class ViewController:
             // 3. Split
             NSLayoutConstraint.activate([
                 splitButton.centerYAnchor.constraint(equalTo: formatButton.centerYAnchor),
-                splitButton.trailingAnchor.constraint(equalTo: (wysiwygButton ?? previewButton).leadingAnchor, constant: -8),
+                splitButton.trailingAnchor.constraint(equalTo: previewButton.leadingAnchor, constant: -8),
                 splitButton.widthAnchor.constraint(equalToConstant: 20),
                 splitButton.heightAnchor.constraint(equalToConstant: 20),
             ])
-
-            // 3.5 WYSIWYG(Split 与 Preview 之间;已提前 addSubview)
-            if let wysButton = wysiwygButton {
-                NSLayoutConstraint.activate([
-                    wysButton.centerYAnchor.constraint(equalTo: formatButton.centerYAnchor),
-                    wysButton.trailingAnchor.constraint(equalTo: previewButton.leadingAnchor, constant: -8),
-                    wysButton.widthAnchor.constraint(equalToConstant: 20),
-                    wysButton.heightAnchor.constraint(equalToConstant: 20),
-                ])
-            }
 
             // 2. Format
             NSLayoutConstraint.activate([
@@ -1165,6 +1133,9 @@ class ViewController:
         let richHost = NativeRichEditorHostView(frame: .zero)
         richHost.translatesAutoresizingMaskIntoConstraints = false
         richHost.isHidden = true
+        // NE-37/NE-32:恢复打字机/聚焦偏淡持久化开关(只改 view state)。
+        richHost.textView.isTypewriterMode = UserDefaultsManagement.editorTypewriterMode
+        richHost.textView.isFocusDimmingEnabled = UserDefaultsManagement.editorFocusDimming
         richHost.onNoteLoadFailure = { [weak self] note in
             self?.handleNativeWysiwygLoadFailure(note)
         }

@@ -188,8 +188,6 @@
 /* Class = "NSMenuItem"; title = "Toggle Split View"; ObjectID = "Tgl-Spl-View"; */
 "Tgl-Spl-View.title" = "分割表示を切り替え";
 
-/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "Tgl-Wys-Menu"; */
-"Tgl-Wys-Menu.title" = "WYSIWYG を切り替え";
 
 /* Class = "NSMenuItem"; title = "Toggle TOC"; ObjectID = "Tgl-TOC-Menu"; */
 "Tgl-TOC-Menu.title" = "目次の表示切替";
@@ -357,8 +355,8 @@
 /* Class = "NSTextFieldCell"; title = "Version"; ObjectID = "PM6-HD-5pk"; */
 "PM6-HD-5pk.title" = "バージョン";
 
-/* Class = "NSMenuItem"; title = "Toggle Preview"; ObjectID = "PdU-Em-Ugm"; */
-"PdU-Em-Ugm.title" = "プレビューの切り替え";
+/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "PdU-Em-Ugm"; */
+"PdU-Em-Ugm.title" = "WYSIWYG を切り替え";
 
 /* Class = "NSMenuItem"; title = "13"; ObjectID = "Q3T-TQ-ewQ"; */
 "Q3T-TQ-ewQ.title" = "13";
@@ -713,3 +711,9 @@
 /* Class = "NSMenuItem"; ObjectID = "OiT-03-mnu"; */
 "OiT-03-mnu.title" = "ターミナルで開く";
 
+
+/* Class = "NSMenuItem"; title = "Typewriter Mode"; ObjectID = "Typ-Wrt-Mnu"; */
+"Typ-Wrt-Mnu.title" = "タイプライターモード";
+
+/* Class = "NSMenuItem"; title = "Focus Dimming"; ObjectID = "Fcs-Dim-Mnu"; */
+"Fcs-Dim-Mnu.title" = "フォーカス減光";

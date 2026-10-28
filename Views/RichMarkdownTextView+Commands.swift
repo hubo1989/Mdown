@@ -162,6 +162,26 @@ extension RichMarkdownTextView {
     /// caret，不选中附件占位。未知模板退回字面 `/name` 插入（与 source
     /// 模式 Tab 展开失败同语义）。
     @discardableResult
+    // MARK: - Tab Quick Input 菜单 action(WYSIWYG 模式下经 First Responder 命中)
+
+    @IBAction public func insertTimeShortcut(_ sender: Any) { _ = insertShortcutTemplate("time") }
+
+    @IBAction public func insertTableShortcut(_ sender: Any) { _ = insertShortcutTemplate("table") }
+
+    @IBAction public func insertImgShortcut(_ sender: Any) { _ = insertShortcutTemplate("img") }
+
+    @IBAction public func insertVideoShortcut(_ sender: Any) { _ = insertShortcutTemplate("video") }
+
+    @IBAction public func insertMarkmapShortcut(_ sender: Any) { _ = insertShortcutTemplate("markmap") }
+
+    @IBAction public func insertMermaidShortcut(_ sender: Any) { _ = insertShortcutTemplate("mermaid") }
+
+    @IBAction public func insertPlantumlShortcut(_ sender: Any) { _ = insertShortcutTemplate("plantuml") }
+
+    @IBAction public func insertFoldShortcut(_ sender: Any) { _ = insertShortcutTemplate("fold") }
+
+    @IBAction public func insertTaskShortcut(_ sender: Any) { _ = insertShortcutTemplate("task") }
+
     public func insertShortcutTemplate(_ name: String) -> Bool {
         guard isEditable, !hasMarkedText(), !selectionIsProtectedBlock else { return false }
         rebuildProjection()
