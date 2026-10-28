@@ -7,8 +7,6 @@ import XCTest
 @MainActor
 final class MarkdownListEditingTests: XCTestCase {
 
-    private var testWindow: NSWindow?
-
     private func makeView(_ source: String) -> RichMarkdownTextView {
         let view = RichMarkdownTextView(source: source)
         let window = NSWindow(
@@ -18,13 +16,11 @@ final class MarkdownListEditingTests: XCTestCase {
             defer: false
         )
         window.contentView = view
-        testWindow = window
+        // 持窗走 addTeardownBlock：tearDown 覆写是 nonisolated，
+        // 在其中改 @MainActor 存储在 Swift 6 下编译不过
+        // （CI Xcode 16.3；Xcode 27 的 Swift 5 模式放行）。
+        addTeardownBlock { [weak window] in window?.close() }
         return view
-    }
-
-    override func tearDown() {
-        testWindow = nil
-        super.tearDown()
     }
 
     private func enter(_ view: RichMarkdownTextView) -> Bool {
