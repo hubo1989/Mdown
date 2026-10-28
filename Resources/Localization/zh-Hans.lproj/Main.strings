@@ -358,8 +358,8 @@
 /* Class = "NSMenuItem"; title = "Clean Typography"; ObjectID = "tyC-le-mn1"; */
 "tyC-le-mn1.title" = "排版净化";
 
-/* Class = "NSMenuItem"; title = "Toggle Preview"; ObjectID = "PdU-Em-Ugm"; */
-"PdU-Em-Ugm.title" = "切换预览";
+/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "PdU-Em-Ugm"; */
+"PdU-Em-Ugm.title" = "切换所见即所得";
 
 /* Class = "NSMenuItem"; title = "Toggle Presentation"; ObjectID = "9ib-os-JZv"; */
 "9ib-os-JZv.title" = "切换演示";
@@ -589,8 +589,6 @@
 /* Class = "NSMenuItem"; title = "Toggle Split View"; ObjectID = "Tgl-Spl-View"; */
 "Tgl-Spl-View.title" = "切换分栏";
 
-/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "Tgl-Wys-Menu"; */
-"Tgl-Wys-Menu.title" = "切换所见即所得";
 
 /* Class = "NSMenuItem"; title = "Toggle TOC"; ObjectID = "Tgl-TOC-Menu"; */
 "Tgl-TOC-Menu.title" = "切换目录";
@@ -628,3 +626,9 @@
 /* Class = "NSMenuItem"; ObjectID = "pEY-cr-bnn"; */
 "pEY-cr-bnn.title" = "格式";
 
+
+/* Class = "NSMenuItem"; title = "Typewriter Mode"; ObjectID = "Typ-Wrt-Mnu"; */
+"Typ-Wrt-Mnu.title" = "打字机模式";
+
+/* Class = "NSMenuItem"; title = "Focus Dimming"; ObjectID = "Fcs-Dim-Mnu"; */
+"Fcs-Dim-Mnu.title" = "聚焦变暗";

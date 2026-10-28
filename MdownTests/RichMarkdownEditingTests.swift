@@ -24,6 +24,47 @@ final class RichMarkdownEditingTests: XCTestCase {
         return view
     }
 
+    // MARK: Tab Quick Input 菜单 action（WYSIWYG 面 First Responder 契约）
+
+    func testInsertMenuActionsReachRichSurface() {
+        let view = makeView("正文\n")
+        // First Responder 契约:菜单 action 必须能在富面被命中(⌘ 菜单不会置灰)。
+        for selector in [
+            #selector(RichMarkdownTextView.insertTimeShortcut(_:)), #selector(RichMarkdownTextView.insertTableShortcut(_:)),
+            #selector(RichMarkdownTextView.insertImgShortcut(_:)), #selector(RichMarkdownTextView.insertVideoShortcut(_:)),
+            #selector(RichMarkdownTextView.insertMarkmapShortcut(_:)), #selector(RichMarkdownTextView.insertMermaidShortcut(_:)),
+            #selector(RichMarkdownTextView.insertPlantumlShortcut(_:)), #selector(RichMarkdownTextView.insertFoldShortcut(_:)),
+            #selector(RichMarkdownTextView.insertTaskShortcut(_:)),
+        ] {
+            XCTAssertTrue(view.responds(to: selector), "\(selector) 必须实现于富面")
+        }
+    }
+
+    func testInsertTableAndMermaidMenuActionsLandTemplates() {
+        let table = makeView("正文\n")
+        table.setSelectedRange(NSRange(location: 2, length: 0))
+        table.insertTableShortcut(self)
+        XCTAssertTrue(table.source.contains("|-----|"), "表格模板必须插进 source")
+
+        let mermaid = makeView("正文\n")
+        mermaid.setSelectedRange(NSRange(location: 2, length: 0))
+        mermaid.insertMermaidShortcut(self)
+        XCTAssertTrue(mermaid.source.contains("```mermaid"), "mermaid 模板必须插进 source")
+    }
+
+    func testTypewriterAndFocusTogglesOnlyChangeViewState() {
+        let view = makeView("第一行\n第二行\n")
+        let revision = view.revision
+        view.isTypewriterMode = true
+        view.isFocusDimmingEnabled = true
+        view.updateFocusDimming()
+        XCTAssertEqual(view.revision, revision, "开关不得推进 revision(NE-37)")
+        XCTAssertEqual(view.source, "第一行\n第二行\n", "开关不得改正文")
+        view.isFocusDimmingEnabled = false
+        view.updateFocusDimming()
+        XCTAssertEqual(view.revision, revision, "关闭降噪同样只动 view state")
+    }
+
     // MARK: 正文与行内格式直接编辑（source bytes 断言）
 
     func testTypingPlainParagraphReachesSource() {

@@ -241,9 +241,9 @@ CA
                                                 <action selector="toggleNoteList:" target="Ady-hI-5gd" id="G22-P2-hks"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Toggle Preview" image="eye" catalog="system" keyEquivalent="3" id="PdU-Em-Ugm">
+                                        <menuItem title="Toggle WYSIWYG" image="richtext.page" catalog="system" keyEquivalent="3" id="PdU-Em-Ugm">
                                             <connections>
-                                                <action selector="togglePreview:" target="N0L-g4-qwj" id="2w1-01-aD6"/>
+                                                <action selector="toggleWysiwygMode:" target="Ady-hI-5gd" id="2w1-01-aD6"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Toggle Presentation" image="play.rectangle" catalog="system" keyEquivalent="4" id="9ib-os-JZv">
@@ -256,10 +256,16 @@ CA
                                                 <action selector="toggleSplitMode:" target="Ady-hI-5gd" id="Act-Tgl-Spl"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Toggle WYSIWYG" image="doc.richtext" catalog="system" keyEquivalent="e" identifier="viewMenu.toggleWysiwyg" id="Tgl-Wys-Menu">
-                                            <modifierMask key="keyEquivalentModifierMask" shift="YES" command="YES"/>
+                                        <menuItem title="Typewriter Mode" id="Typ-Wrt-Mnu">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
-                                                <action selector="toggleWysiwygMode:" target="Ady-hI-5gd" id="Act-Tgl-Wys"/>
+                                                <action selector="toggleTypewriterMode:" target="Ady-hI-5gd" id="Typ-Wrt-Act"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Focus Dimming" id="Fcs-Dim-Mnu">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="toggleFocusDimming:" target="Ady-hI-5gd" id="Fcs-Dim-Act"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Toggle TOC" image="list.bullet" catalog="system" keyEquivalent="5" identifier="viewMenu.toggleTOC" id="Tgl-TOC-Menu">
@@ -963,7 +969,7 @@ CA
                                                                             <action selector="togglePresentation:" target="XfG-lQ-9wD" id="jW2-Vm-rj9"/>
                                                                         </connections>
                                                                     </button>
-                                                                    <button toolTip="Preview" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Bn7-FD-jzc">
+                                                                    <button toolTip="Toggle WYSIWYG" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Bn7-FD-jzc">
                                                                         <rect key="frame" x="67" y="15" width="21.5" height="20"/>
                                                                         <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="NSQuickLookTemplate" imagePosition="left" inset="2" id="Yk7-v6-QmI">
                                                                             <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
@@ -974,7 +980,7 @@ CA
                                                                             <constraint firstAttribute="height" constant="16" id="mhf-Ok-C0D"/>
                                                                         </constraints>
                                                                         <connections>
-                                                                            <action selector="togglePreview:" target="XfG-lQ-9wD" id="Mf0-5U-8VP"/>
+                                                                            <action selector="toggleWysiwygMode:" target="XfG-lQ-9wD" id="Mf0-5U-8VP"/>
                                                                         </connections>
                                                                     </button>
                                                                 </subviews>

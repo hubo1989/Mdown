@@ -188,8 +188,6 @@
 /* Class = "NSMenuItem"; title = "Toggle Split View"; ObjectID = "Tgl-Spl-View"; */
 "Tgl-Spl-View.title" = "Alternar Vista Dividida";
 
-/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "Tgl-Wys-Menu"; */
-"Tgl-Wys-Menu.title" = "Alternar WYSIWYG";
 
 /* Class = "NSMenuItem"; title = "Toggle TOC"; ObjectID = "Tgl-TOC-Menu"; */
 "Tgl-TOC-Menu.title" = "Alternar Índice";
@@ -357,8 +355,8 @@
 /* Class = "NSTextFieldCell"; title = "Version"; ObjectID = "PM6-HD-5pk"; */
 "PM6-HD-5pk.title" = "Versión";
 
-/* Class = "NSMenuItem"; title = "Toggle Preview"; ObjectID = "PdU-Em-Ugm"; */
-"PdU-Em-Ugm.title" = "Alternar Vista Previa";
+/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "PdU-Em-Ugm"; */
+"PdU-Em-Ugm.title" = "Alternar WYSIWYG";
 
 /* Class = "NSMenuItem"; title = "13"; ObjectID = "Q3T-TQ-ewQ"; */
 "Q3T-TQ-ewQ.title" = "13";
@@ -713,3 +711,9 @@
 /* Class = "NSMenuItem"; ObjectID = "OiT-03-mnu"; */
 "OiT-03-mnu.title" = "Abrir en Terminal";
 
+
+/* Class = "NSMenuItem"; title = "Typewriter Mode"; ObjectID = "Typ-Wrt-Mnu"; */
+"Typ-Wrt-Mnu.title" = "Modo de máquina de escribir";
+
+/* Class = "NSMenuItem"; title = "Focus Dimming"; ObjectID = "Fcs-Dim-Mnu"; */
+"Fcs-Dim-Mnu.title" = "Atenuación de enfoque";

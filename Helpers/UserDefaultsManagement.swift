@@ -167,6 +167,8 @@ public enum UserDefaultsManagement {
         static let EditorContentSplitPosition = "editorContentSplitPosition"
         static let EditorModeKey = "editorMode"
         static let EditorLayoutModeKey = "editorLayoutMode"
+        static let EditorTypewriterMode = "editorTypewriterMode"
+        static let EditorFocusDimming = "editorFocusDimming"
         /// T10：wysiwyg 正文后端开关（true = native rich，默认）。
         /// 开发期 legacy Vditor 回退逃生舱，无设置 UI——defaults write 用。
         static let UseNativeWysiwyg = "useNativeWysiwyg"
@@ -878,6 +880,32 @@ public enum UserDefaultsManagement {
         }
         set {
             EditorStateManager.shared.setMode(newValue ? .ppt : .normal)
+        }
+    }
+
+    /// NE-37:打字机模式(caret 行滚动居中),默认关。
+    static var editorTypewriterMode: Bool {
+        get {
+            if let result = UserDefaults.standard.object(forKey: Constants.EditorTypewriterMode) as? Bool {
+                return result
+            }
+            return false
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Constants.EditorTypewriterMode)
+        }
+    }
+
+    /// NE-32:聚焦变暗(caret 块之外降噪),默认关。
+    static var editorFocusDimming: Bool {
+        get {
+            if let result = UserDefaults.standard.object(forKey: Constants.EditorFocusDimming) as? Bool {
+                return result
+            }
+            return false
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Constants.EditorFocusDimming)
         }
     }
 

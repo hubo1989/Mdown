@@ -561,6 +561,24 @@ extension ViewController {
         updateToolbarButtonTints()
     }
 
+    /// NE-37:打字机模式开关。只改 view state(滚动),不碰正文/undo/dirty。
+    @IBAction func toggleTypewriterMode(_ sender: Any?) {
+        UserDefaultsManagement.editorTypewriterMode.toggle()
+        if let view = nativeRichHost?.textView {
+            view.isTypewriterMode = UserDefaultsManagement.editorTypewriterMode
+            view.scrollCaretToCenterIfNeeded()
+        }
+    }
+
+    /// NE-32/NE-37:聚焦变暗开关。只改显示属性,不碰正文/undo/dirty。
+    @IBAction func toggleFocusDimming(_ sender: Any?) {
+        UserDefaultsManagement.editorFocusDimming.toggle()
+        if let view = nativeRichHost?.textView {
+            view.isFocusDimmingEnabled = UserDefaultsManagement.editorFocusDimming
+            view.updateFocusDimming()
+        }
+    }
+
     @IBAction func toggleWysiwygMode(_ sender: Any? = nil) {
         saveTitleSafely()
         if sessionPreviewMode {

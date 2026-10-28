@@ -205,8 +205,6 @@
 /* Class = "NSMenuItem"; title = "Toggle Split View"; ObjectID = "Tgl-Spl-View"; */
 "Tgl-Spl-View.title" = "切換分欄";
 
-/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "Tgl-Wys-Menu"; */
-"Tgl-Wys-Menu.title" = "切換所見即所得";
 
 /* Class = "NSMenuItem"; title = "Toggle TOC"; ObjectID = "Tgl-TOC-Menu"; */
 "Tgl-TOC-Menu.title" = "切換目錄";
@@ -491,8 +489,8 @@
 /* Class = "NSMenuItem"; title = "Find Previous"; ObjectID = "OwM-mh-QMV"; */
 "OwM-mh-QMV.title" = "尋找上一個";
 
-/* Class = "NSMenuItem"; title = "Toggle Preview"; ObjectID = "PdU-Em-Ugm"; */
-"PdU-Em-Ugm.title" = "切換預覽模式";
+/* Class = "NSMenuItem"; title = "Toggle WYSIWYG"; ObjectID = "PdU-Em-Ugm"; */
+"PdU-Em-Ugm.title" = "切換所見即所得";
 
 /* Class = "NSMenuItem"; title = "Format"; ObjectID = "pEY-cr-bnn"; */
 "pEY-cr-bnn.title" = "格式";
@@ -712,3 +710,9 @@
 /* Class = "NSMenuItem"; ObjectID = "OiT-03-mnu"; */
 "OiT-03-mnu.title" = "在終端機中打開";
 
+
+/* Class = "NSMenuItem"; title = "Typewriter Mode"; ObjectID = "Typ-Wrt-Mnu"; */
+"Typ-Wrt-Mnu.title" = "打字機模式";
+
+/* Class = "NSMenuItem"; title = "Focus Dimming"; ObjectID = "Fcs-Dim-Mnu"; */
+"Fcs-Dim-Mnu.title" = "聚焦變暗";
